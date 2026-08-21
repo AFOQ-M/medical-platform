@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نتائج البحث — منصة الموارد الطبية</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+  </div>
+</header>
+
+<main>
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <section class="search-hero">
+    <h1>نتائج البحث</h1>
+    <form class="search-form" action="search.html" method="get">
+      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد..." autocomplete="off" required>
+      <button type="submit" class="btn btn-primary">بحث</button>
+    </form>
+  </section>
+
+  <div id="results" class="grid">
+    <div class="state-msg">جارٍ البحث...</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  منصة مجانية غير هادفة للربح لطلاب الطب — لا تستضيف محتوى محمي بحقوق نشر مباشرة
+</footer>
+
+<div class="modal-overlay" id="report-modal" hidden>
+  <div class="modal-box">
+    <h3>الإبلاغ عن مشكلة</h3>
+    <p class="hint">المورد: <strong id="report-resource-name"></strong></p>
+    <form id="report-form">
+      <div class="field">
+        <label for="report-reason">نوع المشكلة</label>
+        <select id="report-reason" required>
+          <option value="broken_link">الرابط لا يعمل</option>
+          <option value="wrong_file">الملف غير صحيح</option>
+          <option value="copyright">محتوى محمي بحقوق نشر</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="report-note">ملاحظات إضافية (اختياري)</label>
+        <textarea id="report-note" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" id="report-submit-btn" class="btn btn-primary">إرسال البلاغ</button>
+        <button type="button" id="report-cancel-btn" class="btn btn-outline">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const query = (getQueryParam("q") || "").trim();
+  document.getElementById("search-input").value = query;
+
+  renderBreadcrumb(document.getElementById("breadcrumb"), [
+    { label: "الرئيسية", href: "index.html" },
+    { label: "نتائج البحث" },
+  ]);
+
+  async function runSearch() {
+    const results = document.getElementById("results");
+
+    if (!query) {
+      renderState(results, "اكتب كلمة للبحث عنها.");
+      return;
+    }
+
+    document.title = `بحث: ${query} — منصة الموارد الطبية`;
+
+    // بحث بسيط بالاسم فقط (على العنوان)، مع جلب اسم المادة للسياق
+    const { data, error } = await supabaseClient
+      .from("resources")
+      .select("id, title, type, language, file_url, source_type, status, subjects(id, name)")
+      .eq("status", "published")
+      .ilike("title", `%${query}%`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error(error);
+      renderState(results, "تعذّر إجراء البحث، حاول لاحقًا.");
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      renderState(results, `لا توجد نتائج مطابقة لـ "${query}".`);
+      return;
+    }
+
+    results.innerHTML = "";
+    results.style.gridTemplateColumns = "1fr";
+    data.forEach((r) => {
+      const card = buildResourceCard(r);
+      if (r.subjects?.name) {
+        const subLine = document.createElement("a");
+        subLine.href = `subject.html?id=${r.subjects.id}`;
+        subLine.className = "card-sub";
+        subLine.style.textDecoration = "underline";
+        subLine.textContent = `ضمن مادة: ${r.subjects.name}`;
+        card.insertBefore(subLine, card.querySelector(".resource-actions"));
+      }
+      results.appendChild(card);
+    });
+  }
+
+  runSearch();
+</script>
+</body>
+</html>

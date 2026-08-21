@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة الموارد الطبية — الرئيسية</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+  </div>
+</header>
+
+<main>
+  <section class="search-hero">
+    <h1>ابحث عن مصادرك الدراسية</h1>
+    <p>كتب، ملخصات، سلايدات، وأسئلة — منظّمة حسب جامعتك وسنتك ومادتك</p>
+    <form class="search-form" action="search.html" method="get">
+      <input
+        class="search-input"
+        type="search"
+        name="q"
+        placeholder="ابحث باسم المادة أو المورد..."
+        autocomplete="off"
+        required
+      >
+      <button type="submit" class="btn btn-primary">بحث</button>
+    </form>
+  </section>
+
+  <h2>اختر جامعتك</h2>
+  <div id="universities-grid" class="grid">
+    <div class="state-msg">جارٍ التحميل...</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  منصة مجانية غير هادفة للربح لطلاب الطب — لا تستضيف محتوى محمي بحقوق نشر مباشرة
+</footer>
+
+<div class="modal-overlay" id="report-modal" hidden>
+  <div class="modal-box">
+    <h3>الإبلاغ عن مشكلة</h3>
+    <p class="hint">المورد: <strong id="report-resource-name"></strong></p>
+    <form id="report-form">
+      <div class="field">
+        <label for="report-reason">نوع المشكلة</label>
+        <select id="report-reason" required>
+          <option value="broken_link">الرابط لا يعمل</option>
+          <option value="wrong_file">الملف غير صحيح</option>
+          <option value="copyright">محتوى محمي بحقوق نشر</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="report-note">ملاحظات إضافية (اختياري)</label>
+        <textarea id="report-note" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" id="report-submit-btn" class="btn btn-primary">إرسال البلاغ</button>
+        <button type="button" id="report-cancel-btn" class="btn btn-outline">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/app.js"></script>
+<script>
+  async function loadUniversities() {
+    const grid = document.getElementById("universities-grid");
+    const { data, error } = await supabaseClient
+      .from("universities")
+      .select("id, name, short_name")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      renderState(grid, "تعذّر تحميل قائمة الجامعات، حاول لاحقًا.");
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      renderState(grid, "لا توجد جامعات مضافة بعد.");
+      return;
+    }
+
+    grid.innerHTML = "";
+    data.forEach((uni) => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = `university.html?id=${uni.id}`;
+      a.innerHTML = `
+        <div class="card-icon">${(uni.short_name || uni.name).slice(0, 2)}</div>
+        <h3>${uni.name}</h3>
+        <div class="card-sub">عرض السنوات الدراسية</div>
+      `;
+      grid.appendChild(a);
+    });
+  }
+
+  loadUniversities();
+</script>
+</body>
+</html>

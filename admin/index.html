@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — منصة الموارد الطبية</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="../index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <nav class="header-nav" id="admin-user-info"></nav>
+  </div>
+</header>
+
+<main>
+  <!-- ------------- شاشة تسجيل الدخول ------------- -->
+  <div class="admin-login-box" id="login-box">
+    <h1>تسجيل دخول الأدمن</h1>
+    <p class="hint" style="color: var(--ink-soft); margin-bottom: 18px;">
+      استخدم البريد الإلكتروني وكلمة المرور اللذين أنشأتهما في Supabase Auth
+    </p>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">البريد الإلكتروني</label>
+        <input type="email" id="login-email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="login-password">كلمة المرور</label>
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </div>
+      <p id="login-error" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+      <button type="submit" class="btn btn-primary" style="width:100%;">دخول</button>
+    </form>
+  </div>
+
+  <!-- ------------- لوحة التحكم (بعد الدخول) ------------- -->
+  <div class="admin-shell" id="dashboard" hidden>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h1 style="margin:0;">لوحة التحكم</h1>
+      <button id="logout-btn" class="btn btn-outline btn-sm">تسجيل الخروج</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="universities">الجامعات</button>
+      <button class="admin-tab-btn" data-tab="years">السنوات</button>
+      <button class="admin-tab-btn" data-tab="subjects">المواد</button>
+      <button class="admin-tab-btn" data-tab="resources">الموارد</button>
+      <button class="admin-tab-btn" data-tab="reports">التقارير</button>
+    </div>
+
+    <!-- الجامعات -->
+    <section class="admin-panel active" id="panel-universities">
+      <div class="admin-panel-inner">
+        <h3 id="uni-form-title">إضافة جامعة</h3>
+        <form id="uni-form">
+          <input type="hidden" id="uni-edit-id">
+          <div class="form-grid">
+            <div class="field"><label>اسم الجامعة</label><input type="text" id="uni-name" required></div>
+            <div class="field"><label>الاسم المختصر</label><input type="text" id="uni-short-name"></div>
+            <div class="field"><label>رابط الشعار (اختياري)</label><input type="url" id="uni-logo-url"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="uni-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="uni-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="uni-table">
+            <thead><tr><th>الاسم</th><th>مختصر</th><th></th></tr></thead>
+            <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- السنوات -->
+    <section class="admin-panel" id="panel-years">
+      <div class="admin-panel-inner">
+        <h3 id="year-form-title">إضافة سنة دراسية</h3>
+        <form id="year-form">
+          <input type="hidden" id="year-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="year-university" required></select>
+            </div>
+            <div class="field">
+              <label>رقم السنة (1-6)</label>
+              <input type="number" id="year-number" min="1" max="6" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="year-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="year-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="year-table">
+            <thead><tr><th>الجامعة</th><th>السنة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- المواد -->
+    <section class="admin-panel" id="panel-subjects">
+      <div class="admin-panel-inner">
+        <h3 id="subj-form-title">إضافة مادة</h3>
+        <form id="subj-form">
+          <input type="hidden" id="subj-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة / السنة</label>
+              <select id="subj-year" required></select>
+            </div>
+            <div class="field"><label>اسم المادة</label><input type="text" id="subj-name" required></div>
+            <div class="field"><label>رمز المادة (اختياري)</label><input type="text" id="subj-code"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="subj-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="subj-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="subj-table">
+            <thead><tr><th>المادة</th><th>السنة/الجامعة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- الموارد -->
+    <section class="admin-panel" id="panel-resources">
+      <div class="admin-panel-inner">
+        <h3 id="res-form-title">إضافة مورد</h3>
+        <form id="res-form">
+          <input type="hidden" id="res-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>المادة</label>
+              <select id="res-subject" required></select>
+            </div>
+            <div class="field"><label>عنوان المورد</label><input type="text" id="res-title" required></div>
+            <div class="field">
+              <label>النوع</label>
+              <select id="res-type" required>
+                <option value="book">كتاب</option>
+                <option value="lecture">محاضرة</option>
+                <option value="slides">سلايدات</option>
+                <option value="summary">ملخص</option>
+                <option value="questions">أسئلة</option>
+                <option value="past_exam">امتحان سابق</option>
+                <option value="notes">ملاحظات</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>اللغة</label>
+              <select id="res-language">
+                <option value="ar">عربي</option>
+                <option value="en">إنجليزي</option>
+              </select>
+            </div>
+            <div class="field"><label>رابط الملف</label><input type="url" id="res-file-url" required></div>
+            <div class="field">
+              <label>مزوّد التخزين</label>
+              <select id="res-storage-provider">
+                <option value="google_drive">Google Drive</option>
+                <option value="backblaze">Backblaze</option>
+                <option value="telegram">Telegram</option>
+                <option value="external">خارجي</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>نوع المصدر</label>
+              <select id="res-source-type">
+                <option value="student">رفع طلابي</option>
+                <option value="official">مصدر رسمي</option>
+                <option value="open_license">رخصة مفتوحة</option>
+                <option value="external_link">رابط خارجي (بدون استضافة)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>الحالة</label>
+              <select id="res-status">
+                <option value="published">منشور</option>
+                <option value="hidden">مخفي</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="res-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="res-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="res-table">
+            <thead><tr><th>العنوان</th><th>المادة</th><th>النوع</th><th>الحالة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- التقارير -->
+    <section class="admin-panel" id="panel-reports">
+      <div class="admin-panel-inner">
+        <h3>البلاغات الواردة</h3>
+        <div class="table-wrap">
+          <table class="admin-table" id="reports-table">
+            <thead><tr><th>المورد</th><th>السبب</th><th>ملاحظة</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabase-client.js"></script>
+<script src="../js/app.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
