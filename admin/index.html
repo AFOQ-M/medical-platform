@@ -47,15 +47,30 @@
     </div>
 
     <div class="admin-tabs">
-      <button class="admin-tab-btn active" data-tab="universities">الجامعات</button>
+      <button class="admin-tab-btn active" data-tab="dashboard">لوحة المعلومات</button>
+      <button class="admin-tab-btn" data-tab="universities">الجامعات</button>
       <button class="admin-tab-btn" data-tab="years">السنوات</button>
       <button class="admin-tab-btn" data-tab="subjects">المواد</button>
       <button class="admin-tab-btn" data-tab="resources">الموارد</button>
       <button class="admin-tab-btn" data-tab="reports">التقارير</button>
+      <button class="admin-tab-btn" data-tab="users">المستخدمون والصلاحيات</button>
     </div>
 
+    <!-- لوحة المعلومات -->
+    <section class="admin-panel active" id="panel-dashboard">
+      <div class="admin-panel-inner">
+        <h3>نظرة عامة</h3>
+        <div class="dashboard-stats" id="dashboard-stats">
+          <div class="state-msg">جارٍ التحميل...</div>
+        </div>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <h3>آخر الموارد المضافة</h3>
+        <ul class="dashboard-recent-list" id="dashboard-recent"></ul>
+      </div>
+    </section>
+
     <!-- الجامعات -->
-    <section class="admin-panel active" id="panel-universities">
+    <section class="admin-panel" id="panel-universities">
       <div class="admin-panel-inner">
         <h3 id="uni-form-title">إضافة جامعة</h3>
         <form id="uni-form">
@@ -167,6 +182,10 @@
             </div>
             <div class="field"><label>رابط الملف</label><input type="url" id="res-file-url" required></div>
             <div class="field">
+              <label>كلمات مفتاحية (اختياري، مفصولة بفواصل)</label>
+              <input type="text" id="res-keywords" placeholder="مثال: epithelium, histology, tissues">
+            </div>
+            <div class="field">
               <label>مزوّد التخزين</label>
               <select id="res-storage-provider">
                 <option value="google_drive">Google Drive</option>
@@ -214,6 +233,20 @@
             <thead><tr><th>المورد</th><th>السبب</th><th>ملاحظة</th><th>التاريخ</th><th></th></tr></thead>
             <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- المستخدمون والصلاحيات (Super Admin فقط) -->
+    <section class="admin-panel" id="panel-users">
+      <div class="admin-panel-inner">
+        <h3>المستخدمون والصلاحيات</h3>
+        <p class="hint" style="color: var(--ink-soft); margin-bottom: 16px;">
+          لإنشاء مستخدم أدمن/موظف جديد: Supabase Dashboard ← Authentication ← Users ← Add User
+          (فعّل Auto Confirm User)، ثم امنحه صلاحياته من هنا.
+        </p>
+        <div id="users-list" class="users-list">
+          <div class="state-msg">جارٍ التحميل...</div>
         </div>
       </div>
     </section>

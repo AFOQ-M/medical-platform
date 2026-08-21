@@ -24,9 +24,39 @@
   <section class="search-hero">
     <h1>نتائج البحث</h1>
     <form class="search-form" action="search.html" method="get">
-      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد..." autocomplete="off" required>
+      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد أو الجامعة أو كلمات مفتاحية..." autocomplete="off">
       <button type="submit" class="btn btn-primary">بحث</button>
     </form>
+
+    <div class="search-filters" id="search-filters">
+      <select id="filter-type">
+        <option value="">كل الأنواع</option>
+        <option value="book">كتاب</option>
+        <option value="lecture">محاضرة</option>
+        <option value="slides">سلايدات</option>
+        <option value="summary">ملخص</option>
+        <option value="questions">أسئلة</option>
+        <option value="past_exam">امتحان سابق</option>
+        <option value="notes">ملاحظات</option>
+      </select>
+      <select id="filter-language">
+        <option value="">كل اللغات</option>
+        <option value="ar">عربي</option>
+        <option value="en">إنجليزي</option>
+      </select>
+      <select id="filter-university">
+        <option value="">كل الجامعات</option>
+      </select>
+      <select id="filter-year">
+        <option value="">كل السنوات</option>
+        <option value="1">سنة 1</option>
+        <option value="2">سنة 2</option>
+        <option value="3">سنة 3</option>
+        <option value="4">سنة 4</option>
+        <option value="5">سنة 5</option>
+        <option value="6">سنة 6</option>
+      </select>
+    </div>
   </section>
 
   <div id="results" class="grid">
@@ -78,24 +108,42 @@
     { label: "نتائج البحث" },
   ]);
 
+  async function loadUniversityFilterOptions() {
+    const { data } = await supabaseClient.from("universities").select("id, name").order("name");
+    const select = document.getElementById("filter-university");
+    (data || []).forEach((u) => {
+      const opt = document.createElement("option");
+      opt.value = u.id;
+      opt.textContent = u.name;
+      select.appendChild(opt);
+    });
+  }
+
   async function runSearch() {
     const results = document.getElementById("results");
+    const type = document.getElementById("filter-type").value || null;
+    const language = document.getElementById("filter-language").value || null;
+    const universityId = document.getElementById("filter-university").value || null;
+    const yearNumber = document.getElementById("filter-year").value ? parseInt(document.getElementById("filter-year").value, 10) : null;
 
-    if (!query) {
-      renderState(results, "اكتب كلمة للبحث عنها.");
+    if (!query && !type && !language && !universityId && !yearNumber) {
+      renderState(results, "اكتب كلمة للبحث عنها أو اختر فلترًا.");
       return;
     }
 
-    document.title = `بحث: ${query} — منصة الموارد الطبية`;
+    document.title = query ? `بحث: ${query} — منصة الموارد الطبية` : "نتائج البحث — منصة الموارد الطبية";
+    renderState(results, "جارٍ البحث...");
 
-    // بحث بسيط بالاسم فقط (على العنوان)، مع جلب اسم المادة للسياق
-    const { data, error } = await supabaseClient
-      .from("resources")
-      .select("id, title, type, language, file_url, source_type, status, subjects(id, name)")
-      .eq("status", "published")
-      .ilike("title", `%${query}%`)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    // بحث شامل عبر دالة search_resources في قاعدة البيانات:
+    // يطابق العنوان + الكلمات المفتاحية + اسم/رمز المادة + اسم الجامعة
+    const { data, error } = await supabaseClient.rpc("search_resources", {
+      p_query: query || null,
+      p_type: type,
+      p_university_id: universityId,
+      p_year_number: yearNumber,
+      p_subject_id: null,
+      p_language: language,
+    });
 
     if (error) {
       console.error(error);
@@ -104,7 +152,7 @@
     }
 
     if (!data || data.length === 0) {
-      renderState(results, `لا توجد نتائج مطابقة لـ "${query}".`);
+      renderState(results, query ? `لا توجد نتائج مطابقة لـ "${query}".` : "لا توجد نتائج مطابقة للفلاتر المحددة.");
       return;
     }
 
@@ -112,19 +160,37 @@
     results.style.gridTemplateColumns = "1fr";
     data.forEach((r) => {
       const card = buildResourceCard(r);
-      if (r.subjects?.name) {
-        const subLine = document.createElement("a");
-        subLine.href = `subject.html?id=${r.subjects.id}`;
-        subLine.className = "card-sub";
-        subLine.style.textDecoration = "underline";
-        subLine.textContent = `ضمن مادة: ${r.subjects.name}`;
-        card.insertBefore(subLine, card.querySelector(".resource-actions"));
+      const metaLine = document.createElement("div");
+      metaLine.className = "card-sub";
+      metaLine.style.fontSize = ".82rem";
+      metaLine.style.color = "var(--ink-soft)";
+      metaLine.style.marginTop = "-6px";
+      metaLine.style.marginBottom = "8px";
+      const parts = [];
+      if (r.subject_name) parts.push(`مادة: ${r.subject_name}`);
+      if (r.university_name) parts.push(`جامعة: ${r.university_name}`);
+      if (r.year_number) parts.push(`سنة ${r.year_number}`);
+      metaLine.textContent = parts.join(" · ");
+      card.insertBefore(metaLine, card.querySelector(".resource-actions"));
+      if (r.subject_id) {
+        const subLink = document.createElement("a");
+        subLink.href = `subject.html?id=${r.subject_id}`;
+        subLink.className = "card-sub";
+        subLink.style.textDecoration = "underline";
+        subLink.style.display = "block";
+        subLink.style.marginBottom = "8px";
+        subLink.textContent = "عرض المادة كاملة →";
+        card.insertBefore(subLink, card.querySelector(".resource-actions"));
       }
       results.appendChild(card);
     });
   }
 
-  runSearch();
+  document.querySelectorAll("#search-filters select").forEach((el) => {
+    el.addEventListener("change", runSearch);
+  });
+
+  loadUniversityFilterOptions().then(runSearch);
 </script>
 </body>
 </html>

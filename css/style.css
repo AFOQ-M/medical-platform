@@ -551,6 +551,96 @@ table.admin-table th {
   color: var(--primary);
 }
 
+/* -------------------- فلاتر البحث -------------------- */
+
+.search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.search-filters select {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: 'Tajawal', sans-serif;
+  font-size: .85rem;
+  min-width: 130px;
+  flex: 1 1 130px;
+}
+
+/* -------------------- لوحة المعلومات (Dashboard) -------------------- */
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stat-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value { font-size: 1.7rem; font-weight: 800; color: var(--primary-dark); }
+.stat-label { font-size: .8rem; color: var(--ink-soft); margin-top: 4px; }
+
+.dashboard-recent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dashboard-recent-list li {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .88rem;
+}
+
+/* -------------------- المستخدمون والصلاحيات -------------------- */
+
+.users-list { display: flex; flex-direction: column; gap: 16px; }
+
+.user-perm-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: var(--bg);
+}
+
+.user-perm-header {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 12px;
+}
+.user-perm-header .hint { color: var(--ink-soft); font-size: .8rem; margin-inline-start: 6px; }
+
+.user-perm-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.inline-label { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--ink-soft); }
+.inline-label select { padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); }
+
+.perm-scopes { display: flex; flex-direction: column; gap: 10px; }
+
+.perm-scope-block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.perm-scope-title { font-weight: 700; margin-bottom: 8px; color: var(--primary-dark); }
+
+.perm-entity-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  padding: 6px 0; border-top: 1px solid var(--line);
+}
+.perm-entity-row:first-of-type { border-top: none; }
+
+.perm-entity-label { min-width: 170px; font-size: .85rem; color: var(--ink-soft); }
+
+.perm-checkbox { display: flex; align-items: center; gap: 5px; font-size: .85rem; cursor: pointer; }
+.perm-checkbox input { width: 16px; height: 16px; cursor: pointer; }
+
 /* -------------------- استجابة للشاشات (Responsive) -------------------- */
 
 @media (min-width: 720px) {
@@ -562,6 +652,43 @@ table.admin-table th {
   .search-form { flex-direction: column; }
   main { padding: 20px 14px 50px; }
   .site-header .header-inner { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
+/* جداول الأدمن على الشاشات الصغيرة: تتحوّل من جدول إلى بطاقات قابلة للطي */
+@media (max-width: 640px) {
+  .admin-tabs { gap: 6px; }
+  .admin-tab-btn { padding: 7px 12px; font-size: .82rem; }
+  .admin-panel-inner { padding: 16px; }
+
+  table.admin-table thead { display: none; }
+  table.admin-table, table.admin-table tbody, table.admin-table tr, table.admin-table td {
+    display: block; width: 100%;
+  }
+  table.admin-table tr {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    white-space: normal;
+  }
+  table.admin-table td {
+    border-bottom: 1px solid var(--line);
+    padding: 8px 2px;
+    white-space: normal;
+  }
+  table.admin-table td:last-child { border-bottom: none; }
+  table.admin-table td:not(:last-child)::before {
+    content: attr(data-label);
+    display: block;
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+  }
+
+  .perm-entity-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .perm-entity-label { min-width: 0; }
+  .user-perm-header { flex-direction: column; align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
