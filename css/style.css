@@ -444,6 +444,8 @@ a.card:hover, a.card:focus-visible {
   gap: 24px;
 }
 
+.admin-shell[hidden] { display: none; }
+
 .admin-login-box {
   max-width: 380px;
   margin: 60px auto;
