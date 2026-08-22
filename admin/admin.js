@@ -706,11 +706,18 @@ function buildUserPermissionCard(profile, userPerms, universities) {
 
 async function togglePermission(userId, scope, entityType, action, existingRow, checked) {
   if (checked) {
-    const { error } = await supabaseClient.from("user_permissions").upsert({
-      user_id: userId, scope_type: scope.scope_type, scope_id: scope.scope_id,
-      entity_type: entityType, action, active: true,
-    }, { onConflict: "user_id,scope_type,scope_id,entity_type,action" });
-    if (error) { showToast("تعذّر منح الصلاحية"); console.error(error); return; }
+    if (existingRow) {
+      // صف موجود مسبقًا (غالبًا كان active=false) — نفعّله بدل الإضافة
+      const { error } = await supabaseClient.from("user_permissions")
+        .update({ active: true }).eq("id", existingRow.id);
+      if (error) { showToast("تعذّر منح الصلاحية"); console.error(error); return; }
+    } else {
+      const { error } = await supabaseClient.from("user_permissions").insert({
+        user_id: userId, scope_type: scope.scope_type, scope_id: scope.scope_id,
+        entity_type: entityType, action, active: true,
+      });
+      if (error) { showToast("تعذّر منح الصلاحية"); console.error(error); return; }
+    }
     logActivity("permission_granted", "user_permissions", userId, `${scope.label} / ${ENTITY_LABELS[entityType]} / ${ACTION_LABELS[action]}`);
   } else if (existingRow) {
     const { error } = await supabaseClient.from("user_permissions").delete().eq("id", existingRow.id);
@@ -719,11 +726,12 @@ async function togglePermission(userId, scope, entityType, action, existingRow, 
   }
   showToast("تم تحديث الصلاحيات");
   // إعادة تحميل صلاحيات المستخدم الحالي إن كان هو نفسه المعدَّل عليه (نادر)
-  if (userId === currentProfile.id) {
+  if (currentProfile && userId === currentProfile.id) {
     const { data: perms } = await supabaseClient.from("user_permissions").select("*").eq("user_id", userId).eq("active", true);
     currentPermissions = perms || [];
     applyPermissionVisibility();
   }
+  loadUsersPanel();
 }
 
 function labeledWrap(label, el) {
