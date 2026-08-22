@@ -75,7 +75,7 @@
 
     const { data: subject, error: subjectError } = await supabaseClient
       .from("subjects")
-      .select("id, name, year_id, years(id, year_number, university_id, universities(id, name))")
+      .select("id, name, year_id, years(id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name))")
       .eq("id", subjectId)
       .single();
 
@@ -86,11 +86,13 @@
 
     const year = subject.years;
     const uni = year?.universities;
+    const fac = year?.faculties;
     document.title = `${subject.name} — منصة الموارد الطبية`;
     document.getElementById("page-title").textContent = subject.name;
     renderBreadcrumb(document.getElementById("breadcrumb"), [
       { label: "الرئيسية", href: "index.html" },
       { label: uni?.name || "", href: `university.html?id=${uni?.id}` },
+      { label: fac?.name || "الكلية", href: fac?.id ? `faculty.html?id=${fac.id}` : undefined },
       { label: `السنة ${year?.year_number}`, href: `year.html?id=${year?.id}` },
       { label: subject.name },
     ]);

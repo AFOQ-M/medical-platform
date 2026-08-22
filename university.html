@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>السنوات الدراسية — منصة الموارد الطبية</title>
+<title>الكليات — منصة الموارد الطبية</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -21,8 +21,8 @@
 <main>
   <nav class="breadcrumb" id="breadcrumb"></nav>
 
-  <h1 id="page-title">السنوات الدراسية</h1>
-  <div id="years-grid" class="grid">
+  <h1 id="page-title">الكليات</h1>
+  <div id="faculties-grid" class="grid">
     <div class="state-msg">جارٍ التحميل...</div>
   </div>
 </main>
@@ -38,7 +38,7 @@
   const universityId = getQueryParam("id");
 
   async function loadUniversityPage() {
-    const grid = document.getElementById("years-grid");
+    const grid = document.getElementById("faculties-grid");
 
     if (!universityId) {
       renderState(grid, "لم يتم تحديد جامعة. عد إلى الصفحة الرئيسية.");
@@ -57,38 +57,39 @@
     }
 
     document.title = `${uni.name} — منصة الموارد الطبية`;
-    document.getElementById("page-title").textContent = `السنوات الدراسية — ${uni.name}`;
+    document.getElementById("page-title").textContent = `الكليات — ${uni.name}`;
     renderBreadcrumb(document.getElementById("breadcrumb"), [
       { label: "الرئيسية", href: "index.html" },
       { label: uni.name },
     ]);
 
-    const { data: years, error: yearsError } = await supabaseClient
-      .from("years")
-      .select("id, year_number")
+    const { data: faculties, error: facultiesError } = await supabaseClient
+      .from("faculties")
+      .select("id, name, code, description")
       .eq("university_id", universityId)
-      .order("year_number", { ascending: true });
+      .eq("is_active", true)
+      .order("name", { ascending: true });
 
-    if (yearsError) {
-      console.error(yearsError);
-      renderState(grid, "تعذّر تحميل السنوات الدراسية.");
+    if (facultiesError) {
+      console.error(facultiesError);
+      renderState(grid, "تعذّر تحميل الكليات.");
       return;
     }
 
-    if (!years || years.length === 0) {
-      renderState(grid, "لا توجد سنوات دراسية مضافة لهذه الجامعة بعد.");
+    if (!faculties || faculties.length === 0) {
+      renderState(grid, "لا توجد كليات مضافة لهذه الجامعة بعد.");
       return;
     }
 
     grid.innerHTML = "";
-    years.forEach((y) => {
+    faculties.forEach((f) => {
       const a = document.createElement("a");
       a.className = "card";
-      a.href = `year.html?id=${y.id}`;
+      a.href = `faculty.html?id=${f.id}`;
       a.innerHTML = `
-        <div class="year-badge">${y.year_number}</div>
-        <h3>السنة ${y.year_number}</h3>
-        <div class="card-sub">عرض المواد الدراسية</div>
+        <div class="card-icon">${f.name.slice(0, 2)}</div>
+        <h3>${f.name}</h3>
+        <div class="card-sub">${f.code ? "رمز الكلية: " + f.code : "عرض السنوات الدراسية"}</div>
       `;
       grid.appendChild(a);
     });

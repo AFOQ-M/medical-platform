@@ -24,7 +24,7 @@
   <section class="search-hero">
     <h1>نتائج البحث</h1>
     <form class="search-form" action="search.html" method="get">
-      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد أو الجامعة أو كلمات مفتاحية..." autocomplete="off">
+      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد أو الجامعة أو الكلية أو كلمات مفتاحية..." autocomplete="off">
       <button type="submit" class="btn btn-primary">بحث</button>
     </form>
 
@@ -46,6 +46,9 @@
       </select>
       <select id="filter-university">
         <option value="">كل الجامعات</option>
+      </select>
+      <select id="filter-faculty">
+        <option value="">كل الكليات</option>
       </select>
       <select id="filter-year">
         <option value="">كل السنوات</option>
@@ -108,6 +111,8 @@
     { label: "نتائج البحث" },
   ]);
 
+  let facultiesData = [];
+
   async function loadUniversityFilterOptions() {
     const { data } = await supabaseClient.from("universities").select("id, name").order("name");
     const select = document.getElementById("filter-university");
@@ -119,14 +124,42 @@
     });
   }
 
+  async function loadFacultyFilterOptions() {
+    const { data } = await supabaseClient
+      .from("faculties")
+      .select("id, name, university_id")
+      .eq("is_active", true)
+      .order("name");
+    facultiesData = data || [];
+    refreshFacultyFilterOptions();
+  }
+
+  // فلتر الكلية يعتمد دائمًا على فلتر الجامعة المختار حاليًا (قائمة متتالية،
+  // وليس فلترين مستقلين) — إن لم تُختر جامعة تظهر كل الكليات المفعّلة.
+  function refreshFacultyFilterOptions() {
+    const universityId = document.getElementById("filter-university").value || null;
+    const select = document.getElementById("filter-faculty");
+    const currentValue = select.value;
+    select.innerHTML = `<option value="">كل الكليات</option>`;
+    const options = universityId ? facultiesData.filter((f) => f.university_id === universityId) : facultiesData;
+    options.forEach((f) => {
+      const opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = f.name;
+      select.appendChild(opt);
+    });
+    if (currentValue && options.some((o) => o.id === currentValue)) select.value = currentValue;
+  }
+
   async function runSearch() {
     const results = document.getElementById("results");
     const type = document.getElementById("filter-type").value || null;
     const language = document.getElementById("filter-language").value || null;
     const universityId = document.getElementById("filter-university").value || null;
+    const facultyId = document.getElementById("filter-faculty").value || null;
     const yearNumber = document.getElementById("filter-year").value ? parseInt(document.getElementById("filter-year").value, 10) : null;
 
-    if (!query && !type && !language && !universityId && !yearNumber) {
+    if (!query && !type && !language && !universityId && !facultyId && !yearNumber) {
       renderState(results, "اكتب كلمة للبحث عنها أو اختر فلترًا.");
       return;
     }
@@ -135,11 +168,12 @@
     renderState(results, "جارٍ البحث...");
 
     // بحث شامل عبر دالة search_resources في قاعدة البيانات:
-    // يطابق العنوان + الكلمات المفتاحية + اسم/رمز المادة + اسم الجامعة
+    // يطابق العنوان + الكلمات المفتاحية + اسم/رمز المادة + اسم الجامعة + اسم الكلية
     const { data, error } = await supabaseClient.rpc("search_resources", {
       p_query: query || null,
       p_type: type,
       p_university_id: universityId,
+      p_faculty_id: facultyId,
       p_year_number: yearNumber,
       p_subject_id: null,
       p_language: language,
@@ -168,6 +202,7 @@
       metaLine.style.marginBottom = "8px";
       const parts = [];
       if (r.subject_name) parts.push(`مادة: ${r.subject_name}`);
+      if (r.faculty_name) parts.push(`كلية: ${r.faculty_name}`);
       if (r.university_name) parts.push(`جامعة: ${r.university_name}`);
       if (r.year_number) parts.push(`سنة ${r.year_number}`);
       metaLine.textContent = parts.join(" · ");
@@ -186,11 +221,20 @@
     });
   }
 
+  document.getElementById("filter-university").addEventListener("change", () => {
+    // تغيّر الجامعة يُعيد فلترة قائمة الكليات، ويُفرغ الكلية المختارة سابقًا
+    // إن لم تعد تابعة للجامعة الجديدة (قاعدة القوائم المتتالية العامة).
+    document.getElementById("filter-faculty").value = "";
+    refreshFacultyFilterOptions();
+    runSearch();
+  });
+
   document.querySelectorAll("#search-filters select").forEach((el) => {
+    if (el.id === "filter-university") return; // له معالج خاص أعلاه
     el.addEventListener("change", runSearch);
   });
 
-  loadUniversityFilterOptions().then(runSearch);
+  Promise.all([loadUniversityFilterOptions(), loadFacultyFilterOptions()]).then(runSearch);
 </script>
 </body>
 </html>

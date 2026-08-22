@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>السنوات الدراسية — منصة الموارد الطبية</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+  </div>
+</header>
+
+<main>
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <h1 id="page-title">السنوات الدراسية</h1>
+  <div id="years-grid" class="grid">
+    <div class="state-msg">جارٍ التحميل...</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  منصة مجانية غير هادفة للربح لطلاب الطب — لا تستضيف محتوى محمي بحقوق نشر مباشرة
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const facultyId = getQueryParam("id");
+
+  async function loadFacultyPage() {
+    const grid = document.getElementById("years-grid");
+
+    if (!facultyId) {
+      renderState(grid, "لم يتم تحديد كلية. عد إلى الصفحة الرئيسية.");
+      return;
+    }
+
+    const { data: faculty, error: facultyError } = await supabaseClient
+      .from("faculties")
+      .select("id, name, university_id, universities(id, name)")
+      .eq("id", facultyId)
+      .eq("is_active", true)
+      .single();
+
+    if (facultyError || !faculty) {
+      renderState(grid, "لم يتم العثور على هذه الكلية.");
+      return;
+    }
+
+    const uni = faculty.universities;
+    document.title = `${faculty.name} — ${uni?.name || ""}`;
+    document.getElementById("page-title").textContent = `السنوات الدراسية — ${faculty.name}`;
+    renderBreadcrumb(document.getElementById("breadcrumb"), [
+      { label: "الرئيسية", href: "index.html" },
+      { label: uni?.name || "", href: `university.html?id=${faculty.university_id}` },
+      { label: faculty.name },
+    ]);
+
+    const { data: years, error: yearsError } = await supabaseClient
+      .from("years")
+      .select("id, year_number")
+      .eq("faculty_id", facultyId)
+      .order("year_number", { ascending: true });
+
+    if (yearsError) {
+      console.error(yearsError);
+      renderState(grid, "تعذّر تحميل السنوات الدراسية.");
+      return;
+    }
+
+    if (!years || years.length === 0) {
+      renderState(grid, "لا توجد سنوات دراسية مضافة لهذه الكلية بعد.");
+      return;
+    }
+
+    grid.innerHTML = "";
+    years.forEach((y) => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = `year.html?id=${y.id}`;
+      a.innerHTML = `
+        <div class="year-badge">${y.year_number}</div>
+        <h3>السنة ${y.year_number}</h3>
+        <div class="card-sub">عرض المواد الدراسية</div>
+      `;
+      grid.appendChild(a);
+    });
+  }
+
+  loadFacultyPage();
+</script>
+</body>
+</html>

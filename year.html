@@ -45,9 +45,11 @@
       return;
     }
 
+    // نحمّل السياق الكامل (الجامعة والكلية) عبر العلاقة في قاعدة البيانات
+    // مباشرة بدل تخمينه من حالة الواجهة، تمامًا كما هو مطلوب في الجزء الثاني.
     const { data: year, error: yearError } = await supabaseClient
       .from("years")
-      .select("id, year_number, university_id, universities(id, name)")
+      .select("id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name)")
       .eq("id", yearId)
       .single();
 
@@ -57,11 +59,13 @@
     }
 
     const uniName = year.universities?.name || "";
-    document.title = `السنة ${year.year_number} — ${uniName}`;
+    const facName = year.faculties?.name || "";
+    document.title = `السنة ${year.year_number} — ${facName || uniName}`;
     document.getElementById("page-title").textContent = `مواد السنة ${year.year_number}`;
     renderBreadcrumb(document.getElementById("breadcrumb"), [
       { label: "الرئيسية", href: "index.html" },
       { label: uniName, href: `university.html?id=${year.university_id}` },
+      { label: facName || "الكلية", href: year.faculty_id ? `faculty.html?id=${year.faculty_id}` : undefined },
       { label: `السنة ${year.year_number}` },
     ]);
 

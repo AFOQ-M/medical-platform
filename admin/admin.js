@@ -1,7 +1,8 @@
 // ============================================================
 // منطق لوحة التحكم: المصادقة + الترخيص الدقيق + عمليات CRUD
-// المرحلة الثانية: authenticated ≠ admin. كل صلاحية تُتحقّق فعليًا
-// من جدول user_permissions (و RLS هو الحَكَم النهائي دائمًا).
+// المرحلة 2.5 / الجزء الثاني: يضيف مستوى الكلية (Faculty) فوق
+// النظام الحالي (WHO -> WHAT -> WHERE) دون كسر منطق الجامعة/العام.
+// RLS يبقى الحَكَم النهائي دائمًا؛ هذا الملف مجرد مرآة للواجهة.
 // ============================================================
 
 const RESOURCE_TYPE_LABELS_ADMIN = {
@@ -10,7 +11,7 @@ const RESOURCE_TYPE_LABELS_ADMIN = {
 };
 
 const ENTITY_LABELS = {
-  academic_structure: "الجامعات/السنوات/المواد",
+  academic_structure: "الجامعات/الكليات/السنوات/المواد",
   resources: "الموارد",
   reports: "التقارير",
 };
@@ -20,15 +21,31 @@ const ACTION_LABELS = { view: "عرض", create: "إضافة", edit: "تعديل"
 
 let currentProfile = null;       // { id, email, role, active }
 let currentPermissions = [];     // صفوف user_permissions الخاصة بالمستخدم الحالي
-let universitiesById = {};       // كاش: id -> { id, name }
 
-// يطابق منطق fn_has_permission في قاعدة البيانات (للواجهة فقط — RLS هو الحاكم الفعلي)
-function hasPerm(entityType, universityId, action) {
+// -------------------- كاش البيانات الأكاديمية (لتغذية القوائم المتتالية) --------------------
+
+let universitiesById = {};       // id -> { id, name, short_name, logo_url }
+let universitiesCache = [];
+let facultiesById = {};          // id -> { id, name, code, description, is_active, university_id }
+let facultiesCache = [];
+let yearsById = {};               // id -> { id, year_number, university_id, faculty_id }
+let yearsCache = [];
+let subjectsById = {};            // id -> { id, name, code, year_id }
+let subjectsCache = [];
+
+// يطابق منطق fn_has_permission(entity_type, university_id, faculty_id, action) في قاعدة
+// البيانات (للواجهة فقط — RLS هو الحاكم الفعلي). facultyId اختياري: null يعني "لا يوجد
+// نطاق كلية محدد لهذه العملية" (كإنشاء جامعة أو منح صلاحية على مستوى جامعة كاملة).
+function hasPerm(entityType, universityId, facultyId, action) {
   if (!currentProfile || !currentProfile.active) return false;
   if (currentProfile.role === "super_admin") return true;
   return currentPermissions.some((p) =>
     p.active && p.entity_type === entityType && p.action === action &&
-    (p.scope_type === "global" || (p.scope_type === "university" && p.scope_id === universityId))
+    (
+      p.scope_type === "global" ||
+      (p.scope_type === "university" && universityId != null && p.scope_id === universityId) ||
+      (p.scope_type === "faculty" && facultyId != null && p.scope_faculty_id === facultyId)
+    )
   );
 }
 
@@ -102,6 +119,7 @@ function showDashboard(email) {
 function applyPermissionVisibility() {
   const tabMap = {
     universities: hasAnyPerm("academic_structure"),
+    faculties: hasAnyPerm("academic_structure"),
     years: hasAnyPerm("academic_structure"),
     subjects: hasAnyPerm("academic_structure"),
     resources: hasAnyPerm("resources"),
@@ -125,7 +143,7 @@ function applyPermissionVisibility() {
   }
 
   // إظهار/إخفاء نماذج الإضافة حسب صلاحية create العامة (يُعاد ضبطها بدقة أكبر بعد كل تحميل جدول)
-  document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, "create") ? "" : "none";
+  document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, null, "create") ? "" : "none";
 }
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {
@@ -167,12 +185,16 @@ document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
   });
 });
 
-function loadAllData() {
+// تحميل تراكمي بالترتيب: كل مستوى يحتاج الكاش الذي بناه المستوى الذي قبله
+// (الجامعات قبل الكليات، الكليات قبل السنوات، السنوات قبل المواد، المواد قبل الموارد)
+// حتى تُبنى القوائم المتتالية (Cascading Selects) بشكل صحيح من أول تحميل.
+async function loadAllData() {
   loadDashboard();
-  loadUniversities();
-  loadYears();
-  loadSubjects();
-  loadResources();
+  await loadUniversities();
+  await loadFaculties();
+  await loadYears();
+  await loadSubjects();
+  await loadResources();
   loadReports();
   if (currentProfile.role === "super_admin") loadUsersPanel();
 }
@@ -185,8 +207,9 @@ async function loadDashboard() {
   const grid = document.getElementById("dashboard-stats");
   grid.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
 
-  const [uni, yrs, subj, res, rep, admins] = await Promise.all([
+  const [uni, fac, yrs, subj, res, rep, admins] = await Promise.all([
     supabaseClient.from("universities").select("*", { count: "exact", head: true }),
+    supabaseClient.from("faculties").select("*", { count: "exact", head: true }),
     supabaseClient.from("years").select("*", { count: "exact", head: true }),
     supabaseClient.from("subjects").select("*", { count: "exact", head: true }),
     supabaseClient.from("resources").select("*", { count: "exact", head: true }),
@@ -197,7 +220,7 @@ async function loadDashboard() {
   ]);
 
   const stats = [
-    ["الجامعات", uni.count], ["السنوات", yrs.count], ["المواد", subj.count],
+    ["الجامعات", uni.count], ["الكليات", fac.count], ["السنوات", yrs.count], ["المواد", subj.count],
     ["الموارد", res.count], ["البلاغات", rep.count],
   ];
   if (currentProfile.role === "super_admin") stats.push(["الإداريون", admins.count]);
@@ -236,15 +259,20 @@ async function loadUniversities() {
 
   universitiesById = {};
   (data || []).forEach((u) => { universitiesById[u.id] = u; });
+  universitiesCache = data || [];
 
+  // تغذية كل قوائم "الجامعة" المنسدلة في النماذج الأخرى بنفس البيانات
   populateSelect("year-university", data, (u) => u.name);
-  document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, "create") ? "" : "none";
+  populateSelect("subj-university", data, (u) => u.name);
+  populateSelect("res-university", data, (u) => u.name);
+
+  document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, null, "create") ? "" : "none";
 
   if (!data.length) { tbody.innerHTML = `<tr><td colspan="3">لا توجد جامعات بعد</td></tr>`; return; }
   tbody.innerHTML = "";
   data.forEach((u) => {
-    const canEdit = hasPerm("academic_structure", u.id, "edit");
-    const canDelete = hasPerm("academic_structure", u.id, "delete");
+    const canEdit = hasPerm("academic_structure", u.id, null, "edit");
+    const canDelete = hasPerm("academic_structure", u.id, null, "delete");
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="الاسم">${u.name}</td>
@@ -297,31 +325,277 @@ function resetUniForm() {
 document.getElementById("uni-cancel-btn").addEventListener("click", resetUniForm);
 
 // ============================================================
+// الكليات
+// ============================================================
+
+async function loadFaculties() {
+  const { data, error } = await supabaseClient
+    .from("faculties")
+    .select("id, name, code, description, is_active, university_id, universities(name)")
+    .order("name");
+  const tbody = document.querySelector("#fac-table tbody");
+  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
+
+  facultiesById = {};
+  (data || []).forEach((f) => { facultiesById[f.id] = f; });
+  facultiesCache = data || [];
+
+  // القوائم المتتالية: أعد تغذية قائمة "الكلية" في كل نموذج حسب الجامعة المختارة حاليًا فيه
+  populateFacultySelect("year-faculty", currentSelectValue("year-university"), currentSelectValue("year-faculty"));
+  populateFacultySelect("subj-faculty", currentSelectValue("subj-university"), currentSelectValue("subj-faculty"));
+  populateFacultySelect("res-faculty", currentSelectValue("res-university"), currentSelectValue("res-faculty"));
+
+  refreshFacFormUniversityOptions();
+
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد كليات بعد</td></tr>`; return; }
+  tbody.innerHTML = "";
+  data.forEach((f) => {
+    const canEdit = hasPerm("academic_structure", f.university_id, f.id, "edit");
+    const canDelete = hasPerm("academic_structure", f.university_id, f.id, "delete");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="الجامعة">${f.universities?.name || "—"}</td>
+      <td data-label="الكلية">${f.name}</td>
+      <td data-label="الرمز">${f.code || "—"}</td>
+      <td data-label="الحالة"><span class="status-badge ${f.is_active ? "published" : "hidden"}">${f.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
+      <td>
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick='editFaculty(${JSON.stringify(f).replace(/'/g, "&apos;")})'>تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleFacultyActive('${f.id}', ${f.is_active})">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('faculties','${f.id}', loadFaculties)">حذف</button>` : ""}
+        ${!canEdit && !canDelete ? "—" : ""}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function refreshFacFormUniversityOptions() {
+  const select = document.getElementById("fac-university");
+  if (!select) return;
+  const allowed = universitiesCache.filter((u) => hasPerm("academic_structure", u.id, null, "create"));
+  const form = document.getElementById("fac-form");
+  if (!allowed.length) {
+    form.style.display = "none";
+    return;
+  }
+  form.style.display = "";
+  populateSelect("fac-university", allowed, (u) => u.name);
+}
+
+document.getElementById("fac-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("fac-edit-id").value;
+  const payload = {
+    university_id: document.getElementById("fac-university").value,
+    name: document.getElementById("fac-name").value.trim(),
+    code: document.getElementById("fac-code").value.trim() || null,
+    description: document.getElementById("fac-description").value.trim() || null,
+    is_active: document.getElementById("fac-active").checked,
+  };
+  const { data, error } = id
+    ? await supabaseClient.from("faculties").update(payload).eq("id", id).select().maybeSingle()
+    : await supabaseClient.from("faculties").insert(payload).select().maybeSingle();
+
+  if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك أو من عدم تكرار الاسم)"); console.error(error); return; }
+  logActivity(id ? "faculty_updated" : "faculty_created", "faculty", data?.id, payload.name);
+  resetFacForm();
+  showToast(id ? "تم تعديل الكلية" : "تمت إضافة الكلية");
+  loadFaculties();
+});
+
+function editFaculty(f) {
+  document.getElementById("fac-edit-id").value = f.id;
+  ensureOptionExists("fac-university", f.university_id, f.universities?.name || universitiesById[f.university_id]?.name || "—");
+  document.getElementById("fac-university").value = f.university_id;
+  document.getElementById("fac-name").value = f.name;
+  document.getElementById("fac-code").value = f.code || "";
+  document.getElementById("fac-description").value = f.description || "";
+  document.getElementById("fac-active").checked = !!f.is_active;
+  document.getElementById("fac-form-title").textContent = "تعديل كلية";
+  document.getElementById("fac-submit-btn").textContent = "حفظ التعديل";
+  document.getElementById("fac-cancel-btn").hidden = false;
+}
+
+function resetFacForm() {
+  document.getElementById("fac-form").reset();
+  document.getElementById("fac-edit-id").value = "";
+  document.getElementById("fac-active").checked = true;
+  document.getElementById("fac-form-title").textContent = "إضافة كلية";
+  document.getElementById("fac-submit-btn").textContent = "إضافة";
+  document.getElementById("fac-cancel-btn").hidden = true;
+}
+document.getElementById("fac-cancel-btn").addEventListener("click", resetFacForm);
+
+async function toggleFacultyActive(facultyId, currentlyActive) {
+  const { error } = await supabaseClient.from("faculties").update({ is_active: !currentlyActive }).eq("id", facultyId);
+  if (error) { showToast("تعذّر تحديث حالة الكلية"); console.error(error); return; }
+  logActivity(currentlyActive ? "faculty_disabled" : "faculty_enabled", "faculty", facultyId, null);
+  showToast(currentlyActive ? "تم تعطيل الكلية" : "تم تفعيل الكلية");
+  loadFaculties();
+}
+
+// ============================================================
+// أدوات القوائم المتتالية (Cascading Selects)
+// الترتيب دائمًا: الجامعة ← الكلية ← السنة ← المادة
+// عند تغيّر مستوى أعلى، تُفرَّغ كل المستويات الأدنى منه دون استثناء.
+// ============================================================
+
+function currentSelectValue(id) {
+  const el = document.getElementById(id);
+  return el && el.value ? el.value : null;
+}
+
+function ensureOptionExists(selectId, value, label) {
+  const select = document.getElementById(selectId);
+  if (!select || !value) return;
+  const exists = Array.from(select.options).some((o) => o.value === value);
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    select.appendChild(opt);
+  }
+}
+
+/** يملأ قائمة "الكلية" بكليات جامعة معيّنة فقط (نطاق نظيف — لا كليات من جامعة أخرى) */
+function populateFacultySelect(selectId, universityId, keepValue) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = "";
+  if (!universityId) {
+    select.innerHTML = `<option value="">اختر الجامعة أولاً</option>`;
+    return;
+  }
+  const options = facultiesCache
+    .filter((f) => f.university_id === universityId)
+    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+  if (!options.length) {
+    select.innerHTML = `<option value="">لا توجد كليات لهذه الجامعة بعد</option>`;
+    return;
+  }
+  select.innerHTML = `<option value="">اختر الكلية</option>`;
+  options.forEach((f) => {
+    const opt = document.createElement("option");
+    opt.value = f.id;
+    opt.textContent = f.name + (f.is_active ? "" : " (معطّلة)");
+    select.appendChild(opt);
+  });
+  if (keepValue && options.some((o) => o.id === keepValue)) select.value = keepValue;
+}
+
+/** يملأ قائمة "السنة" بسنوات كلية معيّنة فقط */
+function populateYearSelectForFaculty(selectId, facultyId, keepValue) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = "";
+  if (!facultyId) {
+    select.innerHTML = `<option value="">اختر الكلية أولاً</option>`;
+    return;
+  }
+  const options = yearsCache
+    .filter((y) => y.faculty_id === facultyId)
+    .sort((a, b) => a.year_number - b.year_number);
+
+  if (!options.length) {
+    select.innerHTML = `<option value="">لا توجد سنوات لهذه الكلية بعد</option>`;
+    return;
+  }
+  select.innerHTML = `<option value="">اختر السنة</option>`;
+  options.forEach((y) => {
+    const opt = document.createElement("option");
+    opt.value = y.id;
+    opt.textContent = `سنة ${y.year_number}`;
+    select.appendChild(opt);
+  });
+  if (keepValue && options.some((o) => o.id === keepValue)) select.value = keepValue;
+}
+
+/** يملأ قائمة "المادة" بمواد سنة معيّنة فقط */
+function populateSubjectSelectForYear(selectId, yearId, keepValue) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = "";
+  if (!yearId) {
+    select.innerHTML = `<option value="">اختر السنة أولاً</option>`;
+    return;
+  }
+  const options = subjectsCache
+    .filter((s) => s.year_id === yearId)
+    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+  if (!options.length) {
+    select.innerHTML = `<option value="">لا توجد مواد لهذه السنة بعد</option>`;
+    return;
+  }
+  select.innerHTML = `<option value="">اختر المادة</option>`;
+  options.forEach((s) => {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  if (keepValue && options.some((o) => o.id === keepValue)) select.value = keepValue;
+}
+
+// -------- ربط أحداث التغيير: كل تغيير في مستوى أعلى يفرّغ ما تحته --------
+
+document.getElementById("year-university").addEventListener("change", (e) => {
+  populateFacultySelect("year-faculty", e.target.value, null);
+});
+
+document.getElementById("subj-university").addEventListener("change", (e) => {
+  populateFacultySelect("subj-faculty", e.target.value, null);
+  populateYearSelectForFaculty("subj-year", null, null);
+});
+document.getElementById("subj-faculty").addEventListener("change", (e) => {
+  populateYearSelectForFaculty("subj-year", e.target.value, null);
+});
+
+document.getElementById("res-university").addEventListener("change", (e) => {
+  populateFacultySelect("res-faculty", e.target.value, null);
+  populateYearSelectForFaculty("res-year", null, null);
+  populateSubjectSelectForYear("res-subject", null, null);
+});
+document.getElementById("res-faculty").addEventListener("change", (e) => {
+  populateYearSelectForFaculty("res-year", e.target.value, null);
+  populateSubjectSelectForYear("res-subject", null, null);
+});
+document.getElementById("res-year").addEventListener("change", (e) => {
+  populateSubjectSelectForYear("res-subject", e.target.value, null);
+});
+
+// ============================================================
 // السنوات
 // ============================================================
 
 async function loadYears() {
   const { data, error } = await supabaseClient
     .from("years")
-    .select("id, year_number, university_id, universities(name)")
+    .select("id, year_number, university_id, faculty_id, universities(name), faculties(name)")
     .order("year_number");
   const tbody = document.querySelector("#year-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="3">تعذّر التحميل</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="4">تعذّر التحميل</td></tr>`; return; }
 
-  const selectOptions = data.map((y) => ({ id: y.id, label: `${y.universities?.name || "—"} — سنة ${y.year_number}` }));
-  populateSelect("subj-year", selectOptions, (o) => o.label, true);
+  yearsById = {};
+  (data || []).forEach((y) => { yearsById[y.id] = y; });
+  yearsCache = data || [];
 
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="3">لا توجد سنوات بعد</td></tr>`; return; }
+  // القوائم المتتالية التي تعتمد على السنوات: قائمة "السنة" في نموذجي المادة والمورد
+  populateYearSelectForFaculty("subj-year", currentSelectValue("subj-faculty"), currentSelectValue("subj-year"));
+  populateYearSelectForFaculty("res-year", currentSelectValue("res-faculty"), currentSelectValue("res-year"));
+
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="4">لا توجد سنوات بعد</td></tr>`; return; }
   tbody.innerHTML = "";
   data.forEach((y) => {
-    const canEdit = hasPerm("academic_structure", y.university_id, "edit");
-    const canDelete = hasPerm("academic_structure", y.university_id, "delete");
+    const canEdit = hasPerm("academic_structure", y.university_id, y.faculty_id, "edit");
+    const canDelete = hasPerm("academic_structure", y.university_id, y.faculty_id, "delete");
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="الجامعة">${y.universities?.name || "—"}</td>
+      <td data-label="الكلية">${y.faculties?.name || "—"}</td>
       <td data-label="السنة">${y.year_number}</td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}',${y.year_number})">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number})">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -332,8 +606,11 @@ async function loadYears() {
 document.getElementById("year-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("year-edit-id").value;
+  const facultyId = document.getElementById("year-faculty").value;
+  if (!facultyId) { showToast("اختر الكلية أولاً"); return; }
   const payload = {
     university_id: document.getElementById("year-university").value,
+    faculty_id: facultyId,
     year_number: parseInt(document.getElementById("year-number").value, 10),
   };
   const { data, error } = id
@@ -347,9 +624,10 @@ document.getElementById("year-form").addEventListener("submit", async (e) => {
   loadYears();
 });
 
-function editYear(id, universityId, yearNumber) {
+function editYear(id, universityId, facultyId, yearNumber) {
   document.getElementById("year-edit-id").value = id;
   document.getElementById("year-university").value = universityId;
+  populateFacultySelect("year-faculty", universityId, facultyId || null);
   document.getElementById("year-number").value = yearNumber;
   document.getElementById("year-form-title").textContent = "تعديل سنة دراسية";
   document.getElementById("year-submit-btn").textContent = "حفظ التعديل";
@@ -359,6 +637,7 @@ function editYear(id, universityId, yearNumber) {
 function resetYearForm() {
   document.getElementById("year-form").reset();
   document.getElementById("year-edit-id").value = "";
+  populateFacultySelect("year-faculty", currentSelectValue("year-university"), null);
   document.getElementById("year-form-title").textContent = "إضافة سنة دراسية";
   document.getElementById("year-submit-btn").textContent = "إضافة";
   document.getElementById("year-cancel-btn").hidden = true;
@@ -372,25 +651,32 @@ document.getElementById("year-cancel-btn").addEventListener("click", resetYearFo
 async function loadSubjects() {
   const { data, error } = await supabaseClient
     .from("subjects")
-    .select("id, name, code, year_id, years(year_number, university_id, universities(name))")
+    .select("id, name, code, year_id, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
     .order("name");
   const tbody = document.querySelector("#subj-table tbody");
   if (error) { tbody.innerHTML = `<tr><td colspan="3">تعذّر التحميل</td></tr>`; return; }
 
-  populateSelect("res-subject", data.map((s) => ({ id: s.id, label: s.name })), (o) => o.label, true);
+  subjectsById = {};
+  (data || []).forEach((s) => { subjectsById[s.id] = s; });
+  subjectsCache = data || [];
+
+  // القائمة المتتالية التي تعتمد على المواد: قائمة "المادة" في نموذج المورد
+  populateSubjectSelectForYear("res-subject", currentSelectValue("res-year"), currentSelectValue("res-subject"));
 
   if (!data.length) { tbody.innerHTML = `<tr><td colspan="3">لا توجد مواد بعد</td></tr>`; return; }
   tbody.innerHTML = "";
   data.forEach((s) => {
     const uniId = s.years?.university_id;
-    const canEdit = hasPerm("academic_structure", uniId, "edit");
-    const canDelete = hasPerm("academic_structure", uniId, "delete");
+    const facId = s.years?.faculty_id;
+    const canEdit = hasPerm("academic_structure", uniId, facId, "edit");
+    const canDelete = hasPerm("academic_structure", uniId, facId, "delete");
+    const location = `${s.years?.universities?.name || "—"} › ${s.years?.faculties?.name || "—"} › سنة ${s.years?.year_number ?? "—"}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="المادة">${s.name}${s.code ? ` (${s.code})` : ""}</td>
-      <td data-label="السنة/الجامعة">${s.years?.universities?.name || "—"} — سنة ${s.years?.year_number ?? "—"}</td>
+      <td data-label="الجامعة / الكلية / السنة">${location}</td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${escAttr(s.name)}','${escAttr(s.code || "")}')">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}')">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -401,8 +687,10 @@ async function loadSubjects() {
 document.getElementById("subj-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("subj-edit-id").value;
+  const yearId = document.getElementById("subj-year").value;
+  if (!yearId) { showToast("اختر السنة الدراسية أولاً"); return; }
   const payload = {
-    year_id: document.getElementById("subj-year").value,
+    year_id: yearId,
     name: document.getElementById("subj-name").value.trim(),
     code: document.getElementById("subj-code").value.trim() || null,
   };
@@ -417,9 +705,11 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   loadSubjects();
 });
 
-function editSubject(id, yearId, name, code) {
+function editSubject(id, yearId, universityId, facultyId, name, code) {
   document.getElementById("subj-edit-id").value = id;
-  document.getElementById("subj-year").value = yearId;
+  document.getElementById("subj-university").value = universityId;
+  populateFacultySelect("subj-faculty", universityId, facultyId || null);
+  populateYearSelectForFaculty("subj-year", facultyId || null, yearId);
   document.getElementById("subj-name").value = name;
   document.getElementById("subj-code").value = code;
   document.getElementById("subj-form-title").textContent = "تعديل مادة";
@@ -430,6 +720,8 @@ function editSubject(id, yearId, name, code) {
 function resetSubjForm() {
   document.getElementById("subj-form").reset();
   document.getElementById("subj-edit-id").value = "";
+  populateFacultySelect("subj-faculty", currentSelectValue("subj-university"), null);
+  populateYearSelectForFaculty("subj-year", null, null);
   document.getElementById("subj-form-title").textContent = "إضافة مادة";
   document.getElementById("subj-submit-btn").textContent = "إضافة";
   document.getElementById("subj-cancel-btn").hidden = true;
@@ -443,7 +735,13 @@ document.getElementById("subj-cancel-btn").addEventListener("click", resetSubjFo
 async function loadResources() {
   const { data, error } = await supabaseClient
     .from("resources")
-    .select("id, title, type, language, file_url, storage_provider, source_type, status, keywords, subject_id, subjects(name, years(university_id))")
+    .select(`
+      id, title, type, language, file_url, storage_provider, source_type, status, keywords, subject_id,
+      subjects(
+        id, name, year_id,
+        years(id, university_id, faculty_id, year_number, universities(name), faculties(name))
+      )
+    `)
     .order("created_at", { ascending: false });
   const tbody = document.querySelector("#res-table tbody");
   if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
@@ -452,12 +750,14 @@ async function loadResources() {
   tbody.innerHTML = "";
   data.forEach((r) => {
     const uniId = r.subjects?.years?.university_id;
-    const canEdit = hasPerm("resources", uniId, "edit");
-    const canDelete = hasPerm("resources", uniId, "delete");
+    const facId = r.subjects?.years?.faculty_id;
+    const canEdit = hasPerm("resources", uniId, facId, "edit");
+    const canDelete = hasPerm("resources", uniId, facId, "delete");
+    const location = `${r.subjects?.years?.universities?.name || "—"} › ${r.subjects?.years?.faculties?.name || "—"} › سنة ${r.subjects?.years?.year_number ?? "—"} › ${r.subjects?.name || "—"}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="العنوان">${r.title}</td>
-      <td data-label="المادة">${r.subjects?.name || "—"}</td>
+      <td data-label="الموقع الأكاديمي">${location}</td>
       <td data-label="النوع">${RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type}</td>
       <td data-label="الحالة"><span class="status-badge ${r.status}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
       <td>
@@ -472,8 +772,10 @@ async function loadResources() {
 document.getElementById("res-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("res-edit-id").value;
+  const subjectId = document.getElementById("res-subject").value;
+  if (!subjectId) { showToast("اختر المادة أولاً"); return; }
   const payload = {
-    subject_id: document.getElementById("res-subject").value,
+    subject_id: subjectId,
     title: document.getElementById("res-title").value.trim(),
     type: document.getElementById("res-type").value,
     language: document.getElementById("res-language").value,
@@ -495,8 +797,16 @@ document.getElementById("res-form").addEventListener("submit", async (e) => {
 });
 
 function editResource(r) {
+  const uniId = r.subjects?.years?.university_id;
+  const facId = r.subjects?.years?.faculty_id;
+  const yearId = r.subjects?.year_id;
+
   document.getElementById("res-edit-id").value = r.id;
-  document.getElementById("res-subject").value = r.subject_id;
+  document.getElementById("res-university").value = uniId || "";
+  populateFacultySelect("res-faculty", uniId, facId || null);
+  populateYearSelectForFaculty("res-year", facId || null, yearId || null);
+  populateSubjectSelectForYear("res-subject", yearId || null, r.subject_id);
+
   document.getElementById("res-title").value = r.title;
   document.getElementById("res-type").value = r.type;
   document.getElementById("res-language").value = r.language || "ar";
@@ -513,6 +823,9 @@ function editResource(r) {
 function resetResForm() {
   document.getElementById("res-form").reset();
   document.getElementById("res-edit-id").value = "";
+  populateFacultySelect("res-faculty", currentSelectValue("res-university"), null);
+  populateYearSelectForFaculty("res-year", null, null);
+  populateSubjectSelectForYear("res-subject", null, null);
   document.getElementById("res-form-title").textContent = "إضافة مورد";
   document.getElementById("res-submit-btn").textContent = "إضافة";
   document.getElementById("res-cancel-btn").hidden = true;
@@ -526,7 +839,7 @@ document.getElementById("res-cancel-btn").addEventListener("click", resetResForm
 async function loadReports() {
   const { data, error } = await supabaseClient
     .from("reports")
-    .select("id, reason, note, created_at, resource_id, resources(id, title, status, subjects(years(university_id)))")
+    .select("id, reason, note, created_at, resource_id, resources(id, title, status, subjects(years(university_id, faculty_id)))")
     .order("created_at", { ascending: false });
   const tbody = document.querySelector("#reports-table tbody");
   if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
@@ -539,8 +852,9 @@ async function loadReports() {
     const resTitle = r.resources?.title || "(مورد محذوف)";
     const isHidden = r.resources?.status === "hidden";
     const uniId = r.resources?.subjects?.years?.university_id;
-    const canResolve = hasPerm("reports", uniId, "delete");
-    const canToggle = hasPerm("resources", uniId, "edit");
+    const facId = r.resources?.subjects?.years?.faculty_id;
+    const canResolve = hasPerm("reports", uniId, facId, "delete");
+    const canToggle = hasPerm("resources", uniId, facId, "edit");
     tr.innerHTML = `
       <td data-label="المورد">${resTitle}</td>
       <td data-label="السبب">${reasonLabels[r.reason] || r.reason}</td>
@@ -575,10 +889,11 @@ async function loadUsersPanel() {
   const container = document.getElementById("users-list");
   container.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
 
-  const [{ data: profilesData, error: pErr }, { data: permsData }, { data: unis }] = await Promise.all([
+  const [{ data: profilesData, error: pErr }, { data: permsData }, { data: unis }, { data: facs }] = await Promise.all([
     supabaseClient.from("profiles").select("*").order("created_at"),
     supabaseClient.from("user_permissions").select("*"),
     supabaseClient.from("universities").select("id, name").order("name"),
+    supabaseClient.from("faculties").select("id, name, university_id").order("name"),
   ]);
 
   if (pErr) { container.innerHTML = `<div class="state-msg">تعذّر تحميل المستخدمين</div>`; return; }
@@ -586,7 +901,7 @@ async function loadUsersPanel() {
   container.innerHTML = "";
   (profilesData || []).forEach((profile) => {
     const userPerms = (permsData || []).filter((p) => p.user_id === profile.id);
-    container.appendChild(buildUserPermissionCard(profile, userPerms, unis || []));
+    container.appendChild(buildUserPermissionCard(profile, userPerms, unis || [], facs || []));
   });
 
   if (!profilesData || !profilesData.length) {
@@ -594,7 +909,7 @@ async function loadUsersPanel() {
   }
 }
 
-function buildUserPermissionCard(profile, userPerms, universities) {
+function buildUserPermissionCard(profile, userPerms, universities, faculties) {
   const card = document.createElement("div");
   card.className = "user-perm-card";
   const isSelf = profile.id === currentProfile.id;
@@ -654,14 +969,8 @@ function buildUserPermissionCard(profile, userPerms, universities) {
     return card;
   }
 
-  // مصفوفة صلاحيات: صف "عام (كل الجامعات)" + صف لكل جامعة
-  const scopesTable = document.createElement("div");
-  scopesTable.className = "perm-scopes";
-
-  const scopeRows = [{ scope_type: "global", scope_id: null, label: "عام (كل الجامعات)" }]
-    .concat(universities.map((u) => ({ scope_type: "university", scope_id: u.id, label: u.name })));
-
-  scopeRows.forEach((scope) => {
+  // -------- بناء كتلة صلاحيات واحدة (تُستخدم لكل أنواع النطاق: عام/جامعة/كلية) --------
+  function buildScopeBlock(scope) {
     const scopeBlock = document.createElement("div");
     scopeBlock.className = "perm-scope-block";
     const title = document.createElement("div");
@@ -681,6 +990,7 @@ function buildUserPermissionCard(profile, userPerms, universities) {
         const existing = userPerms.find((p) =>
           p.scope_type === scope.scope_type &&
           (p.scope_id === scope.scope_id || (p.scope_id == null && scope.scope_id == null)) &&
+          (p.scope_faculty_id === scope.scope_faculty_id || (p.scope_faculty_id == null && scope.scope_faculty_id == null)) &&
           p.entity_type === entityType && p.action === action
         );
         const wrap = document.createElement("label");
@@ -697,10 +1007,117 @@ function buildUserPermissionCard(profile, userPerms, universities) {
       });
       scopeBlock.appendChild(row);
     });
-    scopesTable.appendChild(scopeBlock);
+    return scopeBlock;
+  }
+
+  // مصفوفة صلاحيات: صف "عام (كل الجامعات)" + صف لكل جامعة (سلوك المرحلة 2 كما هو دون تغيير)
+  const scopesTable = document.createElement("div");
+  scopesTable.className = "perm-scopes";
+
+  const scopeRows = [{ scope_type: "global", scope_id: null, scope_faculty_id: null, label: "عام (كل الجامعات)" }]
+    .concat(universities.map((u) => ({ scope_type: "university", scope_id: u.id, scope_faculty_id: null, label: u.name })));
+
+  scopeRows.forEach((scope) => scopesTable.appendChild(buildScopeBlock(scope)));
+  card.appendChild(scopesTable);
+
+  // -------- قسم جديد: الصلاحيات على مستوى الكلية --------
+  const facSection = document.createElement("div");
+  facSection.style.marginTop = "14px";
+
+  const facTitle = document.createElement("div");
+  facTitle.className = "perm-scope-title";
+  facTitle.textContent = "صلاحيات على مستوى الكلية";
+  facSection.appendChild(facTitle);
+
+  const facScopesWrap = document.createElement("div");
+  facScopesWrap.className = "perm-scopes";
+  facSection.appendChild(facScopesWrap);
+
+  function facultyLabel(facultyId) {
+    const f = faculties.find((x) => x.id === facultyId);
+    if (!f) return "كلية غير معروفة";
+    const uni = universities.find((u) => u.id === f.university_id);
+    return `${uni ? uni.name : "—"} › ${f.name}`;
+  }
+
+  // الكليات التي للمستخدم فيها صلاحية فعلية بالفعل (مبنية من البيانات الموجودة)
+  const existingFacultyIds = Array.from(new Set(
+    userPerms.filter((p) => p.scope_type === "faculty" && p.scope_faculty_id).map((p) => p.scope_faculty_id)
+  ));
+
+  function addFacultyScopeBlock(facultyId) {
+    const faculty = faculties.find((f) => f.id === facultyId);
+    if (!faculty) return;
+    const scope = { scope_type: "faculty", scope_id: null, scope_faculty_id: facultyId, label: facultyLabel(facultyId) };
+    facScopesWrap.appendChild(buildScopeBlock(scope));
+  }
+
+  existingFacultyIds.forEach(addFacultyScopeBlock);
+
+  if (!existingFacultyIds.length) {
+    const emptyMsg = document.createElement("p");
+    emptyMsg.className = "hint";
+    emptyMsg.textContent = "لا توجد صلاحيات على مستوى كلية بعد لهذا المستخدم.";
+    emptyMsg.dataset.role = "fac-empty-msg";
+    facScopesWrap.appendChild(emptyMsg);
+  }
+
+  // -------- نموذج إضافة صلاحية كلية جديدة (متتالي: جامعة ← كلية) --------
+  const addRow = document.createElement("div");
+  addRow.className = "user-perm-controls";
+  addRow.style.marginTop = "10px";
+
+  const addUniSelect = document.createElement("select");
+  const uniPlaceholder = document.createElement("option");
+  uniPlaceholder.value = "";
+  uniPlaceholder.textContent = "اختر الجامعة";
+  addUniSelect.appendChild(uniPlaceholder);
+  universities.forEach((u) => {
+    const opt = document.createElement("option");
+    opt.value = u.id; opt.textContent = u.name;
+    addUniSelect.appendChild(opt);
   });
 
-  card.appendChild(scopesTable);
+  const addFacSelect = document.createElement("select");
+  addFacSelect.innerHTML = `<option value="">اختر الجامعة أولاً</option>`;
+
+  addUniSelect.addEventListener("change", () => {
+    const uniId = addUniSelect.value;
+    addFacSelect.innerHTML = "";
+    if (!uniId) { addFacSelect.innerHTML = `<option value="">اختر الجامعة أولاً</option>`; return; }
+    const opts = faculties.filter((f) => f.university_id === uniId);
+    if (!opts.length) { addFacSelect.innerHTML = `<option value="">لا توجد كليات لهذه الجامعة</option>`; return; }
+    addFacSelect.innerHTML = `<option value="">اختر الكلية</option>`;
+    opts.forEach((f) => {
+      const opt = document.createElement("option");
+      opt.value = f.id; opt.textContent = f.name;
+      addFacSelect.appendChild(opt);
+    });
+  });
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "btn btn-outline btn-sm";
+  addBtn.textContent = "+ إضافة صلاحية كلية";
+  addBtn.addEventListener("click", () => {
+    const facultyId = addFacSelect.value;
+    if (!facultyId) { showToast("اختر الكلية أولاً"); return; }
+    if (existingFacultyIds.includes(facultyId)) { showToast("توجد بالفعل كتلة صلاحيات لهذه الكلية بالأسفل"); return; }
+    const emptyMsg = facScopesWrap.querySelector('[data-role="fac-empty-msg"]');
+    if (emptyMsg) emptyMsg.remove();
+    addFacultyScopeBlock(facultyId);
+    existingFacultyIds.push(facultyId);
+    addUniSelect.value = "";
+    addFacSelect.innerHTML = `<option value="">اختر الجامعة أولاً</option>`;
+  });
+
+  addRow.appendChild(labeledWrap("الجامعة", addUniSelect));
+  addRow.appendChild(labeledWrap("الكلية", addFacSelect));
+  addRow.appendChild(addBtn);
+  facSection.appendChild(addRow);
+
+  card.appendChild(facSection);
+
   return card;
 }
 
@@ -714,6 +1131,7 @@ async function togglePermission(userId, scope, entityType, action, existingRow, 
     } else {
       const { error } = await supabaseClient.from("user_permissions").insert({
         user_id: userId, scope_type: scope.scope_type, scope_id: scope.scope_id,
+        scope_faculty_id: scope.scope_faculty_id || null,
         entity_type: entityType, action, active: true,
       });
       if (error) { showToast("تعذّر منح الصلاحية"); console.error(error); return; }
@@ -749,7 +1167,7 @@ function labeledWrap(label, el) {
 async function deleteRow(table, id, refreshFn) {
   if (!confirm("هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.")) return;
   const { error } = await supabaseClient.from(table).delete().eq("id", id);
-  if (error) { showToast("تعذّر الحذف (تحقق من صلاحياتك)"); console.error(error); return; }
+  if (error) { showToast("تعذّر الحذف (تحقق من صلاحياتك، أو أن هناك بيانات تابعة لهذا العنصر)"); console.error(error); return; }
   logActivity(`${table}_deleted`, table, id, null);
   showToast("تم الحذف");
   refreshFn();

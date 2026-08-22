@@ -45,6 +45,7 @@
     <div class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="dashboard">لوحة المعلومات</button>
       <button class="admin-tab-btn" data-tab="universities">الجامعات</button>
+      <button class="admin-tab-btn" data-tab="faculties">الكليات</button>
       <button class="admin-tab-btn" data-tab="years">السنوات</button>
       <button class="admin-tab-btn" data-tab="subjects">المواد</button>
       <button class="admin-tab-btn" data-tab="resources">الموارد</button>
@@ -89,6 +90,40 @@
       </div>
     </section>
 
+    <!-- الكليات -->
+    <section class="admin-panel" id="panel-faculties">
+      <div class="admin-panel-inner">
+        <h3 id="fac-form-title">إضافة كلية</h3>
+        <form id="fac-form">
+          <input type="hidden" id="fac-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="fac-university" required></select>
+            </div>
+            <div class="field"><label>اسم الكلية</label><input type="text" id="fac-name" required></div>
+            <div class="field"><label>الرمز (اختياري)</label><input type="text" id="fac-code"></div>
+            <div class="field"><label>الوصف (اختياري)</label><input type="text" id="fac-description"></div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="fac-active" checked>
+                مفعّلة
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="fac-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="fac-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="fac-table">
+            <thead><tr><th>الجامعة</th><th>الكلية</th><th>الرمز</th><th>الحالة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- السنوات -->
     <section class="admin-panel" id="panel-years">
       <div class="admin-panel-inner">
@@ -101,6 +136,12 @@
               <select id="year-university" required></select>
             </div>
             <div class="field">
+              <label>الكلية</label>
+              <select id="year-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
               <label>رقم السنة (1-6)</label>
               <input type="number" id="year-number" min="1" max="6" required>
             </div>
@@ -111,8 +152,8 @@
         <hr style="margin:20px 0; border-color: var(--line);">
         <div class="table-wrap">
           <table class="admin-table" id="year-table">
-            <thead><tr><th>الجامعة</th><th>السنة</th><th></th></tr></thead>
-            <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
+            <thead><tr><th>الجامعة</th><th>الكلية</th><th>السنة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="4">جارٍ التحميل...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -126,8 +167,20 @@
           <input type="hidden" id="subj-edit-id">
           <div class="form-grid">
             <div class="field">
-              <label>الجامعة / السنة</label>
-              <select id="subj-year" required></select>
+              <label>الجامعة</label>
+              <select id="subj-university" required></select>
+            </div>
+            <div class="field">
+              <label>الكلية</label>
+              <select id="subj-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>السنة الدراسية</label>
+              <select id="subj-year" required>
+                <option value="">اختر الكلية أولاً</option>
+              </select>
             </div>
             <div class="field"><label>اسم المادة</label><input type="text" id="subj-name" required></div>
             <div class="field"><label>رمز المادة (اختياري)</label><input type="text" id="subj-code"></div>
@@ -138,7 +191,7 @@
         <hr style="margin:20px 0; border-color: var(--line);">
         <div class="table-wrap">
           <table class="admin-table" id="subj-table">
-            <thead><tr><th>المادة</th><th>السنة/الجامعة</th><th></th></tr></thead>
+            <thead><tr><th>المادة</th><th>الجامعة / الكلية / السنة</th><th></th></tr></thead>
             <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
           </table>
         </div>
@@ -153,8 +206,26 @@
           <input type="hidden" id="res-edit-id">
           <div class="form-grid">
             <div class="field">
+              <label>الجامعة</label>
+              <select id="res-university" required></select>
+            </div>
+            <div class="field">
+              <label>الكلية</label>
+              <select id="res-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>السنة الدراسية</label>
+              <select id="res-year" required>
+                <option value="">اختر الكلية أولاً</option>
+              </select>
+            </div>
+            <div class="field">
               <label>المادة</label>
-              <select id="res-subject" required></select>
+              <select id="res-subject" required>
+                <option value="">اختر السنة أولاً</option>
+              </select>
             </div>
             <div class="field"><label>عنوان المورد</label><input type="text" id="res-title" required></div>
             <div class="field">
@@ -213,7 +284,7 @@
         <hr style="margin:20px 0; border-color: var(--line);">
         <div class="table-wrap">
           <table class="admin-table" id="res-table">
-            <thead><tr><th>العنوان</th><th>المادة</th><th>النوع</th><th>الحالة</th><th></th></tr></thead>
+            <thead><tr><th>العنوان</th><th>الموقع الأكاديمي</th><th>النوع</th><th>الحالة</th><th></th></tr></thead>
             <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
           </table>
         </div>
