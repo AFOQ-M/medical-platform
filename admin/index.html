@@ -277,11 +277,35 @@
                 <option value="hidden">مخفي</option>
               </select>
             </div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="res-verified">
+                موثّق (Verified)
+              </label>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary btn-sm" id="res-submit-btn">إضافة</button>
           <button type="button" class="btn btn-outline btn-sm" id="res-cancel-btn" hidden>إلغاء التعديل</button>
         </form>
         <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="search-filters" style="margin-bottom:14px; margin-top:0;">
+          <input type="search" id="res-filter-search" class="subject-search-input" style="max-width:none;" placeholder="🔍 ابحث بالعنوان أو الكلمات المفتاحية...">
+          <select id="res-filter-type">
+            <option value="">كل الأنواع</option>
+            <option value="book">كتاب</option>
+            <option value="lecture">محاضرة</option>
+            <option value="slides">سلايدات</option>
+            <option value="summary">ملخص</option>
+            <option value="questions">أسئلة</option>
+            <option value="past_exam">امتحان سابق</option>
+            <option value="notes">ملاحظات</option>
+          </select>
+          <select id="res-filter-status">
+            <option value="">كل الحالات</option>
+            <option value="published">منشور</option>
+            <option value="hidden">مخفي</option>
+          </select>
+        </div>
         <div class="table-wrap">
           <table class="admin-table" id="res-table">
             <thead><tr><th>العنوان</th><th>الموقع الأكاديمي</th><th>النوع</th><th>الحالة</th><th></th></tr></thead>

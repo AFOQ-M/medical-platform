@@ -12,6 +12,92 @@ const RESOURCE_TYPE_LABELS = {
   notes: "ملاحظات",
 };
 
+// رموز بصرية سريعة لكل نوع مورد (Phase 3.1) — تُستخدم في البطاقات وتبويبات الفلترة
+const RESOURCE_TYPE_ICONS = {
+  book: "📘",
+  lecture: "🎥",
+  slides: "🖥️",
+  summary: "📝",
+  questions: "❓",
+  past_exam: "🗂️",
+  notes: "🗒️",
+};
+
+// ترتيب ثابت لعرض الأنواع (تبويبات صفحة المادة، إلخ) بدل الاعتماد على ترتيب قاعدة البيانات
+const RESOURCE_TYPE_ORDER = ["lecture", "slides", "book", "summary", "notes", "questions", "past_exam"];
+
+// ------------------------------------------------------------
+// المفضلة + "آخر ما شوهد" (Phase 3.4) — تُخزَّن محليًا فقط (localStorage)
+// لكل متصفّح، دون أي حساب مستخدم أو جدول قاعدة بيانات جديد.
+// ------------------------------------------------------------
+
+const FAVORITES_KEY = "mrp_favorites";
+const RECENTLY_VIEWED_KEY = "mrp_recently_viewed";
+const RECENTLY_VIEWED_LIMIT = 12;
+
+function readLocalList(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeLocalList(key, list) {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {
+    // مساحة تخزين ممتلئة أو غير متاحة (وضع تصفّح خاص متشدد مثلاً) — نتجاهل بصمت
+    console.warn("تعذّر الحفظ محليًا:", e);
+  }
+}
+
+/** يحتفظ فقط بالحقول اللازمة لإعادة عرض بطاقة المورد لاحقًا دون طلب من قاعدة البيانات */
+function pickResourceFields(resource) {
+  return {
+    id: resource.id,
+    title: resource.title,
+    type: resource.type,
+    language: resource.language || null,
+    file_url: resource.file_url,
+    source_type: resource.source_type || null,
+    subject_id: resource.subject_id || null,
+    subject_name: resource.subject_name || null,
+    faculty_name: resource.faculty_name || null,
+    university_name: resource.university_name || null,
+    verified: !!resource.verified,
+  };
+}
+
+function isFavorite(resourceId) {
+  return readLocalList(FAVORITES_KEY).some((r) => r.id === resourceId);
+}
+
+/** يبدّل حالة المفضلة لمورد ويعيد الحالة الجديدة (true = أصبح مفضّلاً) */
+function toggleFavorite(resource) {
+  const list = readLocalList(FAVORITES_KEY);
+  const idx = list.findIndex((r) => r.id === resource.id);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    writeLocalList(FAVORITES_KEY, list);
+    return false;
+  }
+  list.unshift(pickResourceFields(resource));
+  writeLocalList(FAVORITES_KEY, list);
+  return true;
+}
+
+/** يسجّل مورداً في "آخر ما شوهد" (الأحدث أولاً)، بحد أقصى RECENTLY_VIEWED_LIMIT عنصرًا */
+function recordRecentlyViewed(resource) {
+  let list = readLocalList(RECENTLY_VIEWED_KEY);
+  list = list.filter((r) => r.id !== resource.id);
+  list.unshift(pickResourceFields(resource));
+  if (list.length > RECENTLY_VIEWED_LIMIT) list = list.slice(0, RECENTLY_VIEWED_LIMIT);
+  writeLocalList(RECENTLY_VIEWED_KEY, list);
+}
+
 const LANGUAGE_LABELS = { ar: "عربي", en: "إنجليزي" };
 
 const SOURCE_TYPE_LABELS = {
@@ -27,9 +113,28 @@ function buildResourceCard(resource) {
   card.className = "resource-card";
   card.dataset.type = resource.type;
 
+  const favBtn = document.createElement("button");
+  favBtn.type = "button";
+  favBtn.className = "favorite-btn" + (isFavorite(resource.id) ? " active" : "");
+  favBtn.textContent = isFavorite(resource.id) ? "★" : "☆";
+  favBtn.setAttribute("aria-label", isFavorite(resource.id) ? "إزالة من المفضلة" : "إضافة للمفضلة");
+  favBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const nowFavorite = toggleFavorite(resource);
+    favBtn.textContent = nowFavorite ? "★" : "☆";
+    favBtn.classList.toggle("active", nowFavorite);
+    favBtn.setAttribute("aria-label", nowFavorite ? "إزالة من المفضلة" : "إضافة للمفضلة");
+  });
+  card.appendChild(favBtn);
+
   const title = document.createElement("div");
   title.className = "resource-title";
-  title.textContent = resource.title;
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "resource-type-icon";
+  iconSpan.setAttribute("aria-hidden", "true");
+  iconSpan.textContent = RESOURCE_TYPE_ICONS[resource.type] || "📄";
+  title.appendChild(iconSpan);
+  title.appendChild(document.createTextNode(resource.title));
   card.appendChild(title);
 
   const meta = document.createElement("div");
@@ -48,6 +153,13 @@ function buildResourceCard(resource) {
     meta.appendChild(langTag);
   }
 
+  if (resource.verified) {
+    const verifiedTag = document.createElement("span");
+    verifiedTag.className = "tag tag-verified";
+    verifiedTag.textContent = "✓ موثّق";
+    meta.appendChild(verifiedTag);
+  }
+
   card.appendChild(meta);
 
   const actions = document.createElement("div");
@@ -64,6 +176,12 @@ function buildResourceCard(resource) {
   } else {
     openBtn.textContent = "فتح / تحميل";
   }
+  openBtn.addEventListener("click", () => {
+    recordRecentlyViewed(resource);
+    // عدّاد مشاهدات عام (Phase 3.5) — عبر دالة ضيقة النطاق تتجاوز RLS
+    // فقط لزيادة رقم واحد؛ لا نعطّل فتح الرابط إن فشل الاستدعاء.
+    supabaseClient.rpc("increment_resource_view", { p_resource_id: resource.id }).catch(() => {});
+  });
   actions.appendChild(openBtn);
 
   const reportBtn = document.createElement("button");
@@ -186,4 +304,159 @@ function showToast(message) {
   toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
 }
 
-document.addEventListener("DOMContentLoaded", wireReportModal);
+// ------------------------------------------------------------
+// البحث الشامل من الهيدر (Phase 3.2) — نافذة عائمة + اقتراحات فورية
+// تُبنى بالكامل عبر JS وتُضاف لكل صفحة فيها زر #global-search-trigger
+// (بدون تكرار أي HTML في كل صفحة عامة على حدة).
+// ------------------------------------------------------------
+
+function buildGlobalSearchOverlay() {
+  if (document.getElementById("global-search-overlay")) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay global-search-overlay";
+  overlay.id = "global-search-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="modal-box global-search-box">
+      <form id="global-search-form">
+        <input type="search" id="global-search-input" class="search-input"
+               placeholder="ابحث عن مادة أو محاضرة أو كتاب أو جامعة أو كلية..." autocomplete="off">
+      </form>
+      <div id="global-search-results" class="global-search-results"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector("#global-search-input");
+  const resultsEl = overlay.querySelector("#global-search-results");
+  const form = overlay.querySelector("#global-search-form");
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeGlobalSearchOverlay(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !overlay.hidden) closeGlobalSearchOverlay();
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    goToFullSearch(input.value.trim());
+  });
+
+  let debounceTimer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (q.length < 2) {
+      resultsEl.innerHTML = `<div class="state-msg">اكتب حرفين على الأقل، مثل اسم المادة أو الجامعة</div>`;
+      return;
+    }
+    resultsEl.innerHTML = `<div class="state-msg">جارٍ البحث...</div>`;
+    debounceTimer = setTimeout(() => runGlobalSearchSuggestions(q), 250);
+  });
+}
+
+async function runGlobalSearchSuggestions(query) {
+  const input = document.getElementById("global-search-input");
+  const resultsEl = document.getElementById("global-search-results");
+  if (!input || !resultsEl) return;
+
+  // نرسل كل المعاملات صراحةً (حتى المُهملة منها كـ null) بدل الاعتماد على
+  // القيم الافتراضية فقط — هذا يحمي من تكرار مشكلة تعارض النسخ المتعددة
+  // (Overload) لو أُعيد تعريف الدالة يومًا بمعاملات إضافية أخرى.
+  const { data, error } = await supabaseClient.rpc("search_resources", {
+    p_query: query,
+    p_type: null,
+    p_university_id: null,
+    p_faculty_id: null,
+    p_year_number: null,
+    p_subject_id: null,
+    p_language: null,
+  });
+
+  // تجاهل نتيجة بحث وصلت متأخرة بعد أن غيّر المستخدم كلمة البحث بالفعل
+  if (input.value.trim() !== query) return;
+
+  if (error) {
+    resultsEl.innerHTML = `<div class="state-msg">تعذّر البحث الآن، حاول مرة أخرى.</div>`;
+    console.error(error);
+    return;
+  }
+
+  const suggestions = (data || []).slice(0, 6);
+  resultsEl.innerHTML = "";
+
+  const viewAllBtn = document.createElement("button");
+  viewAllBtn.type = "button";
+  viewAllBtn.className = "global-search-viewall";
+  viewAllBtn.textContent = `عرض كل النتائج لـ «${query}» ←`;
+  viewAllBtn.addEventListener("click", () => goToFullSearch(query));
+  resultsEl.appendChild(viewAllBtn);
+
+  if (suggestions.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "state-msg";
+    empty.textContent = "لا توجد نتائج مطابقة.";
+    resultsEl.appendChild(empty);
+    return;
+  }
+
+  suggestions.forEach((r) => {
+    const item = document.createElement("a");
+    item.className = "global-search-item";
+    item.href = `subject.html?id=${r.subject_id}`;
+
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "resource-type-icon";
+    iconSpan.setAttribute("aria-hidden", "true");
+    iconSpan.textContent = RESOURCE_TYPE_ICONS[r.type] || "📄";
+    item.appendChild(iconSpan);
+
+    const textWrap = document.createElement("span");
+    textWrap.className = "global-search-item-text";
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "global-search-item-title";
+    titleEl.textContent = r.title;
+    textWrap.appendChild(titleEl);
+
+    const metaEl = document.createElement("span");
+    metaEl.className = "global-search-item-meta";
+    metaEl.textContent = [r.subject_name, r.faculty_name, r.university_name].filter(Boolean).join(" · ");
+    textWrap.appendChild(metaEl);
+
+    item.appendChild(textWrap);
+    resultsEl.appendChild(item);
+  });
+}
+
+function goToFullSearch(query) {
+  window.location.href = `search.html?q=${encodeURIComponent(query)}`;
+}
+
+function openGlobalSearchOverlay() {
+  const overlay = document.getElementById("global-search-overlay");
+  if (!overlay) return;
+  overlay.hidden = false;
+  const input = document.getElementById("global-search-input");
+  input.value = "";
+  document.getElementById("global-search-results").innerHTML =
+    `<div class="state-msg">اكتب حرفين على الأقل، مثل اسم المادة أو الجامعة</div>`;
+  setTimeout(() => input.focus(), 30);
+}
+
+function closeGlobalSearchOverlay() {
+  const overlay = document.getElementById("global-search-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function initGlobalSearch() {
+  const trigger = document.getElementById("global-search-trigger");
+  if (!trigger) return; // الصفحة لا تحتوي زر بحث شامل (مثال: لوحة التحكم)
+  buildGlobalSearchOverlay();
+  trigger.addEventListener("click", openGlobalSearchOverlay);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  wireReportModal();
+  initGlobalSearch();
+});

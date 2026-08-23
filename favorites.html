@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>المفضلة — منصة الموارد الطبية</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <div class="header-actions">
+      <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <h1>المفضلة</h1>
+  <p class="hint" style="color: var(--ink-soft); margin-top: -8px; margin-bottom: 20px;">
+    محفوظة على هذا المتصفح فقط — لن تظهر إن غيّرت الجهاز أو المتصفح.
+  </p>
+
+  <div id="favorites-grid" class="grid">
+    <div class="state-msg">جارٍ التحميل...</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  منصة مجانية غير هادفة للربح لطلاب الطب — لا تستضيف محتوى محمي بحقوق نشر مباشرة
+</footer>
+
+<div class="modal-overlay" id="report-modal" hidden>
+  <div class="modal-box">
+    <h3>الإبلاغ عن مشكلة</h3>
+    <p class="hint">المورد: <strong id="report-resource-name"></strong></p>
+    <form id="report-form">
+      <div class="field">
+        <label for="report-reason">نوع المشكلة</label>
+        <select id="report-reason" required>
+          <option value="broken_link">الرابط لا يعمل</option>
+          <option value="wrong_file">الملف غير صحيح</option>
+          <option value="copyright">محتوى محمي بحقوق نشر</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="report-note">ملاحظات إضافية (اختياري)</label>
+        <textarea id="report-note" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" id="report-submit-btn" class="btn btn-primary">إرسال البلاغ</button>
+        <button type="button" id="report-cancel-btn" class="btn btn-outline">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/app.js"></script>
+<script>
+  renderBreadcrumb(document.getElementById("breadcrumb"), [
+    { label: "الرئيسية", href: "index.html" },
+    { label: "المفضلة" },
+  ]);
+
+  function renderFavorites() {
+    const grid = document.getElementById("favorites-grid");
+    const favorites = readLocalList(FAVORITES_KEY);
+
+    if (favorites.length === 0) {
+      renderState(grid, "لا توجد موارد في المفضلة بعد. اضغط ☆ على أي مورد لإضافته هنا.");
+      return;
+    }
+
+    grid.innerHTML = "";
+    grid.style.gridTemplateColumns = "1fr";
+    favorites.forEach((r) => {
+      const card = buildResourceCard(r);
+      if (r.subject_name || r.faculty_name || r.university_name) {
+        const metaLine = document.createElement("div");
+        metaLine.className = "card-sub";
+        metaLine.style.fontSize = ".82rem";
+        metaLine.style.marginTop = "-6px";
+        metaLine.textContent = [r.subject_name, r.faculty_name, r.university_name].filter(Boolean).join(" · ");
+        card.insertBefore(metaLine, card.querySelector(".resource-actions"));
+      }
+      if (r.subject_id) {
+        const subLink = document.createElement("a");
+        subLink.href = `subject.html?id=${r.subject_id}`;
+        subLink.className = "card-sub";
+        subLink.style.textDecoration = "underline";
+        subLink.style.display = "block";
+        subLink.textContent = "عرض المادة كاملة →";
+        card.insertBefore(subLink, card.querySelector(".resource-actions"));
+      }
+      grid.appendChild(card);
+    });
+  }
+
+  // إعادة الرسم فورًا عند إزالة عنصر من المفضلة من نفس الصفحة (زر ★ داخل البطاقة نفسها)
+  document.getElementById("favorites-grid").addEventListener("click", (e) => {
+    if (e.target.closest(".favorite-btn")) {
+      setTimeout(renderFavorites, 0);
+    }
+  });
+
+  renderFavorites();
+</script>
+</body>
+</html>

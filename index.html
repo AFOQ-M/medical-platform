@@ -14,7 +14,11 @@
       <span class="brand-mark">طب</span>
       منصة الموارد الطبية
     </a>
-    <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+    <div class="header-actions">
+      <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
   </div>
 </header>
 
@@ -35,9 +39,24 @@
     </form>
   </section>
 
+  <div id="recently-viewed-section" hidden>
+    <h2>تابع من حيث توقفت</h2>
+    <div id="recently-viewed-grid" class="grid" style="margin-bottom: 32px;"></div>
+  </div>
+
   <h2>اختر جامعتك</h2>
   <div id="universities-grid" class="grid">
     <div class="state-msg">جارٍ التحميل...</div>
+  </div>
+
+  <div id="popular-resources-section" hidden>
+    <h2>الأكثر طلبًا 🔥</h2>
+    <div id="popular-resources-grid" class="grid"></div>
+  </div>
+
+  <div id="recent-resources-section" hidden>
+    <h2>آخر الموارد المضافة</h2>
+    <div id="recent-resources-grid" class="grid"></div>
   </div>
 </main>
 
@@ -109,7 +128,74 @@
     });
   }
 
+  function renderRecentlyViewed() {
+    const list = readLocalList(RECENTLY_VIEWED_KEY);
+    if (!list.length) return;
+
+    const section = document.getElementById("recently-viewed-section");
+    const grid = document.getElementById("recently-viewed-grid");
+    section.hidden = false;
+    grid.style.gridTemplateColumns = "1fr";
+    grid.innerHTML = "";
+    list.slice(0, 6).forEach((r) => grid.appendChild(buildResourceCard(r)));
+  }
+
+  async function fetchPublicResourceFeed(orderColumn, limit) {
+    const { data, error } = await supabaseClient
+      .from("resources")
+      .select(`
+        id, title, type, language, file_url, source_type, subject_id, verified, view_count,
+        subjects(name, years(university_id, faculty_id, universities(name), faculties(name)))
+      `)
+      .eq("status", "published")
+      .order(orderColumn, { ascending: false })
+      .limit(limit);
+
+    if (error) { console.error(error); return []; }
+
+    (data || []).forEach((r) => {
+      r.subject_name = r.subjects?.name || null;
+      r.faculty_name = r.subjects?.years?.faculties?.name || null;
+      r.university_name = r.subjects?.years?.universities?.name || null;
+    });
+    return data || [];
+  }
+
+  function renderResourceFeedSection(sectionId, gridId, resources) {
+    const section = document.getElementById(sectionId);
+    const grid = document.getElementById(gridId);
+    if (!resources.length) return;
+
+    section.hidden = false;
+    grid.style.gridTemplateColumns = "1fr";
+    grid.innerHTML = "";
+    resources.forEach((r) => {
+      const card = buildResourceCard(r);
+      const metaLine = document.createElement("div");
+      metaLine.className = "card-sub";
+      metaLine.style.fontSize = ".82rem";
+      metaLine.style.marginTop = "-6px";
+      metaLine.textContent = [r.subject_name, r.faculty_name, r.university_name].filter(Boolean).join(" · ");
+      card.insertBefore(metaLine, card.querySelector(".resource-actions"));
+      grid.appendChild(card);
+    });
+  }
+
+  async function loadRecentResources() {
+    const data = await fetchPublicResourceFeed("created_at", 6);
+    renderResourceFeedSection("recent-resources-section", "recent-resources-grid", data);
+  }
+
+  async function loadPopularResources() {
+    const data = await fetchPublicResourceFeed("view_count", 6);
+    // لا معنى لعرض "الأكثر طلبًا" إن كانت كل الموارد بلا أي مشاهدة مسجَّلة بعد
+    renderResourceFeedSection("popular-resources-section", "popular-resources-grid", data.filter((r) => r.view_count > 0));
+  }
+
   loadUniversities();
+  renderRecentlyViewed();
+  loadPopularResources();
+  loadRecentResources();
 </script>
 </body>
 </html>

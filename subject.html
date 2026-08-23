@@ -14,7 +14,11 @@
       <span class="brand-mark">طب</span>
       منصة الموارد الطبية
     </a>
-    <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+    <div class="header-actions">
+      <nav class="header-nav">مجانية بالكامل لطلاب الطب</nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
   </div>
 </header>
 
@@ -22,6 +26,13 @@
   <nav class="breadcrumb" id="breadcrumb"></nav>
 
   <h1 id="page-title">الموارد</h1>
+
+  <div class="resource-toolbar" id="resource-toolbar" hidden>
+    <div class="resource-count" id="resource-count"></div>
+    <div class="type-tabs" id="type-tabs"></div>
+    <input type="search" id="subject-search-input" class="subject-search-input" placeholder="🔍 ابحث داخل هذه المادة...">
+  </div>
+
   <div id="resources-grid" class="grid">
     <div class="state-msg">جارٍ التحميل...</div>
   </div>
@@ -99,7 +110,7 @@
 
     const { data: resources, error: resError } = await supabaseClient
       .from("resources")
-      .select("id, title, type, language, file_url, source_type, status")
+      .select("id, title, type, language, file_url, source_type, status, keywords, subject_id, verified")
       .eq("subject_id", subjectId)
       .eq("status", "published")
       .order("created_at", { ascending: false });
@@ -115,9 +126,93 @@
       return;
     }
 
-    grid.innerHTML = "";
+    // نُغني كل مورد بسياقه الأكاديمي (مادة/كلية/جامعة) قبل بناء البطاقات، حتى تُحفظ هذه
+    // المعلومات في المفضلة/"آخر ما شوهد" بغضّ النظر عن الصفحة التي أُضيف منها المورد.
+    resources.forEach((r) => {
+      r.subject_name = subject.name;
+      r.faculty_name = fac?.name || null;
+      r.university_name = uni?.name || null;
+    });
+
     grid.style.gridTemplateColumns = "1fr";
-    resources.forEach((r) => grid.appendChild(buildResourceCard(r)));
+    setupResourceToolbar(resources);
+  }
+
+  // -------------------- شريط الأدوات: تبويبات النوع + بحث داخلي (Phase 3.1) --------------------
+  // كل الفلترة تتم محليًا على القائمة المحمَّلة مسبقًا (بدون أي طلب شبكة إضافي).
+
+  let selectedType = "all";
+  let searchText = "";
+
+  function setupResourceToolbar(resources) {
+    const toolbar = document.getElementById("resource-toolbar");
+    const tabsEl = document.getElementById("type-tabs");
+    const searchInput = document.getElementById("subject-search-input");
+
+    toolbar.hidden = false;
+    tabsEl.innerHTML = "";
+
+    const presentTypes = RESOURCE_TYPE_ORDER.filter((t) => resources.some((r) => r.type === t));
+
+    const allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.className = "type-tab-btn active";
+    allBtn.textContent = `الكل (${resources.length})`;
+    allBtn.dataset.type = "all";
+    tabsEl.appendChild(allBtn);
+
+    presentTypes.forEach((type) => {
+      const count = resources.filter((r) => r.type === type).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "type-tab-btn";
+      btn.dataset.type = type;
+      btn.style.setProperty("--tab-color", `var(--type-${type})`);
+      btn.textContent = `${RESOURCE_TYPE_ICONS[type] || ""} ${RESOURCE_TYPE_LABELS[type] || type} (${count})`;
+      tabsEl.appendChild(btn);
+    });
+
+    tabsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".type-tab-btn");
+      if (!btn) return;
+      selectedType = btn.dataset.type;
+      tabsEl.querySelectorAll(".type-tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      renderFilteredResources(resources);
+    });
+
+    let debounceTimer = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        searchText = searchInput.value.trim().toLowerCase();
+        renderFilteredResources(resources);
+      }, 150);
+    });
+
+    renderFilteredResources(resources);
+  }
+
+  function renderFilteredResources(resources) {
+    const grid = document.getElementById("resources-grid");
+    const countEl = document.getElementById("resource-count");
+
+    const filtered = resources.filter((r) => {
+      const matchesType = selectedType === "all" || r.type === selectedType;
+      const matchesSearch = !searchText ||
+        r.title.toLowerCase().includes(searchText) ||
+        (r.keywords || "").toLowerCase().includes(searchText);
+      return matchesType && matchesSearch;
+    });
+
+    countEl.textContent = `${filtered.length} مورد`;
+
+    if (filtered.length === 0) {
+      renderState(grid, "لا توجد موارد مطابقة لبحثك/الفلتر الحالي.");
+      return;
+    }
+
+    grid.innerHTML = "";
+    filtered.forEach((r) => grid.appendChild(buildResourceCard(r)));
   }
 
   loadSubjectPage();

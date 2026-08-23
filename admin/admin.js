@@ -32,6 +32,7 @@ let yearsById = {};               // id -> { id, year_number, university_id, fac
 let yearsCache = [];
 let subjectsById = {};            // id -> { id, name, code, year_id }
 let subjectsCache = [];
+let resourcesCache = [];          // آخر نتيجة تحميل لتبويب "الموارد" (لفلترة العنوان/النوع/الحالة محليًا)
 
 // يطابق منطق fn_has_permission(entity_type, university_id, faculty_id, action) في قاعدة
 // البيانات (للواجهة فقط — RLS هو الحاكم الفعلي). facultyId اختياري: null يعني "لا يوجد
@@ -736,19 +737,43 @@ async function loadResources() {
   const { data, error } = await supabaseClient
     .from("resources")
     .select(`
-      id, title, type, language, file_url, storage_provider, source_type, status, keywords, subject_id,
+      id, title, type, language, file_url, storage_provider, source_type, status, keywords, subject_id, verified, view_count,
       subjects(
         id, name, year_id,
         years(id, university_id, faculty_id, year_number, universities(name), faculties(name))
       )
     `)
     .order("created_at", { ascending: false });
-  const tbody = document.querySelector("#res-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
+  if (error) {
+    document.querySelector("#res-table tbody").innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`;
+    return;
+  }
+  resourcesCache = data || [];
+  renderResourcesTable();
+}
 
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد موارد بعد (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
+/** يفلتر resourcesCache محليًا حسب عناصر تحكم البحث/النوع/الحالة أعلى الجدول ويعيد الرسم — بدون أي طلب شبكة إضافي */
+function renderResourcesTable() {
+  const tbody = document.querySelector("#res-table tbody");
+  const searchText = (document.getElementById("res-filter-search")?.value || "").trim().toLowerCase();
+  const typeFilter = document.getElementById("res-filter-type")?.value || "";
+  const statusFilter = document.getElementById("res-filter-status")?.value || "";
+
+  if (!resourcesCache.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد موارد بعد (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
+
+  const filtered = resourcesCache.filter((r) => {
+    const matchesSearch = !searchText ||
+      r.title.toLowerCase().includes(searchText) ||
+      (r.keywords || "").toLowerCase().includes(searchText);
+    const matchesType = !typeFilter || r.type === typeFilter;
+    const matchesStatus = !statusFilter || r.status === statusFilter;
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد نتائج مطابقة للفلاتر الحالية</td></tr>`; return; }
+
   tbody.innerHTML = "";
-  data.forEach((r) => {
+  filtered.forEach((r) => {
     const uniId = r.subjects?.years?.university_id;
     const facId = r.subjects?.years?.faculty_id;
     const canEdit = hasPerm("resources", uniId, facId, "edit");
@@ -756,7 +781,7 @@ async function loadResources() {
     const location = `${r.subjects?.years?.universities?.name || "—"} › ${r.subjects?.years?.faculties?.name || "—"} › سنة ${r.subjects?.years?.year_number ?? "—"} › ${r.subjects?.name || "—"}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="العنوان">${r.title}</td>
+      <td data-label="العنوان">${r.title}${r.verified ? ' <span class="tag tag-verified" style="padding:2px 8px; font-size:.7rem;">✓ موثّق</span>' : ""}</td>
       <td data-label="الموقع الأكاديمي">${location}</td>
       <td data-label="النوع">${RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type}</td>
       <td data-label="الحالة"><span class="status-badge ${r.status}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
@@ -768,6 +793,14 @@ async function loadResources() {
     tbody.appendChild(tr);
   });
 }
+
+let resFilterDebounce = null;
+document.getElementById("res-filter-search").addEventListener("input", () => {
+  clearTimeout(resFilterDebounce);
+  resFilterDebounce = setTimeout(renderResourcesTable, 150);
+});
+document.getElementById("res-filter-type").addEventListener("change", renderResourcesTable);
+document.getElementById("res-filter-status").addEventListener("change", renderResourcesTable);
 
 document.getElementById("res-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -784,6 +817,7 @@ document.getElementById("res-form").addEventListener("submit", async (e) => {
     source_type: document.getElementById("res-source-type").value,
     status: document.getElementById("res-status").value,
     keywords: document.getElementById("res-keywords").value.trim() || null,
+    verified: document.getElementById("res-verified").checked,
   };
   const { data, error } = id
     ? await supabaseClient.from("resources").update(payload).eq("id", id).select().maybeSingle()
@@ -815,6 +849,7 @@ function editResource(r) {
   document.getElementById("res-source-type").value = r.source_type || "student";
   document.getElementById("res-status").value = r.status;
   document.getElementById("res-keywords").value = r.keywords || "";
+  document.getElementById("res-verified").checked = !!r.verified;
   document.getElementById("res-form-title").textContent = "تعديل مورد";
   document.getElementById("res-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("res-cancel-btn").hidden = false;
