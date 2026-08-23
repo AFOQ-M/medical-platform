@@ -176,11 +176,14 @@ function buildResourceCard(resource) {
   } else {
     openBtn.textContent = "فتح / تحميل";
   }
-  openBtn.addEventListener("click", () => {
+  openBtn.addEventListener("click", async () => {
     recordRecentlyViewed(resource);
     // عدّاد مشاهدات عام (Phase 3.5) — عبر دالة ضيقة النطاق تتجاوز RLS
     // فقط لزيادة رقم واحد؛ لا نعطّل فتح الرابط إن فشل الاستدعاء.
-    supabaseClient.rpc("increment_resource_view", { p_resource_id: resource.id }).catch(() => {});
+    // (جعل المعالِج async + await هنا لا يعطّل فتح الرابط: الزر <a> بلا
+    // preventDefault، فالتنقّل الافتراضي يحدث فورًا بغضّ النظر عن هذا الاستدعاء)
+    const { error } = await supabaseClient.rpc("increment_resource_view", { p_resource_id: resource.id });
+    if (error) console.error(error);
   });
   actions.appendChild(openBtn);
 
