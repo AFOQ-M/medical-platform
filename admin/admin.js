@@ -33,6 +33,7 @@ let yearsCache = [];
 let subjectsById = {};            // id -> { id, name, code, year_id }
 let subjectsCache = [];
 let resourcesCache = [];          // آخر نتيجة تحميل لتبويب "الموارد" (لفلترة العنوان/النوع/الحالة محليًا)
+let resourcesById = {};           // id -> صف المورد الكامل (لتعبئة نموذج التعديل دون تمرير بيانات غير موثوقة عبر onclick)
 
 // يطابق منطق fn_has_permission(entity_type, university_id, faculty_id, action) في قاعدة
 // البيانات (للواجهة فقط — RLS هو الحاكم الفعلي). facultyId اختياري: null يعني "لا يوجد
@@ -241,7 +242,13 @@ async function loadDashboard() {
   recentEl.innerHTML = "";
   (recentResources || []).forEach((r) => {
     const li = document.createElement("li");
-    li.innerHTML = `<span>${r.title}</span><span class="status-badge ${r.status}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span>`;
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = r.title;
+    const statusSpan = document.createElement("span");
+    statusSpan.className = `status-badge ${r.status}`;
+    statusSpan.textContent = r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه";
+    li.appendChild(titleSpan);
+    li.appendChild(statusSpan);
     recentEl.appendChild(li);
   });
   if (!recentResources || !recentResources.length) {
@@ -276,8 +283,8 @@ async function loadUniversities() {
     const canDelete = hasPerm("academic_structure", u.id, null, "delete");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="الاسم">${u.name}</td>
-      <td data-label="مختصر">${u.short_name || "—"}</td>
+      <td data-label="الاسم">${escHtml(u.name)}</td>
+      <td data-label="مختصر">${escHtml(u.short_name) || "—"}</td>
       <td>
         ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}','${escAttr(u.name)}','${escAttr(u.short_name || "")}','${escAttr(u.logo_url || "")}')">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('universities','${u.id}', loadUniversities)">حذف</button>` : ""}
@@ -355,12 +362,12 @@ async function loadFaculties() {
     const canDelete = hasPerm("academic_structure", f.university_id, f.id, "delete");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="الجامعة">${f.universities?.name || "—"}</td>
-      <td data-label="الكلية">${f.name}</td>
-      <td data-label="الرمز">${f.code || "—"}</td>
+      <td data-label="الجامعة">${escHtml(f.universities?.name) || "—"}</td>
+      <td data-label="الكلية">${escHtml(f.name)}</td>
+      <td data-label="الرمز">${escHtml(f.code) || "—"}</td>
       <td data-label="الحالة"><span class="status-badge ${f.is_active ? "published" : "hidden"}">${f.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick='editFaculty(${JSON.stringify(f).replace(/'/g, "&apos;")})'>تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editFaculty('${f.id}')">تعديل</button>` : ""}
         ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleFacultyActive('${f.id}', ${f.is_active})">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('faculties','${f.id}', loadFaculties)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
@@ -403,7 +410,9 @@ document.getElementById("fac-form").addEventListener("submit", async (e) => {
   loadFaculties();
 });
 
-function editFaculty(f) {
+function editFaculty(facultyId) {
+  const f = facultiesById[facultyId];
+  if (!f) return;
   document.getElementById("fac-edit-id").value = f.id;
   ensureOptionExists("fac-university", f.university_id, f.universities?.name || universitiesById[f.university_id]?.name || "—");
   document.getElementById("fac-university").value = f.university_id;
@@ -592,9 +601,9 @@ async function loadYears() {
     const canDelete = hasPerm("academic_structure", y.university_id, y.faculty_id, "delete");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="الجامعة">${y.universities?.name || "—"}</td>
-      <td data-label="الكلية">${y.faculties?.name || "—"}</td>
-      <td data-label="السنة">${y.year_number}</td>
+      <td data-label="الجامعة">${escHtml(y.universities?.name) || "—"}</td>
+      <td data-label="الكلية">${escHtml(y.faculties?.name) || "—"}</td>
+      <td data-label="السنة">${escHtml(y.year_number)}</td>
       <td>
         ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number})">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
@@ -671,10 +680,10 @@ async function loadSubjects() {
     const facId = s.years?.faculty_id;
     const canEdit = hasPerm("academic_structure", uniId, facId, "edit");
     const canDelete = hasPerm("academic_structure", uniId, facId, "delete");
-    const location = `${s.years?.universities?.name || "—"} › ${s.years?.faculties?.name || "—"} › سنة ${s.years?.year_number ?? "—"}`;
+    const location = `${escHtml(s.years?.universities?.name) || "—"} › ${escHtml(s.years?.faculties?.name) || "—"} › سنة ${escHtml(s.years?.year_number ?? "—")}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="المادة">${s.name}${s.code ? ` (${s.code})` : ""}</td>
+      <td data-label="المادة">${escHtml(s.name)}${s.code ? ` (${escHtml(s.code)})` : ""}</td>
       <td data-label="الجامعة / الكلية / السنة">${location}</td>
       <td>
         ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}')">تعديل</button>` : ""}
@@ -749,6 +758,8 @@ async function loadResources() {
     return;
   }
   resourcesCache = data || [];
+  resourcesById = {};
+  resourcesCache.forEach((r) => { resourcesById[r.id] = r; });
   renderResourcesTable();
 }
 
@@ -778,15 +789,16 @@ function renderResourcesTable() {
     const facId = r.subjects?.years?.faculty_id;
     const canEdit = hasPerm("resources", uniId, facId, "edit");
     const canDelete = hasPerm("resources", uniId, facId, "delete");
-    const location = `${r.subjects?.years?.universities?.name || "—"} › ${r.subjects?.years?.faculties?.name || "—"} › سنة ${r.subjects?.years?.year_number ?? "—"} › ${r.subjects?.name || "—"}`;
+    const location = `${escHtml(r.subjects?.years?.universities?.name) || "—"} › ${escHtml(r.subjects?.years?.faculties?.name) || "—"} › سنة ${escHtml(r.subjects?.years?.year_number ?? "—")} › ${escHtml(r.subjects?.name) || "—"}`;
+    const statusClass = r.status === "published" ? "published" : r.status === "hidden" ? "hidden" : "reported";
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="العنوان">${r.title}${r.verified ? ' <span class="tag tag-verified" style="padding:2px 8px; font-size:.7rem;">✓ موثّق</span>' : ""}</td>
+      <td data-label="العنوان">${escHtml(r.title)}${r.verified ? ' <span class="tag tag-verified" style="padding:2px 8px; font-size:.7rem;">✓ موثّق</span>' : ""}</td>
       <td data-label="الموقع الأكاديمي">${location}</td>
-      <td data-label="النوع">${RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type}</td>
-      <td data-label="الحالة"><span class="status-badge ${r.status}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
+      <td data-label="النوع">${escHtml(RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type)}</td>
+      <td data-label="الحالة"><span class="status-badge ${statusClass}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick='editResource(${JSON.stringify(r).replace(/'/g, "&apos;")})'>تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editResource('${r.id}')">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('resources','${r.id}', loadResources)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -830,7 +842,9 @@ document.getElementById("res-form").addEventListener("submit", async (e) => {
   loadResources();
 });
 
-function editResource(r) {
+function editResource(resourceId) {
+  const r = resourcesById[resourceId];
+  if (!r) return;
   const uniId = r.subjects?.years?.university_id;
   const facId = r.subjects?.years?.faculty_id;
   const yearId = r.subjects?.year_id;
@@ -883,22 +897,45 @@ async function loadReports() {
   tbody.innerHTML = "";
   const reasonLabels = { broken_link: "الرابط لا يعمل", wrong_file: "ملف غير صحيح", copyright: "حقوق نشر", other: "أخرى" };
   data.forEach((r) => {
-    const tr = document.createElement("tr");
     const resTitle = r.resources?.title || "(مورد محذوف)";
     const isHidden = r.resources?.status === "hidden";
     const uniId = r.resources?.subjects?.years?.university_id;
     const facId = r.resources?.subjects?.years?.faculty_id;
     const canResolve = hasPerm("reports", uniId, facId, "delete");
     const canToggle = hasPerm("resources", uniId, facId, "edit");
-    tr.innerHTML = `
-      <td data-label="المورد">${resTitle}</td>
-      <td data-label="السبب">${reasonLabels[r.reason] || r.reason}</td>
-      <td data-label="ملاحظة">${r.note || "—"}</td>
-      <td data-label="التاريخ">${new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
-      <td>
-        ${r.resources && canToggle ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceHidden('${r.resources.id}', ${isHidden}, loadReports)">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
-        ${canResolve ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('reports','${r.id}', loadReports)">حذف البلاغ</button>` : ""}
-      </td>`;
+
+    // كل القيم أدناه (عنوان المورد، السبب، ملاحظة المُبلِّغ) قادمة من
+    // قاعدة البيانات/من المستخدم ويجب التعامل معها كنص غير موثوق دائمًا؛
+    // لذلك تُبنى كل خلية عبر DOM + textContent وليس عبر innerHTML.
+    const tr = document.createElement("tr");
+
+    const tdResource = document.createElement("td");
+    tdResource.setAttribute("data-label", "المورد");
+    tdResource.textContent = resTitle;
+    tr.appendChild(tdResource);
+
+    const tdReason = document.createElement("td");
+    tdReason.setAttribute("data-label", "السبب");
+    tdReason.textContent = reasonLabels[r.reason] || r.reason;
+    tr.appendChild(tdReason);
+
+    const tdNote = document.createElement("td");
+    tdNote.setAttribute("data-label", "ملاحظة");
+    tdNote.textContent = r.note || "—";
+    tr.appendChild(tdNote);
+
+    const tdDate = document.createElement("td");
+    tdDate.setAttribute("data-label", "التاريخ");
+    tdDate.textContent = new Date(r.created_at).toLocaleDateString("ar-EG");
+    tr.appendChild(tdDate);
+
+    const tdActions = document.createElement("td");
+    tdActions.innerHTML = `
+      ${r.resources && canToggle ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceHidden('${r.resources.id}', ${isHidden}, loadReports)">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
+      ${canResolve ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('reports','${r.id}', loadReports)">حذف البلاغ</button>` : ""}
+    `;
+    tr.appendChild(tdActions);
+
     tbody.appendChild(tr);
   });
 }
@@ -954,7 +991,7 @@ function buildUserPermissionCard(profile, userPerms, universities, faculties) {
   header.className = "user-perm-header";
   header.innerHTML = `
     <div>
-      <strong>${profile.email || "(بلا بريد)"}</strong>
+      <strong>${escHtml(profile.email) || "(بلا بريد)"}</strong>
       <span class="status-badge ${profile.active ? "published" : "hidden"}">${profile.active ? "مفعّل" : "معطَّل"}</span>
       ${isSelf ? '<span class="hint">(أنت)</span>' : ""}
     </div>
@@ -1221,8 +1258,37 @@ function populateSelect(selectId, items, labelFn, useIdField) {
   if (currentValue) select.value = currentValue;
 }
 
+/**
+ * ترميز نص غير موثوق للإدراج داخل قيمة سمة HTML (attribute) تُستخدم كوسيطة
+ * JS ضمن onclick (مثال: onclick="fn('${escAttr(x)}')"). يجب ترميز الأحرف
+ * الخمسة كاملة — وعلى رأسها "&" — وإلا يمكن لنص خام مثل الحرفين المتتاليين
+ * "&quot;" أو "&#39;" (كنص عادي قادم من قاعدة البيانات، وليس ككيان HTML
+ * فعلي مقصود) أن يُفكَّه المتصفح إلى علامة اقتباس حقيقية أثناء تحليل قيمة
+ * السمة، فتنكسر السلسلة النصية داخل كود onclick ويُصبح حقن JS ممكنًا رغم
+ * أن الدالة القديمة كانت "تُرمِّز" علامات الاقتباس الحرفية. لذلك نعيد
+ * استخدام نفس منطق escHtml (ترميز كل الأحرف الخمسة في مرور واحد).
+ */
 function escAttr(str) {
-  return String(str).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+  return escHtml(str);
+}
+
+/**
+ * ترميز نص غير موثوق (قادم من قاعدة البيانات أو المستخدم) ليكون آمنًا
+ * للإدراج داخل محتوى HTML (سياق نص، وليس سياق سمة/attribute).
+ * يرمّز كل ميتاكاركترز HTML الخمسة — وليست قائمة سوداء لوسوم بعينها —
+ * لذلك تبقى آمنة أيًا كانت القيمة المُدخلة.
+ */
+function escHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      case "'": return "&#39;";
+      default: return ch;
+    }
+  });
 }
 
 checkAuthAndInit();

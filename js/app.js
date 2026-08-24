@@ -107,6 +107,21 @@ const SOURCE_TYPE_LABELS = {
   external_link: "رابط خارجي",
 };
 
+/**
+ * يتحقق أن رابط المورد يستخدم مخطّط URL آمنًا (http/https فقط) قبل
+ * استخدامه كقيمة href — يمنع حقن روابط javascript: أو data: أو غيرها
+ * من المخططات القابلة للتنفيذ، لأن file_url نص حر غير مُقيَّد في قاعدة
+ * البيانات ويُدخله الأدمن يدويًا.
+ */
+function safeResourceUrl(url) {
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "#";
+  } catch {
+    return "#";
+  }
+}
+
 /** يبني عنصر DOM لبطاقة مورد واحد */
 function buildResourceCard(resource) {
   const card = document.createElement("div");
@@ -169,7 +184,7 @@ function buildResourceCard(resource) {
   openBtn.className = "btn btn-primary btn-sm";
   openBtn.target = "_blank";
   openBtn.rel = "noopener noreferrer";
-  openBtn.href = resource.file_url;
+  openBtn.href = safeResourceUrl(resource.file_url);
 
   if (resource.source_type === "external_link") {
     openBtn.textContent = "الذهاب إلى المصدر الرسمي ↗";
@@ -196,6 +211,26 @@ function buildResourceCard(resource) {
 
   card.appendChild(actions);
   return card;
+}
+
+/**
+ * ترميز نص غير موثوق (قادم من قاعدة البيانات أو المستخدم) ليكون آمنًا
+ * للإدراج داخل محتوى HTML (سياق نص، وليس سياق سمة/attribute).
+ * يرمّز كل ميتاكاركترز HTML الخمسة — وليست قائمة سوداء لوسوم بعينها —
+ * لذلك تبقى آمنة أيًا كانت القيمة المُدخلة. يُستخدم في الصفحات
+ * العامة حيث تُبنى بطاقات (روابط) عبر innerHTML لأسباب تصميمية.
+ */
+function escHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      case "'": return "&#39;";
+      default: return ch;
+    }
+  });
 }
 
 /** يعرض رسالة حالة (تحميل / فارغ / خطأ) داخل حاوية */
@@ -277,18 +312,26 @@ function wireReportModal() {
     submitBtn.disabled = true;
     submitBtn.textContent = "جارٍ الإرسال...";
 
-    const { error } = await supabaseClient.from("reports").insert({
-      resource_id: currentReportResourceId,
-      reason,
-      note: note || null,
+    // P0-4: الإدراج المباشر على reports لم يعد متاحًا للعميل (تم حذف
+    // سياسة public_insert_reports). كل بلاغ يمر الآن عبر الدالة
+    // المحمية submit_public_report(...) التي تفرض حد 5 بلاغات كل
+    // 10 دقائق لكل مصدر قبل تنفيذ الإدراج الفعلي من طرف الخادم.
+    const { error } = await supabaseClient.rpc("submit_public_report", {
+      p_resource_id: currentReportResourceId,
+      p_reason: reason,
+      p_note: note || null,
     });
 
     submitBtn.disabled = false;
     submitBtn.textContent = "إرسال البلاغ";
 
     if (error) {
-      showToast("تعذّر إرسال البلاغ، حاول مرة أخرى");
-      console.error(error);
+      if ((error.message || "").includes("rate_limit_exceeded")) {
+        showToast("لقد أرسلت عدة بلاغات مؤخرًا، فضلاً حاول مرة أخرى بعد قليل");
+      } else {
+        showToast("تعذّر إرسال البلاغ، حاول مرة أخرى");
+        console.error(error);
+      }
       return;
     }
 
