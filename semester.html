@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختيار الفصل الدراسي — منصة الموارد الطبية</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">طب</span>
+      منصة الموارد الطبية
+    </a>
+    <div class="header-actions">
+      <nav class="header-nav"></nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <button type="button" class="icon-btn" id="account-trigger" aria-label="الحساب">👤</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <h1 id="page-title">الفصل الدراسي</h1>
+
+  <!-- خطوة ١: اختيار الفصل الدراسي (تظهر دائمًا، وتُستخدم أيضًا لتبديل الفصل لاحقًا) -->
+  <div class="type-tabs" id="semester-tabs" hidden></div>
+
+  <!-- خطوة ٢: شبكة المواد الخاصة بالفصل المختار (تظهر فقط بعد اختيار فصل) -->
+  <div id="subjects-grid" class="grid">
+    <div class="state-msg">جارٍ التحميل...</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const yearId = getQueryParam("year");
+  let currentSemesterKey = getQueryParam("semester"); // null إن لم يُختر فصل بعد
+
+  let yearContext = null; // { year_number, university_id, faculty_id, universities, faculties }
+  let allSubjects = [];   // كل مواد هذه السنة (تُحمَّل مرة واحدة، والفلترة محلية بالكامل)
+
+  async function loadSemesterPage() {
+    const grid = document.getElementById("subjects-grid");
+
+    if (!yearId) {
+      renderState(grid, "لم يتم تحديد سنة دراسية. عد إلى الصفحة الرئيسية.");
+      return;
+    }
+
+    // نفس نمط الاستعلام المستخدم سابقًا في year.html: نجلب السياق الكامل
+    // (الجامعة والكلية) عبر العلاقة مباشرة من قاعدة البيانات، لا من حالة الواجهة.
+    const { data: year, error: yearError } = await supabaseClient
+      .from("years")
+      .select("id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name)")
+      .eq("id", yearId)
+      .single();
+
+    if (yearError || !year) {
+      renderState(grid, "لم يتم العثور على هذه السنة الدراسية.");
+      return;
+    }
+
+    yearContext = year;
+
+    const { data: subjects, error: subjectsError } = await supabaseClient
+      .from("subjects")
+      .select("id, name, code, semester")
+      .eq("year_id", yearId)
+      .order("name", { ascending: true });
+
+    if (subjectsError) {
+      console.error(subjectsError);
+      renderState(grid, "تعذّر تحميل المواد الدراسية.");
+      return;
+    }
+
+    allSubjects = subjects || [];
+
+    if (allSubjects.length === 0) {
+      updatePageChrome();
+      renderState(grid, "لا توجد مواد مضافة لهذه السنة بعد.");
+      return;
+    }
+
+    setupSemesterTabs();
+  }
+
+  function updatePageChrome() {
+    const uniName = yearContext.universities?.name || "";
+    const facName = yearContext.faculties?.name || "";
+    const semesterLabel = currentSemesterKey
+      ? (currentSemesterKey === "unspecified" ? "غير محدد" : SUBJECT_SEMESTER_LABELS[currentSemesterKey])
+      : null;
+
+    document.title = semesterLabel
+      ? `${semesterLabel} — السنة ${yearContext.year_number} — ${facName || uniName}`
+      : `السنة ${yearContext.year_number} — ${facName || uniName}`;
+
+    document.getElementById("page-title").textContent = semesterLabel
+      ? `مواد ${semesterLabel} — السنة ${yearContext.year_number}`
+      : `اختر الفصل الدراسي — السنة ${yearContext.year_number}`;
+
+    const crumbs = [
+      { label: "الرئيسية", href: "index.html" },
+      { label: uniName, href: `university.html?id=${yearContext.university_id}` },
+      { label: facName || "الكلية", href: yearContext.faculty_id ? `faculty.html?id=${yearContext.faculty_id}` : undefined },
+    ];
+    if (semesterLabel) {
+      crumbs.push({ label: `السنة ${yearContext.year_number}`, href: `semester.html?year=${yearId}` });
+      crumbs.push({ label: semesterLabel });
+    } else {
+      crumbs.push({ label: `السنة ${yearContext.year_number}` });
+    }
+    renderBreadcrumb(document.getElementById("breadcrumb"), crumbs);
+  }
+
+  // -------------------- تبويبات/بطاقات الفصل الدراسي --------------------
+  // نفس منطق التجميع المستخدم سابقًا في year.html (Phase 4B)، بلا تكرار
+  // لأي قيم أو تسميات: SUBJECT_SEMESTER_LABELS/SUBJECT_SEMESTER_ORDER من js/app.js.
+
+  function setupSemesterTabs() {
+    const tabsEl = document.getElementById("semester-tabs");
+
+    const presentSemesters = SUBJECT_SEMESTER_ORDER.filter((sem) => allSubjects.some((s) => s.semester === sem));
+    const hasUnspecified = allSubjects.some((s) => !s.semester);
+
+    // إن كان الفصل المطلوب بالرابط غير موجود فعليًا لهذه السنة، نتجاهله
+    // ونعرض قائمة الاختيار بدلاً من الافتراض الخاطئ.
+    const validKeys = [...presentSemesters, ...(hasUnspecified ? ["unspecified"] : [])];
+    if (currentSemesterKey && !validKeys.includes(currentSemesterKey)) {
+      currentSemesterKey = null;
+    }
+
+    tabsEl.hidden = false;
+    tabsEl.innerHTML = "";
+
+    presentSemesters.forEach((sem) => {
+      const count = allSubjects.filter((s) => s.semester === sem).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "type-tab-btn" + (currentSemesterKey === sem ? " active" : "");
+      btn.dataset.semester = sem;
+      btn.textContent = `${SUBJECT_SEMESTER_LABELS[sem]} (${count})`;
+      tabsEl.appendChild(btn);
+    });
+
+    if (hasUnspecified) {
+      const count = allSubjects.filter((s) => !s.semester).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "type-tab-btn" + (currentSemesterKey === "unspecified" ? " active" : "");
+      btn.dataset.semester = "unspecified";
+      btn.textContent = `غير محدد (${count})`;
+      tabsEl.appendChild(btn);
+    }
+
+    tabsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".type-tab-btn");
+      if (!btn) return;
+      selectSemester(btn.dataset.semester);
+    });
+
+    updatePageChrome();
+
+    if (currentSemesterKey) {
+      renderSubjectsForSemester();
+    } else {
+      const grid = document.getElementById("subjects-grid");
+      renderState(grid, "اختر فصلًا دراسيًا لعرض مواده.");
+    }
+  }
+
+  function selectSemester(semesterKey) {
+    currentSemesterKey = semesterKey;
+
+    // تحديث الرابط بحيث تبقى الحالة قابلة للحفظ كإشارة مرجعية ومتوافقة مع زر الرجوع،
+    // دون إعادة تحميل الصفحة.
+    const url = new URL(window.location.href);
+    url.searchParams.set("semester", semesterKey);
+    window.history.pushState({}, "", url);
+
+    document.querySelectorAll("#semester-tabs .type-tab-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.semester === semesterKey);
+    });
+
+    updatePageChrome();
+    renderSubjectsForSemester();
+  }
+
+  function renderSubjectsForSemester() {
+    const grid = document.getElementById("subjects-grid");
+
+    const filtered = allSubjects.filter((s) => {
+      if (currentSemesterKey === "unspecified") return !s.semester;
+      return s.semester === currentSemesterKey;
+    });
+
+    if (filtered.length === 0) {
+      renderState(grid, "لا توجد مواد مطابقة لهذا الفصل.");
+      return;
+    }
+
+    grid.innerHTML = "";
+    filtered.forEach((s) => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = `subject.html?id=${s.id}`;
+      a.innerHTML = `
+        <div class="card-icon">${escHtml(s.name.slice(0, 2))}</div>
+        <h3>${escHtml(s.name)}</h3>
+        <div class="card-sub">${s.code ? "رمز المادة: " + escHtml(s.code) : "عرض الموارد"}</div>
+      `;
+      grid.appendChild(a);
+    });
+  }
+
+  // دعم زر الرجوع/التقدّم في المتصفح بين اختيار فصل وآخر (pushState أعلاه
+  // لا يُطلق popstate تلقائيًا عند الرجوع، فنعيد القراءة من الرابط هنا).
+  window.addEventListener("popstate", () => {
+    currentSemesterKey = getQueryParam("semester");
+    if (allSubjects.length > 0) setupSemesterTabs();
+  });
+
+  loadSemesterPage();
+</script>
+</body>
+</html>

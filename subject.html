@@ -87,7 +87,7 @@
 
     const { data: subject, error: subjectError } = await supabaseClient
       .from("subjects")
-      .select("id, name, year_id, years(id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name))")
+      .select("id, name, year_id, semester, years(id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name))")
       .eq("id", subjectId)
       .single();
 
@@ -101,11 +101,16 @@
     const fac = year?.faculties;
     document.title = `${subject.name} — منصة الموارد الطبية`;
     document.getElementById("page-title").textContent = subject.name;
+    // Phase 4B — Semester Navigation Level: مسار السنة بالـ breadcrumb يمرّ
+    // الآن عبر semester.html بدل year.html، مع تمرير فصل هذه المادة تحديدًا
+    // (أو "unspecified" إن كانت بلا فصل محدد) حتى يبقى المسار متسقًا مع
+    // التنقّل الفعلي الجديد. لا تغيير على subject.html?id=<subjectId> نفسه.
+    const semesterParam = subject.semester || "unspecified";
     renderBreadcrumb(document.getElementById("breadcrumb"), [
       { label: "الرئيسية", href: "index.html" },
       { label: uni?.name || "", href: `university.html?id=${uni?.id}` },
       { label: fac?.name || "الكلية", href: fac?.id ? `faculty.html?id=${fac.id}` : undefined },
-      { label: `السنة ${year?.year_number}`, href: `year.html?id=${year?.id}` },
+      { label: `السنة ${year?.year_number}`, href: year?.id ? `semester.html?year=${year.id}&semester=${semesterParam}` : undefined },
       { label: subject.name },
     ]);
 

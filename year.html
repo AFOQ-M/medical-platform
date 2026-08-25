@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>المواد الدراسية — منصة الموارد الطبية</title>
+<title>جارٍ التوجيه... — منصة الموارد الطبية</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -26,10 +26,9 @@
 <main>
   <nav class="breadcrumb" id="breadcrumb"></nav>
 
-  <h1 id="page-title">المواد الدراسية</h1>
-  <div class="type-tabs" id="semester-tabs" hidden></div>
+  <h1 id="page-title">جارٍ التوجيه...</h1>
   <div id="subjects-grid" class="grid">
-    <div class="state-msg">جارٍ التحميل...</div>
+    <div class="state-msg">جارٍ التوجيه إلى صفحة اختيار الفصل الدراسي...</div>
   </div>
 </main>
 
@@ -41,151 +40,20 @@
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
+  // Phase 4B — Semester Navigation Level: year.html لم يعد يعرض المواد
+  // مباشرة (نُقل ذلك بالكامل إلى semester.html). هذا الملف بقي موجودًا
+  // فقط لعدم كسر أي رابط قديم/محفوظ يشير إلى year.html?id=<yearId>،
+  // وهو يحوّل فورًا إلى semester.html?year=<yearId> بنفس معرّف السنة.
   const yearId = getQueryParam("id");
 
-  async function loadYearPage() {
-    const grid = document.getElementById("subjects-grid");
-
-    if (!yearId) {
-      renderState(grid, "لم يتم تحديد سنة دراسية. عد إلى الصفحة الرئيسية.");
-      return;
-    }
-
-    // نحمّل السياق الكامل (الجامعة والكلية) عبر العلاقة في قاعدة البيانات
-    // مباشرة بدل تخمينه من حالة الواجهة، تمامًا كما هو مطلوب في الجزء الثاني.
-    const { data: year, error: yearError } = await supabaseClient
-      .from("years")
-      .select("id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name)")
-      .eq("id", yearId)
-      .single();
-
-    if (yearError || !year) {
-      renderState(grid, "لم يتم العثور على هذه السنة الدراسية.");
-      return;
-    }
-
-    const uniName = year.universities?.name || "";
-    const facName = year.faculties?.name || "";
-    document.title = `السنة ${year.year_number} — ${facName || uniName}`;
-    document.getElementById("page-title").textContent = `مواد السنة ${year.year_number}`;
-    renderBreadcrumb(document.getElementById("breadcrumb"), [
-      { label: "الرئيسية", href: "index.html" },
-      { label: uniName, href: `university.html?id=${year.university_id}` },
-      { label: facName || "الكلية", href: year.faculty_id ? `faculty.html?id=${year.faculty_id}` : undefined },
-      { label: `السنة ${year.year_number}` },
-    ]);
-
-    const { data: subjects, error: subjectsError } = await supabaseClient
-      .from("subjects")
-      .select("id, name, code, semester")
-      .eq("year_id", yearId)
-      .order("name", { ascending: true });
-
-    if (subjectsError) {
-      console.error(subjectsError);
-      renderState(grid, "تعذّر تحميل المواد الدراسية.");
-      return;
-    }
-
-    if (!subjects || subjects.length === 0) {
-      renderState(grid, "لا توجد مواد مضافة لهذه السنة بعد.");
-      return;
-    }
-
-    setupSemesterToolbar(subjects);
+  if (yearId) {
+    window.location.replace(`semester.html?year=${encodeURIComponent(yearId)}`);
+  } else {
+    renderState(
+      document.getElementById("subjects-grid"),
+      "لم يتم تحديد سنة دراسية. عد إلى الصفحة الرئيسية."
+    );
   }
-
-  // -------------------- تبويبات الفصل الدراسي (Phase 4B) --------------------
-  // فلترة محلية بالكامل على قائمة المواد المحمَّلة مسبقًا، بنفس أسلوب
-  // تبويبات النوع في subject.html (بدون أي طلب شبكة إضافي).
-
-  let selectedSemester = "all";
-
-  function setupSemesterToolbar(subjects) {
-    const tabsEl = document.getElementById("semester-tabs");
-
-    const presentSemesters = SUBJECT_SEMESTER_ORDER.filter((sem) => subjects.some((s) => s.semester === sem));
-    const hasUnspecified = subjects.some((s) => !s.semester);
-
-    // إن كانت كل المواد بلا فصل محدد (كل البيانات قديمة قبل Phase 4B)
-    // أو كانت كلها بنفس الفصل الوحيد، فلا داعٍ لعرض تبويبات فلترة أصلاً.
-    const distinctGroups = presentSemesters.length + (hasUnspecified ? 1 : 0);
-    if (distinctGroups <= 1) {
-      tabsEl.hidden = true;
-      renderFilteredSubjects(subjects);
-      return;
-    }
-
-    tabsEl.hidden = false;
-    tabsEl.innerHTML = "";
-
-    const allBtn = document.createElement("button");
-    allBtn.type = "button";
-    allBtn.className = "type-tab-btn active";
-    allBtn.textContent = `الكل (${subjects.length})`;
-    allBtn.dataset.semester = "all";
-    tabsEl.appendChild(allBtn);
-
-    presentSemesters.forEach((sem) => {
-      const count = subjects.filter((s) => s.semester === sem).length;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "type-tab-btn";
-      btn.dataset.semester = sem;
-      btn.textContent = `${SUBJECT_SEMESTER_LABELS[sem]} (${count})`;
-      tabsEl.appendChild(btn);
-    });
-
-    if (hasUnspecified) {
-      const count = subjects.filter((s) => !s.semester).length;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "type-tab-btn";
-      btn.dataset.semester = "unspecified";
-      btn.textContent = `غير محدد (${count})`;
-      tabsEl.appendChild(btn);
-    }
-
-    tabsEl.addEventListener("click", (e) => {
-      const btn = e.target.closest(".type-tab-btn");
-      if (!btn) return;
-      selectedSemester = btn.dataset.semester;
-      tabsEl.querySelectorAll(".type-tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
-      renderFilteredSubjects(subjects);
-    });
-
-    renderFilteredSubjects(subjects);
-  }
-
-  function renderFilteredSubjects(subjects) {
-    const grid = document.getElementById("subjects-grid");
-
-    const filtered = subjects.filter((s) => {
-      if (selectedSemester === "all") return true;
-      if (selectedSemester === "unspecified") return !s.semester;
-      return s.semester === selectedSemester;
-    });
-
-    if (filtered.length === 0) {
-      renderState(grid, "لا توجد مواد مطابقة للفصل المحدد.");
-      return;
-    }
-
-    grid.innerHTML = "";
-    filtered.forEach((s) => {
-      const a = document.createElement("a");
-      a.className = "card";
-      a.href = `subject.html?id=${s.id}`;
-      a.innerHTML = `
-        <div class="card-icon">${escHtml(s.name.slice(0, 2))}</div>
-        <h3>${escHtml(s.name)}</h3>
-        <div class="card-sub">${s.code ? "رمز المادة: " + escHtml(s.code) : "عرض الموارد"}</div>
-      `;
-      grid.appendChild(a);
-    });
-  }
-
-  loadYearPage();
 </script>
 </body>
 </html>
