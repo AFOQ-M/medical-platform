@@ -13,11 +13,10 @@ const RESOURCE_TYPE_LABELS_ADMIN = {
 // Phase 4B: تسميات الفصل الدراسي — تُستخدم فقط لعرض القيمة في جدول
 // المواد بلوحة التحكم؛ القيم المخزَّنة فعليًا في subjects.semester تبقى
 // first/second/summer (أو NULL) كما هي.
-const SUBJECT_SEMESTER_LABELS = {
-  first: "الفصل الأول",
-  second: "الفصل الثاني",
-  summer: "الفصل الصيفي",
-};
+// ملاحظة: SUBJECT_SEMESTER_LABELS مُعرَّفة في js/app.js الذي يُحمَّل قبل
+// هذا الملف مباشرة في admin/index.html، لذا لا تُعاد هنا (كانت تسبب
+// SyntaxError: Identifier already declared يوقف admin.js بالكامل عن
+// العمل، بما في ذلك ربط نموذج تسجيل الدخول).
 
 const ENTITY_LABELS = {
   academic_structure: "الجامعات/الكليات/السنوات/المواد",
