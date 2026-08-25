@@ -37,8 +37,14 @@
     ├── schema_phase2_5.sql      المرحلة 2.5 / الجزء الأول: جدول الكليات + ترحيل البيانات + RLS
     ├── schema_phase2_5_part2.sql المرحلة 2.5 / الجزء الثاني: تحديث بحث RPC ليشمل الكلية + تصليب آمن لعمود faculty_id
     ├── phase3_engagement.sql     المرحلة 3: عدّاد مشاهدات + علامة "موثّق" + تحديث بحث RPC
-    └── phase3_search_compatibility.sql  إصلاح إلزامي: يحذف صراحةً كلا نسختَي search_resources المتعارضتين (6 و7 معاملات) ثم يُنشئ نسخة كنسية واحدة
+    ├── phase3_search_compatibility.sql  إصلاح إلزامي: يحذف صراحةً كلا نسختَي search_resources المتعارضتين (6 و7 معاملات) ثم يُنشئ نسخة كنسية واحدة
+    ├── phase4a_p0_4_report_rate_limit.sql  Phase 4A / P0-4: حد زمني (5 بلاغات/10 دقائق لكل مصدر) على إرسال البلاغات العامة عبر submit_public_report()
+    ├── phase4b_subject_semester.sql        Phase 4B: عمود semester (first/second/summer) إضافي على subjects
+    ├── phase4b_auth_foundation_fix.sql     Phase 4B: إصلاح أساس المصادقة (تخطي إنشاء profile لمستخدمي anonymous auth)
+    └── phase4b_p0_3_view_rate_limit.sql    Phase 4B / P0-3: تهدئة 30 دقيقة لكل زوج (مصدر، مورد) على عدّاد المشاهدات increment_resource_view()
 ```
+
+> ⚠️ **ملاحظة:** `phase4b_p0_3_view_rate_limit.sql` أُعيد بناؤه من وصف تصميمه في محادثة سابقة (لم يُرفَع كملف وقتها) — راجعه وقارنه يدويًا مع القاعدة الفعلية قبل التنفيذ، خصوصًا إن كانت نسخة منه مطبَّقة فعلاً هناك حيًا.
 
 شغّل ملفات `sql/` بهذا الترتيب بالضبط على مشروع Supabase جديد: `schema.sql` ← `schema_phase2.sql` ← `schema_phase2_5.sql` ← `schema_phase2_5_part2.sql` ← `phase3_engagement.sql` ← `phase3_search_compatibility.sql`.
 

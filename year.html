@@ -17,6 +17,7 @@
     <div class="header-actions">
       <nav class="header-nav"></nav>
       <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <button type="button" class="icon-btn" id="account-trigger" aria-label="الحساب">👤</button>
       <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
     </div>
   </div>
@@ -26,6 +27,7 @@
   <nav class="breadcrumb" id="breadcrumb"></nav>
 
   <h1 id="page-title">المواد الدراسية</h1>
+  <div class="type-tabs" id="semester-tabs" hidden></div>
   <div id="subjects-grid" class="grid">
     <div class="state-msg">جارٍ التحميل...</div>
   </div>
@@ -36,6 +38,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
   const yearId = getQueryParam("id");
@@ -74,7 +77,7 @@
 
     const { data: subjects, error: subjectsError } = await supabaseClient
       .from("subjects")
-      .select("id, name, code")
+      .select("id, name, code, semester")
       .eq("year_id", yearId)
       .order("name", { ascending: true });
 
@@ -89,8 +92,87 @@
       return;
     }
 
+    setupSemesterToolbar(subjects);
+  }
+
+  // -------------------- تبويبات الفصل الدراسي (Phase 4B) --------------------
+  // فلترة محلية بالكامل على قائمة المواد المحمَّلة مسبقًا، بنفس أسلوب
+  // تبويبات النوع في subject.html (بدون أي طلب شبكة إضافي).
+
+  let selectedSemester = "all";
+
+  function setupSemesterToolbar(subjects) {
+    const tabsEl = document.getElementById("semester-tabs");
+
+    const presentSemesters = SUBJECT_SEMESTER_ORDER.filter((sem) => subjects.some((s) => s.semester === sem));
+    const hasUnspecified = subjects.some((s) => !s.semester);
+
+    // إن كانت كل المواد بلا فصل محدد (كل البيانات قديمة قبل Phase 4B)
+    // أو كانت كلها بنفس الفصل الوحيد، فلا داعٍ لعرض تبويبات فلترة أصلاً.
+    const distinctGroups = presentSemesters.length + (hasUnspecified ? 1 : 0);
+    if (distinctGroups <= 1) {
+      tabsEl.hidden = true;
+      renderFilteredSubjects(subjects);
+      return;
+    }
+
+    tabsEl.hidden = false;
+    tabsEl.innerHTML = "";
+
+    const allBtn = document.createElement("button");
+    allBtn.type = "button";
+    allBtn.className = "type-tab-btn active";
+    allBtn.textContent = `الكل (${subjects.length})`;
+    allBtn.dataset.semester = "all";
+    tabsEl.appendChild(allBtn);
+
+    presentSemesters.forEach((sem) => {
+      const count = subjects.filter((s) => s.semester === sem).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "type-tab-btn";
+      btn.dataset.semester = sem;
+      btn.textContent = `${SUBJECT_SEMESTER_LABELS[sem]} (${count})`;
+      tabsEl.appendChild(btn);
+    });
+
+    if (hasUnspecified) {
+      const count = subjects.filter((s) => !s.semester).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "type-tab-btn";
+      btn.dataset.semester = "unspecified";
+      btn.textContent = `غير محدد (${count})`;
+      tabsEl.appendChild(btn);
+    }
+
+    tabsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".type-tab-btn");
+      if (!btn) return;
+      selectedSemester = btn.dataset.semester;
+      tabsEl.querySelectorAll(".type-tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      renderFilteredSubjects(subjects);
+    });
+
+    renderFilteredSubjects(subjects);
+  }
+
+  function renderFilteredSubjects(subjects) {
+    const grid = document.getElementById("subjects-grid");
+
+    const filtered = subjects.filter((s) => {
+      if (selectedSemester === "all") return true;
+      if (selectedSemester === "unspecified") return !s.semester;
+      return s.semester === selectedSemester;
+    });
+
+    if (filtered.length === 0) {
+      renderState(grid, "لا توجد مواد مطابقة للفصل المحدد.");
+      return;
+    }
+
     grid.innerHTML = "";
-    subjects.forEach((s) => {
+    filtered.forEach((s) => {
       const a = document.createElement("a");
       a.className = "card";
       a.href = `subject.html?id=${s.id}`;

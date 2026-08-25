@@ -26,6 +26,17 @@ const RESOURCE_TYPE_ICONS = {
 // ترتيب ثابت لعرض الأنواع (تبويبات صفحة المادة، إلخ) بدل الاعتماد على ترتيب قاعدة البيانات
 const RESOURCE_TYPE_ORDER = ["lecture", "slides", "book", "summary", "notes", "questions", "past_exam"];
 
+// Phase 4B: الفصل الدراسي للمادة (subjects.semester) — عمود اختياري،
+// NULL يعني "غير محدد" (مواد قديمة قبل هذا الحقل، أو لا يُفرَّق فيها
+// بين الفصول). يُستخدم في تبويبات فلترة المواد بصفحة year.html.
+const SUBJECT_SEMESTER_LABELS = {
+  first: "الفصل الأول",
+  second: "الفصل الثاني",
+  summer: "الفصل الصيفي",
+};
+
+const SUBJECT_SEMESTER_ORDER = ["first", "second", "summer"];
+
 // ------------------------------------------------------------
 // المفضلة + "آخر ما شوهد" (Phase 3.4) — تُخزَّن محليًا فقط (localStorage)
 // لكل متصفّح، دون أي حساب مستخدم أو جدول قاعدة بيانات جديد.

@@ -184,6 +184,15 @@
             </div>
             <div class="field"><label>اسم المادة</label><input type="text" id="subj-name" required></div>
             <div class="field"><label>رمز المادة (اختياري)</label><input type="text" id="subj-code"></div>
+            <div class="field">
+              <label>الفصل الدراسي (اختياري)</label>
+              <select id="subj-semester">
+                <option value="">غير محدد</option>
+                <option value="first">الفصل الأول</option>
+                <option value="second">الفصل الثاني</option>
+                <option value="summer">الفصل الصيفي</option>
+              </select>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary btn-sm" id="subj-submit-btn">إضافة</button>
           <button type="button" class="btn btn-outline btn-sm" id="subj-cancel-btn" hidden>إلغاء التعديل</button>

@@ -10,6 +10,15 @@ const RESOURCE_TYPE_LABELS_ADMIN = {
   summary: "ملخص", questions: "أسئلة", past_exam: "امتحان سابق", notes: "ملاحظات",
 };
 
+// Phase 4B: تسميات الفصل الدراسي — تُستخدم فقط لعرض القيمة في جدول
+// المواد بلوحة التحكم؛ القيم المخزَّنة فعليًا في subjects.semester تبقى
+// first/second/summer (أو NULL) كما هي.
+const SUBJECT_SEMESTER_LABELS = {
+  first: "الفصل الأول",
+  second: "الفصل الثاني",
+  summer: "الفصل الصيفي",
+};
+
 const ENTITY_LABELS = {
   academic_structure: "الجامعات/الكليات/السنوات/المواد",
   resources: "الموارد",
@@ -661,7 +670,7 @@ document.getElementById("year-cancel-btn").addEventListener("click", resetYearFo
 async function loadSubjects() {
   const { data, error } = await supabaseClient
     .from("subjects")
-    .select("id, name, code, year_id, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
+    .select("id, name, code, semester, year_id, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
     .order("name");
   const tbody = document.querySelector("#subj-table tbody");
   if (error) { tbody.innerHTML = `<tr><td colspan="3">تعذّر التحميل</td></tr>`; return; }
@@ -680,13 +689,14 @@ async function loadSubjects() {
     const facId = s.years?.faculty_id;
     const canEdit = hasPerm("academic_structure", uniId, facId, "edit");
     const canDelete = hasPerm("academic_structure", uniId, facId, "delete");
-    const location = `${escHtml(s.years?.universities?.name) || "—"} › ${escHtml(s.years?.faculties?.name) || "—"} › سنة ${escHtml(s.years?.year_number ?? "—")}`;
+    const semesterLabel = s.semester ? (SUBJECT_SEMESTER_LABELS[s.semester] || s.semester) : "غير محدد";
+    const location = `${escHtml(s.years?.universities?.name) || "—"} › ${escHtml(s.years?.faculties?.name) || "—"} › سنة ${escHtml(s.years?.year_number ?? "—")} › ${escHtml(semesterLabel)}`;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="المادة">${escHtml(s.name)}${s.code ? ` (${escHtml(s.code)})` : ""}</td>
       <td data-label="الجامعة / الكلية / السنة">${location}</td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}')">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}')">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -703,6 +713,7 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
     year_id: yearId,
     name: document.getElementById("subj-name").value.trim(),
     code: document.getElementById("subj-code").value.trim() || null,
+    semester: document.getElementById("subj-semester").value || null,
   };
   const { data, error } = id
     ? await supabaseClient.from("subjects").update(payload).eq("id", id).select().maybeSingle()
@@ -715,13 +726,14 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   loadSubjects();
 });
 
-function editSubject(id, yearId, universityId, facultyId, name, code) {
+function editSubject(id, yearId, universityId, facultyId, name, code, semester) {
   document.getElementById("subj-edit-id").value = id;
   document.getElementById("subj-university").value = universityId;
   populateFacultySelect("subj-faculty", universityId, facultyId || null);
   populateYearSelectForFaculty("subj-year", facultyId || null, yearId);
   document.getElementById("subj-name").value = name;
   document.getElementById("subj-code").value = code;
+  document.getElementById("subj-semester").value = semester || "";
   document.getElementById("subj-form-title").textContent = "تعديل مادة";
   document.getElementById("subj-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("subj-cancel-btn").hidden = false;
