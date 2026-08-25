@@ -708,11 +708,19 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   const id = document.getElementById("subj-edit-id").value;
   const yearId = document.getElementById("subj-year").value;
   if (!yearId) { showToast("اختر السنة الدراسية أولاً"); return; }
+  const semesterValue = document.getElementById("subj-semester").value || null;
+  // عند إضافة مادة جديدة (لا id بعد)، الفصل الدراسي إلزامي من الآن فصاعدًا.
+  // لا يشمل هذا تعديل مادة قديمة موجودة أصلاً بـ semester = NULL — تعديلها
+  // يبقى ممكنًا دون إجبار اختيار فصل، حفاظًا على قرار عدم لمس بيانات قديمة.
+  if (!id && !semesterValue) {
+    showToast("الرجاء اختيار الفصل الدراسي");
+    return;
+  }
   const payload = {
     year_id: yearId,
     name: document.getElementById("subj-name").value.trim(),
     code: document.getElementById("subj-code").value.trim() || null,
-    semester: document.getElementById("subj-semester").value || null,
+    semester: semesterValue,
   };
   const { data, error } = id
     ? await supabaseClient.from("subjects").update(payload).eq("id", id).select().maybeSingle()

@@ -70,6 +70,9 @@
   <div id="results" class="grid">
     <div class="state-msg">جارٍ البحث...</div>
   </div>
+  <div class="load-more-wrap" id="load-more-wrap" hidden style="text-align:center; margin-top:20px;">
+    <button type="button" class="btn btn-outline" id="load-more-btn">تحميل المزيد</button>
+  </div>
 </main>
 
 <footer class="site-footer">
@@ -110,6 +113,13 @@
 <script>
   const query = (getQueryParam("q") || "").trim();
   document.getElementById("search-input").value = query;
+
+  // -------------------- Pagination (Phase 4 P1-1) --------------------
+  // PAGE_SIZE يطابق القيمة الافتراضية القديمة لـ search_resources() (60)
+  // حتى تبقى الصفحة الأولى مطابقة تمامًا للسلوك السابق قبل هذا التعديل.
+  const PAGE_SIZE = 60;
+  let currentOffset = 0;
+  let loadingMore = false;
 
   renderBreadcrumb(document.getElementById("breadcrumb"), [
     { label: "الرئيسية", href: "index.html" },
@@ -156,8 +166,9 @@
     if (currentValue && options.some((o) => o.id === currentValue)) select.value = currentValue;
   }
 
-  async function runSearch() {
+  async function runSearch(append) {
     const results = document.getElementById("results");
+    const loadMoreWrap = document.getElementById("load-more-wrap");
     const type = document.getElementById("filter-type").value || null;
     const language = document.getElementById("filter-language").value || null;
     const universityId = document.getElementById("filter-university").value || null;
@@ -165,15 +176,23 @@
     const yearNumber = document.getElementById("filter-year").value ? parseInt(document.getElementById("filter-year").value, 10) : null;
 
     if (!query && !type && !language && !universityId && !facultyId && !yearNumber) {
+      loadMoreWrap.hidden = true;
       renderState(results, "اكتب كلمة للبحث عنها أو اختر فلترًا.");
       return;
     }
 
-    document.title = query ? `بحث: ${query} — منصة الموارد الطبية` : "نتائج البحث — منصة الموارد الطبية";
-    renderState(results, "جارٍ البحث...");
+    if (!append) {
+      // بحث/فلترة جديدة: نبدأ من الصفحة الأولى دائمًا.
+      currentOffset = 0;
+      document.title = query ? `بحث: ${query} — منصة الموارد الطبية` : "نتائج البحث — منصة الموارد الطبية";
+      renderState(results, "جارٍ البحث...");
+      loadMoreWrap.hidden = true;
+    }
 
     // بحث شامل عبر دالة search_resources في قاعدة البيانات:
     // يطابق العنوان + الكلمات المفتاحية + اسم/رمز المادة + اسم الجامعة + اسم الكلية
+    // p_limit/p_offset (Phase 4 P1-1): PAGE_SIZE يطابق الافتراضي القديم (60)،
+    // فسلوك الصفحة الأولى مطابق تمامًا لما كان قبل إضافة الترقيم.
     const { data, error } = await supabaseClient.rpc("search_resources", {
       p_query: query || null,
       p_type: type,
@@ -182,22 +201,27 @@
       p_year_number: yearNumber,
       p_subject_id: null,
       p_language: language,
+      p_limit: PAGE_SIZE,
+      p_offset: currentOffset,
     });
 
     if (error) {
       console.error(error);
-      renderState(results, "تعذّر إجراء البحث، حاول لاحقًا.");
+      if (!append) renderState(results, "تعذّر إجراء البحث، حاول لاحقًا.");
+      else showToast("تعذّر تحميل المزيد، حاول لاحقًا.");
       return;
     }
 
-    if (!data || data.length === 0) {
+    if (!append && (!data || data.length === 0)) {
       renderState(results, query ? `لا توجد نتائج مطابقة لـ "${query}".` : "لا توجد نتائج مطابقة للفلاتر المحددة.");
       return;
     }
 
-    results.innerHTML = "";
-    results.style.gridTemplateColumns = "1fr";
-    data.forEach((r) => {
+    if (!append) {
+      results.innerHTML = "";
+      results.style.gridTemplateColumns = "1fr";
+    }
+    (data || []).forEach((r) => {
       const card = buildResourceCard(r);
       const metaLine = document.createElement("div");
       metaLine.className = "card-sub";
@@ -224,6 +248,11 @@
       }
       results.appendChild(card);
     });
+
+    currentOffset += (data || []).length;
+    // إظهار "تحميل المزيد" فقط إذا رجعت صفحة كاملة (data.length === PAGE_SIZE) —
+    // مؤشر بسيط ومضمون على احتمال وجود نتائج إضافية، بدون استعلام عدّ إضافي.
+    loadMoreWrap.hidden = !data || data.length < PAGE_SIZE;
   }
 
   document.getElementById("filter-university").addEventListener("change", () => {
@@ -236,10 +265,25 @@
 
   document.querySelectorAll("#search-filters select").forEach((el) => {
     if (el.id === "filter-university") return; // له معالج خاص أعلاه
-    el.addEventListener("change", runSearch);
+    // تنبيه: تمرير runSearch مباشرةً كمعالج حدث كان سيُمرّر كائن Event كوسيط
+    // أول (append)، وهو قيمة صحيحة (truthy) بالخطأ — لذلك نستدعيها هنا صراحةً
+    // بدون وسائط لضمان أنها دائمًا بحث جديد من الصفحة الأولى.
+    el.addEventListener("change", () => runSearch());
   });
 
-  Promise.all([loadUniversityFilterOptions(), loadFacultyFilterOptions()]).then(runSearch);
+  document.getElementById("load-more-btn").addEventListener("click", async () => {
+    if (loadingMore) return;
+    loadingMore = true;
+    const btn = document.getElementById("load-more-btn");
+    btn.disabled = true;
+    btn.textContent = "جارٍ التحميل...";
+    await runSearch(true);
+    btn.disabled = false;
+    btn.textContent = "تحميل المزيد";
+    loadingMore = false;
+  });
+
+  Promise.all([loadUniversityFilterOptions(), loadFacultyFilterOptions()]).then(() => runSearch());
 </script>
 </body>
 </html>
