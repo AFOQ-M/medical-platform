@@ -75,6 +75,7 @@
       .from("years")
       .select("id, year_number")
       .eq("faculty_id", facultyId)
+      .eq("is_active", true)
       .order("year_number", { ascending: true });
 
     if (yearsError) {

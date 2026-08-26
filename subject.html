@@ -89,6 +89,7 @@
       .from("subjects")
       .select("id, name, year_id, semester, years(id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name))")
       .eq("id", subjectId)
+      .eq("is_active", true)
       .single();
 
     if (subjectError || !subject) {

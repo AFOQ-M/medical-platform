@@ -61,10 +61,13 @@
 
     // نفس نمط الاستعلام المستخدم سابقًا في year.html: نجلب السياق الكامل
     // (الجامعة والكلية) عبر العلاقة مباشرة من قاعدة البيانات، لا من حالة الواجهة.
+    // P1-4: is_active=true يمنع الوصول المباشر لسنة معطَّلة عبر الرابط مباشرة
+    // (نفس نمط faculty.html مع الكليات المعطّلة).
     const { data: year, error: yearError } = await supabaseClient
       .from("years")
       .select("id, year_number, university_id, faculty_id, universities(id, name), faculties(id, name)")
       .eq("id", yearId)
+      .eq("is_active", true)
       .single();
 
     if (yearError || !year) {
@@ -78,6 +81,7 @@
       .from("subjects")
       .select("id, name, code, semester")
       .eq("year_id", yearId)
+      .eq("is_active", true)
       .order("name", { ascending: true });
 
     if (subjectsError) {

@@ -75,6 +75,139 @@ async function logActivity(action, targetType, targetId, details) {
 
 // -------------------- المصادقة --------------------
 
+// P1-7B: حالة التحقق بخطوتين (MFA) للجلسة الحالية فقط — لا تُخزَّن في
+// أي storage دائم (لا localStorage ولا sessionStorage)، مجرد متغيرات
+// وحدة الذاكرة (module-level) تُعاد قراءتها من Supabase عند كل تحميل/
+// تسجيل دخول. هذا الفحص للواجهة فقط (متى نعرض شاشة "تحقق" بدل
+// الداشبورد مباشرة) — RLS عبر fn_has_permission() يبقى الحَكَم الفعلي،
+// تمامًا كما مع hasPerm()/hasAnyPerm() أعلاه.
+let currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
+let currentAuthEmail = null;
+
+// -------------------- Single-Admin Session Lock --------------------
+// (سُمّيت "P1-7B" في تعليمات التنفيذ الحالية؛ نفس الاسم مستخدم أعلاه
+// لميزة MFA — راجع ملاحظة التسمية في رأس sql/phase4b_p1_7b_admin_session_lock.sql).
+//
+// يمنع أكثر من جلسة أدمن واحدة فعّالة في لوحة التحكم في آن واحد. الفرض
+// الحقيقي من جهة القاعدة عبر acquire/refresh/release_admin_session_lock()
+// (SECURITY DEFINER RPCs، الجدول نفسه deny-all عبر RLS بلا أي policy).
+// هذا الكود هنا مجرد "مرآة" للواجهة — تمامًا كمنطق hasPerm() أعلاه —
+// وليس مصدر الحماية الفعلي.
+//
+// currentLockToken يعيش فقط في متغير module-level (لا localStorage ولا
+// sessionStorage) ويُفقد تلقائيًا عند إغلاق التبويب؛ هذا مقصود: إغلاق
+// المتصفح لا يُعتبر تحريرًا مضمونًا للقفل، والضامن الحقيقي هو TTL
+// (90 ثانية) في القاعدة + heartbeat دوري من هنا.
+let currentLockToken = null;
+let lockHeartbeatTimer = null;
+const LOCK_HEARTBEAT_MS = 25000; // TTL في القاعدة = 90 ثانية؛ ~3 محاولات heartbeat قبل الانتهاء
+
+function stopLockHeartbeat() {
+  if (lockHeartbeatTimer) {
+    clearInterval(lockHeartbeatTimer);
+    lockHeartbeatTimer = null;
+  }
+}
+
+function startLockHeartbeat() {
+  stopLockHeartbeat();
+  lockHeartbeatTimer = setInterval(async () => {
+    if (!currentLockToken) return;
+    try {
+      const { data, error } = await supabaseClient.rpc("refresh_admin_session_lock", {
+        p_session_token: currentLockToken,
+      });
+      if (error || !data || data.ok !== true) {
+        await forceLockLogout("تم إنهاء جلستك الحالية (جلسة أدمن أخرى بدأت، أو انتهت صلاحية جلستك). سجّل الدخول مجددًا.");
+      }
+    } catch (e) {
+      // فشل شبكة عابر لا يُنهي الجلسة فورًا من طرف الواجهة — الـ TTL في
+      // القاعدة هو الضامن النهائي؛ محاولة heartbeat التالية قد تنجح.
+      console.error("تعذّر إرسال heartbeat لقفل الأدمن:", e);
+    }
+  }, LOCK_HEARTBEAT_MS);
+}
+
+// محاولة الحصول على قفل الأدمن الوحيد. لا تُعرض الداشبورد أبدًا قبل
+// نجاح هذه الدالة — الفرض فعلي من القاعدة، وليس مجرد ستارة واجهة.
+async function acquireAdminLock() {
+  const { data, error } = await supabaseClient.rpc("acquire_admin_session_lock");
+  if (error || !data || data.acquired !== true) {
+    return false;
+  }
+  currentLockToken = data.session_token;
+  startLockHeartbeat();
+  return true;
+}
+
+// إنهاء قسري للجلسة (heartbeat فشل أو القفل لم يعد ملكنا). لا نحاول
+// release هنا (غالبًا لم نعد نملك القفل أصلاً)، فقط تنظيف + signOut.
+async function forceLockLogout(message) {
+  stopLockHeartbeat();
+  currentLockToken = null;
+  currentProfile = null;
+  currentPermissions = [];
+  currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
+  currentAuthEmail = null;
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (e) {
+    // نظّف واجهة تسجيل الدخول حتى لو فشل signOut نفسه (مثلاً لا اتصال)
+  }
+  showLogin(message);
+}
+
+// تحرير طوعي للقفل عند تسجيل الخروج. best-effort: فشل الشبكة هنا لا
+// يمنع logout من إتمامه — الـ TTL في القاعدة يحرر القفل خلال 90 ثانية
+// كحد أقصى حتى لو فشل release تمامًا.
+async function releaseAdminLock() {
+  stopLockHeartbeat();
+  if (!currentLockToken) return;
+  const token = currentLockToken;
+  currentLockToken = null;
+  try {
+    await supabaseClient.rpc("release_admin_session_lock", { p_session_token: token });
+  } catch (e) {
+    console.error("تعذّر تحرير قفل الأدمن (سيُحرَّر تلقائيًا خلال 90 ثانية عبر TTL):", e);
+  }
+}
+
+// نقطة الدخول الموحّدة للداشبورد — من تسجيل الدخول المباشر (لا MFA) أو
+// بعد نجاح التحقق بخطوتين. القفل شرط إلزامي قبل أي عرض للداشبورد.
+async function enterDashboardWithLock(email) {
+  const acquired = await acquireAdminLock();
+  if (!acquired) {
+    currentProfile = null;
+    currentPermissions = [];
+    currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
+    currentAuthEmail = null;
+    try {
+      await supabaseClient.auth.signOut();
+    } catch (e) {
+      // نظّف واجهة تسجيل الدخول حتى لو فشل signOut نفسه
+    }
+    showLogin("يوجد مسؤول آخر يستخدم لوحة التحكم حاليًا. حاول لاحقًا.");
+    return;
+  }
+  showDashboard(email);
+}
+
+async function refreshMfaState() {
+  const { data: factorsData, error: factorsError } = await supabaseClient.auth.mfa.listFactors();
+  const verifiedTotp = !factorsError && factorsData
+    ? (factorsData.totp || []).find((f) => f.status === "verified")
+    : null;
+
+  const { data: aalData } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  currentMfaState = {
+    hasVerifiedFactor: !!verifiedTotp,
+    currentLevel: aalData ? aalData.currentLevel : "aal1",
+    factorId: verifiedTotp ? verifiedTotp.id : null,
+  };
+  return currentMfaState;
+}
+
 async function checkAuthAndInit() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
@@ -101,28 +234,54 @@ async function loadCurrentUserAuthorization(authUser) {
   }
 
   currentProfile = profile;
+  currentAuthEmail = authUser.email;
 
   const { data: perms } = await supabaseClient
     .from("user_permissions").select("*").eq("user_id", authUser.id).eq("active", true);
   currentPermissions = perms || [];
 
-  showDashboard(authUser.email);
+  await refreshMfaState();
+
+  // P1-7B — قرار العمل المعتمد:
+  // - super_admin: لا يُطلب منه إكمال MFA إطلاقًا مهما كانت حالته (حتى
+  //   لو لديه factor verified ولم يُكمل aal2) — دخول مباشر دائمًا.
+  // - غيره: إن لم يملك أي factor verified، دخول مباشر (MFA اختياري،
+  //   لا يُفرض تلقائيًا). إن ملك factor verified ولم يصل بعد لـ aal2،
+  //   تُعرض شاشة التحقق بخطوتين قبل الداشبورد.
+  const isSuperAdmin = currentProfile.role === "super_admin";
+  if (!isSuperAdmin && currentMfaState.hasVerifiedFactor && currentMfaState.currentLevel !== "aal2") {
+    showMfaVerify();
+    return;
+  }
+
+  await enterDashboardWithLock(authUser.email);
 }
 
 function showLogin(errorMsg) {
   document.getElementById("login-box").hidden = false;
+  document.getElementById("mfa-verify-box").hidden = true;
   document.getElementById("dashboard").hidden = true;
   document.getElementById("admin-user-info").textContent = "";
   const errorEl = document.getElementById("login-error");
   if (errorMsg) { errorEl.textContent = errorMsg; errorEl.style.display = "block"; }
 }
 
+function showMfaVerify() {
+  document.getElementById("login-box").hidden = true;
+  document.getElementById("dashboard").hidden = true;
+  document.getElementById("mfa-verify-box").hidden = false;
+  document.getElementById("mfa-verify-code").value = "";
+  document.getElementById("mfa-verify-error").style.display = "none";
+}
+
 function showDashboard(email) {
   document.getElementById("login-box").hidden = true;
+  document.getElementById("mfa-verify-box").hidden = true;
   document.getElementById("dashboard").hidden = false;
   const roleLabel = currentProfile.role === "super_admin" ? "سوبر أدمن" : currentProfile.role === "admin" ? "أدمن" : "موظف";
   document.getElementById("admin-user-info").textContent = `${email} (${roleLabel})`;
   applyPermissionVisibility();
+  updateMfaEnrollVisibility();
   loadAllData();
 }
 
@@ -156,6 +315,16 @@ function applyPermissionVisibility() {
   document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, null, "create") ? "" : "none";
 }
 
+// P1-7B: زر تفعيل التحقق بخطوتين يظهر فقط لحساب غير super_admin لم
+// يُسجّل بعد أي factor بحالة verified — enrollment اختياري بالكامل،
+// لا يُفرض على أحد، ويختفي تلقائيًا بعد إتمام التسجيل بنجاح.
+function updateMfaEnrollVisibility() {
+  const btn = document.getElementById("mfa-enroll-btn");
+  if (!btn) return;
+  const isSuperAdmin = currentProfile && currentProfile.role === "super_admin";
+  btn.hidden = isSuperAdmin || currentMfaState.hasVerifiedFactor;
+}
+
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("login-email").value.trim();
@@ -174,11 +343,186 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   await loadCurrentUserAuthorization(data.user);
 });
 
+// P1-7B: شاشة التحقق بخطوتين — تظهر فقط لحساب غير super_admin لديه
+// factor verified ولم يصل بعد لـ aal2 (راجع loadCurrentUserAuthorization).
+document.getElementById("mfa-verify-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = document.getElementById("mfa-verify-code").value.trim();
+  const errorEl = document.getElementById("mfa-verify-error");
+  errorEl.style.display = "none";
+
+  if (!currentMfaState.factorId) {
+    errorEl.textContent = "تعذّر العثور على وسيلة التحقق. حاول تسجيل الدخول مجددًا.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const { data: challengeData, error: challengeError } = await supabaseClient.auth.mfa.challenge({
+    factorId: currentMfaState.factorId,
+  });
+  if (challengeError) {
+    errorEl.textContent = "تعذّر بدء التحقق الآن. حاول مجددًا.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const { error: verifyError } = await supabaseClient.auth.mfa.verify({
+    factorId: currentMfaState.factorId,
+    challengeId: challengeData.id,
+    code,
+  });
+  if (verifyError) {
+    errorEl.textContent = "رمز التحقق غير صحيح.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  await refreshMfaState();
+  if (currentMfaState.currentLevel !== "aal2") {
+    errorEl.textContent = "تعذّر إكمال التحقق. حاول مجددًا.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  await enterDashboardWithLock(currentAuthEmail);
+});
+
 document.getElementById("logout-btn").addEventListener("click", async () => {
+  await releaseAdminLock();
   await supabaseClient.auth.signOut();
   currentProfile = null;
   currentPermissions = [];
+  currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
+  currentAuthEmail = null;
   showLogin();
+});
+
+// كاش بسيط لآخر access token معروف — يُحدَّث عند كل تحديث ناجح لحالة
+// المصادقة عبر onAuthStateChange أدناه. الغرض الوحيد منه هو تمكين
+// محاولة تحرير القفل عند pagehide (انظر أسفله) من العمل بشكل متزامن
+// دون انتظار وعد (promise) قد لا يُتاح له وقت كافٍ قبل تفريغ الصفحة.
+let lastKnownAccessToken = null;
+supabaseClient.auth.onAuthStateChange((_event, session) => {
+  lastKnownAccessToken = session ? session.access_token : null;
+});
+
+// محاولة تحرير أخيرة (best-effort) عند إغلاق التبويب/التنقل بعيدًا.
+// keepalive يسمح بإرسال الطلب حتى بعد بدء تفريغ الصفحة، وعلى عكس
+// navigator.sendBeacon فإنه يدعم ترويسات مخصّصة (Authorization) وهو ما
+// تحتاجه دالة RPC لمعرفة auth.uid(). لا ضمانة لنجاحه (قد لا يصل الطلب
+// أصلاً، والمتصفح قد يمنعه أثناء تفريغ الصفحة) — هذا تحسين فرصة لا
+// اعتماد؛ الضامن الحقيقي يبقى TTL/heartbeat في القاعدة (راجع تعليق
+// releaseAdminLock أعلاه). لا نستخدم await هنا عمدًا — متزامن قدر
+// الإمكان لزيادة فرصة إرسال الطلب فعليًا قبل تفريغ الصفحة.
+window.addEventListener("pagehide", () => {
+  if (!currentLockToken || !lastKnownAccessToken) return;
+  try {
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/release_admin_session_lock`, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${lastKnownAccessToken}`,
+      },
+      body: JSON.stringify({ p_session_token: currentLockToken }),
+    });
+  } catch (e) {
+    // best-effort فقط — لا نكسر إغلاق الصفحة إن فشل هذا
+  }
+});
+
+// -------------------- P1-7B: تسجيل عامل MFA (TOTP) اختياري --------------------
+// نقطة دخول اختيارية لغير super_admin فقط (راجع updateMfaEnrollVisibility).
+// لا إجبار على enrollment عند تسجيل الدخول في هذه المرحلة.
+
+let mfaEnrollPendingFactorId = null;
+
+function openMfaEnrollOverlay() {
+  document.getElementById("mfa-enroll-overlay").hidden = false;
+  document.getElementById("mfa-enroll-step-start").hidden = false;
+  document.getElementById("mfa-enroll-step-verify").hidden = true;
+  document.getElementById("mfa-enroll-step-success").hidden = true;
+  document.getElementById("mfa-enroll-error").style.display = "none";
+}
+
+function closeMfaEnrollOverlay() {
+  document.getElementById("mfa-enroll-overlay").hidden = true;
+  document.getElementById("mfa-enroll-qr").innerHTML = "";
+  document.getElementById("mfa-enroll-secret").textContent = "";
+  document.getElementById("mfa-enroll-code").value = "";
+  mfaEnrollPendingFactorId = null;
+}
+
+document.getElementById("mfa-enroll-btn").addEventListener("click", () => {
+  openMfaEnrollOverlay();
+});
+
+document.getElementById("mfa-enroll-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "mfa-enroll-overlay") closeMfaEnrollOverlay();
+});
+
+document.getElementById("mfa-enroll-cancel-btn").addEventListener("click", () => {
+  closeMfaEnrollOverlay();
+});
+
+document.getElementById("mfa-enroll-cancel-btn-2").addEventListener("click", () => {
+  closeMfaEnrollOverlay();
+});
+
+document.getElementById("mfa-enroll-start-btn").addEventListener("click", async () => {
+  const errorEl = document.getElementById("mfa-enroll-error");
+  errorEl.style.display = "none";
+
+  const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: "totp" });
+  if (error || !data) {
+    errorEl.textContent = "تعذّر بدء تسجيل التحقق بخطوتين الآن.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  mfaEnrollPendingFactorId = data.id;
+  // لا نطبع data.totp.secret في console ولا نخزّنه في أي storage دائم —
+  // يُعرض فقط داخل DOM هذه الشاشة، ويُمسح عند إغلاقها (closeMfaEnrollOverlay).
+  document.getElementById("mfa-enroll-qr").innerHTML =
+    `<img src="${data.totp.qr_code}" alt="QR" width="180" height="180">`;
+  document.getElementById("mfa-enroll-secret").textContent = data.totp.secret;
+
+  document.getElementById("mfa-enroll-step-start").hidden = true;
+  document.getElementById("mfa-enroll-step-verify").hidden = false;
+});
+
+document.getElementById("mfa-enroll-verify-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("mfa-enroll-error");
+  errorEl.style.display = "none";
+
+  const code = document.getElementById("mfa-enroll-code").value.trim();
+  if (!mfaEnrollPendingFactorId) {
+    errorEl.textContent = "انتهت صلاحية هذه الخطوة. أعد المحاولة.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.mfa.challengeAndVerify({
+    factorId: mfaEnrollPendingFactorId,
+    code,
+  });
+  if (error) {
+    errorEl.textContent = "رمز التحقق غير صحيح.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  await refreshMfaState();
+  updateMfaEnrollVisibility();
+
+  document.getElementById("mfa-enroll-step-verify").hidden = true;
+  document.getElementById("mfa-enroll-step-success").hidden = false;
+});
+
+document.getElementById("mfa-enroll-done-btn").addEventListener("click", () => {
+  closeMfaEnrollOverlay();
 });
 
 // -------------------- التبويبات --------------------
@@ -522,7 +866,7 @@ function populateYearSelectForFaculty(selectId, facultyId, keepValue) {
   options.forEach((y) => {
     const opt = document.createElement("option");
     opt.value = y.id;
-    opt.textContent = `سنة ${y.year_number}`;
+    opt.textContent = `سنة ${y.year_number}` + (y.is_active ? "" : " (معطّلة)");
     select.appendChild(opt);
   });
   if (keepValue && options.some((o) => o.id === keepValue)) select.value = keepValue;
@@ -549,7 +893,7 @@ function populateSubjectSelectForYear(selectId, yearId, keepValue) {
   options.forEach((s) => {
     const opt = document.createElement("option");
     opt.value = s.id;
-    opt.textContent = s.name;
+    opt.textContent = s.name + (s.is_active ? "" : " (معطّلة)");
     select.appendChild(opt);
   });
   if (keepValue && options.some((o) => o.id === keepValue)) select.value = keepValue;
@@ -589,10 +933,10 @@ document.getElementById("res-year").addEventListener("change", (e) => {
 async function loadYears() {
   const { data, error } = await supabaseClient
     .from("years")
-    .select("id, year_number, university_id, faculty_id, universities(name), faculties(name)")
+    .select("id, year_number, university_id, faculty_id, is_active, universities(name), faculties(name)")
     .order("year_number");
   const tbody = document.querySelector("#year-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="4">تعذّر التحميل</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
 
   yearsById = {};
   (data || []).forEach((y) => { yearsById[y.id] = y; });
@@ -602,7 +946,7 @@ async function loadYears() {
   populateYearSelectForFaculty("subj-year", currentSelectValue("subj-faculty"), currentSelectValue("subj-year"));
   populateYearSelectForFaculty("res-year", currentSelectValue("res-faculty"), currentSelectValue("res-year"));
 
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="4">لا توجد سنوات بعد</td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد سنوات بعد</td></tr>`; return; }
   tbody.innerHTML = "";
   data.forEach((y) => {
     const canEdit = hasPerm("academic_structure", y.university_id, y.faculty_id, "edit");
@@ -612,8 +956,10 @@ async function loadYears() {
       <td data-label="الجامعة">${escHtml(y.universities?.name) || "—"}</td>
       <td data-label="الكلية">${escHtml(y.faculties?.name) || "—"}</td>
       <td data-label="السنة">${escHtml(y.year_number)}</td>
+      <td data-label="الحالة"><span class="status-badge ${y.is_active ? "published" : "hidden"}">${y.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number})">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number},${y.is_active})">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleYearActive('${y.id}', ${y.is_active})">${y.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -630,6 +976,7 @@ document.getElementById("year-form").addEventListener("submit", async (e) => {
     university_id: document.getElementById("year-university").value,
     faculty_id: facultyId,
     year_number: parseInt(document.getElementById("year-number").value, 10),
+    is_active: document.getElementById("year-active").checked,
   };
   const { data, error } = id
     ? await supabaseClient.from("years").update(payload).eq("id", id).select().maybeSingle()
@@ -642,11 +989,12 @@ document.getElementById("year-form").addEventListener("submit", async (e) => {
   loadYears();
 });
 
-function editYear(id, universityId, facultyId, yearNumber) {
+function editYear(id, universityId, facultyId, yearNumber, isActive) {
   document.getElementById("year-edit-id").value = id;
   document.getElementById("year-university").value = universityId;
   populateFacultySelect("year-faculty", universityId, facultyId || null);
   document.getElementById("year-number").value = yearNumber;
+  document.getElementById("year-active").checked = !!isActive;
   document.getElementById("year-form-title").textContent = "تعديل سنة دراسية";
   document.getElementById("year-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("year-cancel-btn").hidden = false;
@@ -655,12 +1003,21 @@ function editYear(id, universityId, facultyId, yearNumber) {
 function resetYearForm() {
   document.getElementById("year-form").reset();
   document.getElementById("year-edit-id").value = "";
+  document.getElementById("year-active").checked = true;
   populateFacultySelect("year-faculty", currentSelectValue("year-university"), null);
   document.getElementById("year-form-title").textContent = "إضافة سنة دراسية";
   document.getElementById("year-submit-btn").textContent = "إضافة";
   document.getElementById("year-cancel-btn").hidden = true;
 }
 document.getElementById("year-cancel-btn").addEventListener("click", resetYearForm);
+
+async function toggleYearActive(yearId, currentlyActive) {
+  const { error } = await supabaseClient.from("years").update({ is_active: !currentlyActive }).eq("id", yearId);
+  if (error) { showToast("تعذّر تحديث حالة السنة"); console.error(error); return; }
+  logActivity(currentlyActive ? "year_disabled" : "year_enabled", "year", yearId, null);
+  showToast(currentlyActive ? "تم تعطيل السنة" : "تم تفعيل السنة");
+  loadYears();
+}
 
 // ============================================================
 // المواد
@@ -669,10 +1026,10 @@ document.getElementById("year-cancel-btn").addEventListener("click", resetYearFo
 async function loadSubjects() {
   const { data, error } = await supabaseClient
     .from("subjects")
-    .select("id, name, code, semester, year_id, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
+    .select("id, name, code, semester, year_id, is_active, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
     .order("name");
   const tbody = document.querySelector("#subj-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="3">تعذّر التحميل</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="4">تعذّر التحميل</td></tr>`; return; }
 
   subjectsById = {};
   (data || []).forEach((s) => { subjectsById[s.id] = s; });
@@ -681,7 +1038,7 @@ async function loadSubjects() {
   // القائمة المتتالية التي تعتمد على المواد: قائمة "المادة" في نموذج المورد
   populateSubjectSelectForYear("res-subject", currentSelectValue("res-year"), currentSelectValue("res-subject"));
 
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="3">لا توجد مواد بعد</td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="4">لا توجد مواد بعد</td></tr>`; return; }
   tbody.innerHTML = "";
   data.forEach((s) => {
     const uniId = s.years?.university_id;
@@ -694,8 +1051,10 @@ async function loadSubjects() {
     tr.innerHTML = `
       <td data-label="المادة">${escHtml(s.name)}${s.code ? ` (${escHtml(s.code)})` : ""}</td>
       <td data-label="الجامعة / الكلية / السنة">${location}</td>
+      <td data-label="الحالة"><span class="status-badge ${s.is_active ? "published" : "hidden"}">${s.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}')">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}',${s.is_active})">تعديل</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleSubjectActive('${s.id}', ${s.is_active})">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
       </td>`;
@@ -721,6 +1080,7 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
     name: document.getElementById("subj-name").value.trim(),
     code: document.getElementById("subj-code").value.trim() || null,
     semester: semesterValue,
+    is_active: document.getElementById("subj-active").checked,
   };
   const { data, error } = id
     ? await supabaseClient.from("subjects").update(payload).eq("id", id).select().maybeSingle()
@@ -733,7 +1093,7 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   loadSubjects();
 });
 
-function editSubject(id, yearId, universityId, facultyId, name, code, semester) {
+function editSubject(id, yearId, universityId, facultyId, name, code, semester, isActive) {
   document.getElementById("subj-edit-id").value = id;
   document.getElementById("subj-university").value = universityId;
   populateFacultySelect("subj-faculty", universityId, facultyId || null);
@@ -741,6 +1101,7 @@ function editSubject(id, yearId, universityId, facultyId, name, code, semester) 
   document.getElementById("subj-name").value = name;
   document.getElementById("subj-code").value = code;
   document.getElementById("subj-semester").value = semester || "";
+  document.getElementById("subj-active").checked = !!isActive;
   document.getElementById("subj-form-title").textContent = "تعديل مادة";
   document.getElementById("subj-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("subj-cancel-btn").hidden = false;
@@ -749,6 +1110,7 @@ function editSubject(id, yearId, universityId, facultyId, name, code, semester) 
 function resetSubjForm() {
   document.getElementById("subj-form").reset();
   document.getElementById("subj-edit-id").value = "";
+  document.getElementById("subj-active").checked = true;
   populateFacultySelect("subj-faculty", currentSelectValue("subj-university"), null);
   populateYearSelectForFaculty("subj-year", null, null);
   document.getElementById("subj-form-title").textContent = "إضافة مادة";
@@ -756,6 +1118,14 @@ function resetSubjForm() {
   document.getElementById("subj-cancel-btn").hidden = true;
 }
 document.getElementById("subj-cancel-btn").addEventListener("click", resetSubjForm);
+
+async function toggleSubjectActive(subjectId, currentlyActive) {
+  const { error } = await supabaseClient.from("subjects").update({ is_active: !currentlyActive }).eq("id", subjectId);
+  if (error) { showToast("تعذّر تحديث حالة المادة"); console.error(error); return; }
+  logActivity(currentlyActive ? "subject_disabled" : "subject_enabled", "subject", subjectId, null);
+  showToast(currentlyActive ? "تم تعطيل المادة" : "تم تفعيل المادة");
+  loadSubjects();
+}
 
 // ============================================================
 // الموارد
@@ -771,7 +1141,14 @@ async function loadResources() {
         years(id, university_id, faculty_id, year_number, universities(name), faculties(name))
       )
     `)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // P1-2: explicit fetch cap for the Admin Dashboard resources query.
+    // 1000 matches the project's current Data API "Max rows" default, which was
+    // already the implicit ceiling on this query (no .limit()/.range() was set
+    // before). Making it explicit avoids relying on an invisible platform
+    // setting and the silent, unsignaled truncation that setting causes if
+    // exceeded. This does not change current behavior; see phase4_p1_2 notes.
+    .limit(1000);
   if (error) {
     document.querySelector("#res-table tbody").innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`;
     return;
@@ -789,7 +1166,7 @@ function renderResourcesTable() {
   const typeFilter = document.getElementById("res-filter-type")?.value || "";
   const statusFilter = document.getElementById("res-filter-status")?.value || "";
 
-  if (!resourcesCache.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد موارد بعد (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
+  if (!resourcesCache.length) { tbody.innerHTML = `<tr><td colspan="6">لا توجد موارد بعد (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
 
   const filtered = resourcesCache.filter((r) => {
     const matchesSearch = !searchText ||
@@ -800,7 +1177,7 @@ function renderResourcesTable() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد نتائج مطابقة للفلاتر الحالية</td></tr>`; return; }
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="6">لا توجد نتائج مطابقة للفلاتر الحالية</td></tr>`; return; }
 
   tbody.innerHTML = "";
   filtered.forEach((r) => {
@@ -816,7 +1193,10 @@ function renderResourcesTable() {
       <td data-label="الموقع الأكاديمي">${location}</td>
       <td data-label="النوع">${escHtml(RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type)}</td>
       <td data-label="الحالة"><span class="status-badge ${statusClass}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
+      <td data-label="المشاهدات">${escHtml(r.view_count ?? 0)}</td>
       <td>
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceHidden('${r.id}', ${r.status === "hidden"}, function(){})">${r.status === "hidden" ? "نشر" : "إخفاء"}</button>` : ""}
+        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceVerified('${r.id}', ${!!r.verified}, loadResources)">${r.verified ? "إلغاء التوثيق" : "توثيق"}</button>` : ""}
         ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editResource('${r.id}')">تعديل</button>` : ""}
         ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('resources','${r.id}', loadResources)">حذف</button>` : ""}
         ${!canEdit && !canDelete ? "—" : ""}
@@ -833,17 +1213,41 @@ document.getElementById("res-filter-search").addEventListener("input", () => {
 document.getElementById("res-filter-type").addEventListener("change", renderResourcesTable);
 document.getElementById("res-filter-status").addEventListener("change", renderResourcesTable);
 
+// P1-6: يتحقق أن رابط الملف عنوان URL مطلق بمخطّط http/https فقط —
+// نفس سياسة المخطّطات المسموحة المطبَّقة فعليًا في safeResourceUrl()
+// (js/app.js) عند بناء رابط العرض العام للزوار. الفرق المتعمَّد هنا:
+// تلك الدالة تُمرِّر window.location.href كـ base عند الفحص لأنها
+// تعرض رابطًا مخزَّنًا سلفًا ويجب ألا تكسر الصفحة إن فشل التحليل،
+// بينما هنا نتحقق من رابط جديد يكتبه الأدمن للتو — تمرير base كان
+// سيجعل رابطًا ناقصًا مثل "example.com/file.pdf" يُقبل خطأً بعد حلّه
+// نسبيًا لعنوان لوحة التحكم نفسها بدل رفضه كما يجب. لا علاقة لهذا
+// بـ storage_provider أو source_type: كلاهما بيانات وصفية فقط ولا
+// يُغيّران صيغة الرابط المتوقَّعة (تحقّق ذلك في تدقيق P1-6).
+function isValidResourceUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 document.getElementById("res-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("res-edit-id").value;
   const subjectId = document.getElementById("res-subject").value;
   if (!subjectId) { showToast("اختر المادة أولاً"); return; }
+  const fileUrl = document.getElementById("res-file-url").value.trim();
+  if (!fileUrl || !isValidResourceUrl(fileUrl)) {
+    showToast("رابط الملف غير صالح — أدخل رابطًا كاملاً يبدأ بـ http:// أو https://");
+    return;
+  }
   const payload = {
     subject_id: subjectId,
     title: document.getElementById("res-title").value.trim(),
     type: document.getElementById("res-type").value,
     language: document.getElementById("res-language").value,
-    file_url: document.getElementById("res-file-url").value.trim(),
+    file_url: fileUrl,
     storage_provider: document.getElementById("res-storage-provider").value,
     source_type: document.getElementById("res-source-type").value,
     status: document.getElementById("res-status").value,
@@ -969,6 +1373,23 @@ async function toggleResourceHidden(resourceId, currentlyHidden, refreshFn) {
   showToast(currentlyHidden ? "تم إظهار المورد" : "تم إخفاء المورد");
   refreshFn();
   loadResources();
+}
+
+// P1-5: تبديل سريع لعلامة "موثّق" من صف المورد مباشرة في تبويب الموارد
+// بلوحة التحكم، دون فتح نموذج التعديل الكامل. نفس اتفاقية توثيق النشاط
+// وإشعارات الخطأ المستخدمة في toggleResourceHidden أعلاه. يمر عبر نفس
+// سياسة auth_update_resources (صلاحية resources/edit) — لا حاجة لأي
+// سياسة RLS جديدة أو عمود إضافي، تمامًا كحالة verified في نموذج التعديل
+// الكامل الحالي.
+async function toggleResourceVerified(resourceId, currentlyVerified, refreshFn) {
+  const { error } = await supabaseClient
+    .from("resources")
+    .update({ verified: !currentlyVerified })
+    .eq("id", resourceId);
+  if (error) { showToast("تعذّر تحديث حالة التوثيق"); console.error(error); return; }
+  logActivity(currentlyVerified ? "resource_unverified" : "resource_verified", "resource", resourceId, null);
+  showToast(currentlyVerified ? "تم إلغاء توثيق المورد" : "تم توثيق المورد");
+  refreshFn();
 }
 
 // ============================================================
