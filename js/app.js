@@ -125,8 +125,23 @@ const SOURCE_TYPE_LABELS = {
  * البيانات ويُدخله الأدمن يدويًا.
  */
 function safeResourceUrl(url) {
+  // P1-6: فحص مبكر للفراغ/whitespace — بدونه، تمرير سلسلة فارغة إلى
+  // new URL() أدناه قد تُحلّها كمرجع نسبي فارغ. لا تغيير على أي حالة
+  // أخرى (javascript:/data:/رابط صالح/رابط غير قابل للتحليل) — تسلك
+  // جميعها نفس مسار try/catch أدناه كما كانت تمامًا.
+  if (typeof url !== "string" || url.trim() === "") {
+    return "#";
+  }
   try {
-    const parsed = new URL(url, window.location.href);
+    // P1-Final M5: لا نمرّر base (window.location.href) عمدًا. تمريره
+    // كان يجعل new URL() تُحلّل أي نص غير مفهوم كمخطط (مثل "not-a-url")
+    // كمسار *نسبي* صالح على نفس الموقع، فتُعيد رابطًا http(s) "صالحًا"
+    // لكنه يشير خطأً إلى صفحة داخلية غير مقصودة بدل "#" المتوقَّع لقيمة
+    // غير صالحة. بدون base، new URL() تتطلب رابطًا مطلقًا فعليًا —
+    // النصوص غير المفهومة/الفارغة تفشل بـ Invalid URL وتسقط إلى catch
+    // أدناه بشكل صحيح، بينما روابط http(s):// المطلقة الحقيقية (حتى مع
+    // مسافات بادئة/لاحقة، التي يزيلها محلّل WHATWG تلقائيًا) لا تتأثر.
+    const parsed = new URL(url);
     return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "#";
   } catch {
     return "#";

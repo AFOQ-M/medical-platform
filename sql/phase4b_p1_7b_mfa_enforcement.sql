@@ -1,5 +1,14 @@
 -- ============================================================
--- Phase 4B — P1-7B: MFA Enforcement (اختياري حتى enrollment، RLS-level)
+-- Phase 4B — P1-7A: MFA Enforcement (اختياري حتى enrollment، RLS-level)
+--
+-- ⚠️ ملاحظة تسمية (P1-Final، M4): هذا الملف كان يُسمّى نفسه "P1-7B" في
+-- التعليق أعلاه وقت كتابته. التسمية النهائية المعتمدة (موثَّقة في
+-- sql/phase4b_p1_7b_admin_session_lock.sql وفي تقارير P1-7B-*.md
+-- اللاحقة) هي: P1-7A = MFA Enforcement (هذا الملف)، وP1-7B = Admin
+-- Session Lock / First Session Wins / F5 Restore. اسم الملف نفسه
+-- (phase4b_p1_7b_mfa_enforcement.sql) وسجل migration المطبَّق على
+-- Supabase تحت هذا الاسم بالضبط لم يُغيَّرا لتجنّب كسر migration
+-- history — التصحيح هنا توثيقي فقط.
 -- ============================================================
 --
 -- القرار المعتمد (لا يتغيّر إلا بموافقة صريحة لاحقًا):

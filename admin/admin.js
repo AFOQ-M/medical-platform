@@ -75,7 +75,7 @@ async function logActivity(action, targetType, targetId, details) {
 
 // -------------------- المصادقة --------------------
 
-// P1-7B: حالة التحقق بخطوتين (MFA) للجلسة الحالية فقط — لا تُخزَّن في
+// P1-7A: حالة التحقق بخطوتين (MFA) للجلسة الحالية فقط — لا تُخزَّن في
 // أي storage دائم (لا localStorage ولا sessionStorage)، مجرد متغيرات
 // وحدة الذاكرة (module-level) تُعاد قراءتها من Supabase عند كل تحميل/
 // تسجيل دخول. هذا الفحص للواجهة فقط (متى نعرض شاشة "تحقق" بدل
@@ -94,13 +94,21 @@ let currentAuthEmail = null;
 // هذا الكود هنا مجرد "مرآة" للواجهة — تمامًا كمنطق hasPerm() أعلاه —
 // وليس مصدر الحماية الفعلي.
 //
-// currentLockToken يعيش فقط في متغير module-level (لا localStorage ولا
-// sessionStorage) ويُفقد تلقائيًا عند إغلاق التبويب؛ هذا مقصود: إغلاق
-// المتصفح لا يُعتبر تحريرًا مضمونًا للقفل، والضامن الحقيقي هو TTL
-// (90 ثانية) في القاعدة + heartbeat دوري من هنا.
+// currentLockToken يعيش في متغير module-level (يُفقد تلقائيًا عند
+// إغلاق التبويب — هذا مقصود: إغلاق المتصفح لا يُعتبر تحريرًا مضمونًا
+// للقفل، والضامن الحقيقي هو TTL (90 ثانية) في القاعدة + heartbeat دوري
+// من هنا)، **و**أيضًا في sessionStorage (خاص بهذا التبويب فقط — لا
+// localStorage، لأن localStorage يُشارَك بين كل تبويبات نفس الأصل
+// فيسمح لتبويب ثانٍ فعلي لنفس الحساب باستعادة/سرقة قفل تبويب أول، بينما
+// sessionStorage معزول لكل تبويب على حدة). الغرض الوحيد من هذا التخزين
+// هو تمكين استعادة نفس القفل بعد F5 لنفس التبويب (راجع restoreAdminLock
+// أدناه) دون المساس بقاعدة "First Session Wins" — القيمة المخزَّنة هنا
+// مجرد نسخة محلية من session_token نفسه؛ التحقق الفعلي من ملكية القفل
+// يبقى بالكامل من جهة القاعدة عبر refresh_admin_session_lock().
 let currentLockToken = null;
 let lockHeartbeatTimer = null;
 const LOCK_HEARTBEAT_MS = 25000; // TTL في القاعدة = 90 ثانية؛ ~3 محاولات heartbeat قبل الانتهاء
+const LOCK_TOKEN_STORAGE_KEY = "p17b_admin_session_lock_token"; // sessionStorage فقط — راجع الشرح أعلاه
 
 function stopLockHeartbeat() {
   if (lockHeartbeatTimer) {
@@ -136,6 +144,50 @@ async function acquireAdminLock() {
     return false;
   }
   currentLockToken = data.session_token;
+  try { sessionStorage.setItem(LOCK_TOKEN_STORAGE_KEY, currentLockToken); } catch (e) {
+    // sessionStorage غير متاح (وضع خاص صارم مثلاً) — لا يمنع القفل نفسه
+    // من العمل، فقط يعني أن استعادته بعد F5 لن تكون ممكنة لهذا التبويب.
+  }
+  startLockHeartbeat();
+  return true;
+}
+
+// محاولة استعادة قفل يملكه هذا التبويب بالفعل، بعد إعادة تحميل الصفحة
+// (F5) وقبل أي محاولة acquire جديدة — هذا هو إصلاح مشكلة F5 بالكامل.
+//
+// تعتمد فقط على session_token المخزَّن في sessionStorage (معزول لهذا
+// التبويب وحده)، وليس على تطابق auth.uid() وحده: تبويب/متصفح ثانٍ فعلي
+// لنفس الحساب لن يملك هذه القيمة في sessionStorage الخاصة به إطلاقًا
+// (sessionStorage غير مشترك بين التبويبات)، فلا يستطيع استعادة/سرقة قفل
+// تبويب أول عبر هذا المسار مهما كان auth.uid() متطابقًا.
+//
+// تستدعي refresh_admin_session_lock() نفسها — الدالة الموجودة أصلًا
+// للـ heartbeat، بلا أي تعديل عليها — التي تتحقق من auth.uid() *و*
+// تطابق session_token *و* عدم انتهاء الصلاحية معًا قبل أي نجاح. عند
+// النجاح: لا تُنشأ أي جلسة/توكن جديد، فقط تمديد expires_at كما يفعل أي
+// heartbeat عادي — القفل يبقى نفسه تمامًا كما كان قبل F5. عند الفشل
+// (توكن غير صالح/منتهٍ/لم يعد ملكنا): نُنظّف sessionStorage ونعود false
+// كي يكمل enterDashboardWithLock() بمسار acquire العادي دون أي تغيير.
+async function restoreAdminLock() {
+  let savedToken;
+  try {
+    savedToken = sessionStorage.getItem(LOCK_TOKEN_STORAGE_KEY);
+  } catch (e) {
+    savedToken = null;
+  }
+  if (!savedToken) return false;
+
+  const { data, error } = await supabaseClient.rpc("refresh_admin_session_lock", {
+    p_session_token: savedToken,
+  });
+  if (error || !data || data.ok !== true) {
+    try { sessionStorage.removeItem(LOCK_TOKEN_STORAGE_KEY); } catch (e) {
+      // تجاهل — سيُعاد تجاهله لاحقًا عند أي محاولة تالية بلا أثر عملي
+    }
+    return false;
+  }
+
+  currentLockToken = savedToken;
   startLockHeartbeat();
   return true;
 }
@@ -145,6 +197,9 @@ async function acquireAdminLock() {
 async function forceLockLogout(message) {
   stopLockHeartbeat();
   currentLockToken = null;
+  try { sessionStorage.removeItem(LOCK_TOKEN_STORAGE_KEY); } catch (e) {
+    // تجاهل — لا تأثير عملي إن فشل هذا فقط
+  }
   currentProfile = null;
   currentPermissions = [];
   currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
@@ -165,6 +220,9 @@ async function releaseAdminLock() {
   if (!currentLockToken) return;
   const token = currentLockToken;
   currentLockToken = null;
+  try { sessionStorage.removeItem(LOCK_TOKEN_STORAGE_KEY); } catch (e) {
+    // تجاهل — لا تأثير عملي إن فشل هذا فقط
+  }
   try {
     await supabaseClient.rpc("release_admin_session_lock", { p_session_token: token });
   } catch (e) {
@@ -175,7 +233,10 @@ async function releaseAdminLock() {
 // نقطة الدخول الموحّدة للداشبورد — من تسجيل الدخول المباشر (لا MFA) أو
 // بعد نجاح التحقق بخطوتين. القفل شرط إلزامي قبل أي عرض للداشبورد.
 async function enterDashboardWithLock(email) {
-  const acquired = await acquireAdminLock();
+  // أولًا: هل هذا التبويب يملك قفلًا بالفعل من قبل إعادة التحميل؟ إن
+  // نجحت الاستعادة، لا حاجة لأي acquire جديد — نفس القفل/التوكن يستمر.
+  const restored = await restoreAdminLock();
+  const acquired = restored || (await acquireAdminLock());
   if (!acquired) {
     currentProfile = null;
     currentPermissions = [];
@@ -242,7 +303,7 @@ async function loadCurrentUserAuthorization(authUser) {
 
   await refreshMfaState();
 
-  // P1-7B — قرار العمل المعتمد:
+  // P1-7A — قرار العمل المعتمد:
   // - super_admin: لا يُطلب منه إكمال MFA إطلاقًا مهما كانت حالته (حتى
   //   لو لديه factor verified ولم يُكمل aal2) — دخول مباشر دائمًا.
   // - غيره: إن لم يملك أي factor verified، دخول مباشر (MFA اختياري،
@@ -315,7 +376,7 @@ function applyPermissionVisibility() {
   document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, null, "create") ? "" : "none";
 }
 
-// P1-7B: زر تفعيل التحقق بخطوتين يظهر فقط لحساب غير super_admin لم
+// P1-7A: زر تفعيل التحقق بخطوتين يظهر فقط لحساب غير super_admin لم
 // يُسجّل بعد أي factor بحالة verified — enrollment اختياري بالكامل،
 // لا يُفرض على أحد، ويختفي تلقائيًا بعد إتمام التسجيل بنجاح.
 function updateMfaEnrollVisibility() {
@@ -343,7 +404,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   await loadCurrentUserAuthorization(data.user);
 });
 
-// P1-7B: شاشة التحقق بخطوتين — تظهر فقط لحساب غير super_admin لديه
+// P1-7A: شاشة التحقق بخطوتين — تظهر فقط لحساب غير super_admin لديه
 // factor verified ولم يصل بعد لـ aal2 (راجع loadCurrentUserAuthorization).
 document.getElementById("mfa-verify-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -397,42 +458,22 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   showLogin();
 });
 
-// كاش بسيط لآخر access token معروف — يُحدَّث عند كل تحديث ناجح لحالة
-// المصادقة عبر onAuthStateChange أدناه. الغرض الوحيد منه هو تمكين
-// محاولة تحرير القفل عند pagehide (انظر أسفله) من العمل بشكل متزامن
-// دون انتظار وعد (promise) قد لا يُتاح له وقت كافٍ قبل تفريغ الصفحة.
-let lastKnownAccessToken = null;
-supabaseClient.auth.onAuthStateChange((_event, session) => {
-  lastKnownAccessToken = session ? session.access_token : null;
-});
+// ⚠️ ملاحظة إزالة (جزء من إصلاح F5 — راجع sql/... وتقرير F5 المرفق):
+// كان هنا سابقًا معالج "pagehide" يحاول تحرير القفل (best-effort) عند
+// أي تفريغ للصفحة — بما في ذلك إعادة التحميل (F5) نفسها، لأن pagehide
+// يُطلَق أيضًا عند reload وليس فقط عند إغلاق التبويب فعليًا. كان هذا
+// يسبق طلب restoreAdminLock() الجديد بسباق شبكة (race) غير محدد النتيجة:
+// أحيانًا يصل طلب التحرير قبل أن تُحمَّل الصفحة الجديدة فتفشل استعادة
+// القفل فتُضطر لعمل acquire جديد بتوكن جديد رغم أنها مجرد F5 — ما يخالف
+// المطلوب صراحة (F5 يجب ألا يمنح قفلًا جديدًا). أُزيل هذا المعالج كليًا
+// كجزء ضروري من إصلاح F5، وليس تحسينًا جانبيًا. لا فقدان ضمان حقيقي هنا:
+// التعليق الأصلي على هذا الكود وعلى releaseAdminLock() نفسه كان يوضّح
+// أصلًا أن هذه المحاولة "غير مضمونة" وأن الضامن الحقيقي يبقى TTL/heartbeat
+// (90 ثانية) — وهذا لم يتغيّر. إغلاق تبويب/متصفح فعلي الآن يتحرر عبر TTL
+// خلال ≤90 ثانية كحد أقصى (كما كان دائمًا الضمان الفعلي)، بدل محاولة
+// إضافية غير موثوقة أصبحت الآن متعارضة مع استعادة F5.
 
-// محاولة تحرير أخيرة (best-effort) عند إغلاق التبويب/التنقل بعيدًا.
-// keepalive يسمح بإرسال الطلب حتى بعد بدء تفريغ الصفحة، وعلى عكس
-// navigator.sendBeacon فإنه يدعم ترويسات مخصّصة (Authorization) وهو ما
-// تحتاجه دالة RPC لمعرفة auth.uid(). لا ضمانة لنجاحه (قد لا يصل الطلب
-// أصلاً، والمتصفح قد يمنعه أثناء تفريغ الصفحة) — هذا تحسين فرصة لا
-// اعتماد؛ الضامن الحقيقي يبقى TTL/heartbeat في القاعدة (راجع تعليق
-// releaseAdminLock أعلاه). لا نستخدم await هنا عمدًا — متزامن قدر
-// الإمكان لزيادة فرصة إرسال الطلب فعليًا قبل تفريغ الصفحة.
-window.addEventListener("pagehide", () => {
-  if (!currentLockToken || !lastKnownAccessToken) return;
-  try {
-    fetch(`${SUPABASE_URL}/rest/v1/rpc/release_admin_session_lock`, {
-      method: "POST",
-      keepalive: true,
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${lastKnownAccessToken}`,
-      },
-      body: JSON.stringify({ p_session_token: currentLockToken }),
-    });
-  } catch (e) {
-    // best-effort فقط — لا نكسر إغلاق الصفحة إن فشل هذا
-  }
-});
-
-// -------------------- P1-7B: تسجيل عامل MFA (TOTP) اختياري --------------------
+// -------------------- P1-7A: تسجيل عامل MFA (TOTP) اختياري --------------------
 // نقطة دخول اختيارية لغير super_admin فقط (راجع updateMfaEnrollVisibility).
 // لا إجبار على enrollment عند تسجيل الدخول في هذه المرحلة.
 
