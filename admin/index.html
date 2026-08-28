@@ -53,9 +53,12 @@
   <!-- ------------- لوحة التحكم (بعد الدخول) ------------- -->
   <div class="admin-shell" id="dashboard" hidden>
     <div style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span id="mfa-status-enabled" class="hint" hidden>✓ التحقق بخطوتين مفعّل</span>
       <button id="mfa-enroll-btn" class="btn btn-outline btn-sm" hidden>تفعيل التحقق بخطوتين</button>
+      <button id="mfa-disable-btn" class="btn btn-outline btn-sm" hidden>تعطيل التحقق بخطوتين</button>
       <button id="logout-btn" class="btn btn-outline btn-sm">تسجيل الخروج</button>
     </div>
+    <p id="mfa-disable-error" style="color: var(--danger); font-size: .88rem; display:none; text-align:end;"></p>
 
     <div class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="dashboard">لوحة المعلومات</button>

@@ -379,11 +379,22 @@ function applyPermissionVisibility() {
 // P1-7A: زر تفعيل التحقق بخطوتين يظهر فقط لحساب غير super_admin لم
 // يُسجّل بعد أي factor بحالة verified — enrollment اختياري بالكامل،
 // لا يُفرض على أحد، ويختفي تلقائيًا بعد إتمام التسجيل بنجاح.
+//
+// (لاحقًا) نفس الدالة تتحكم أيضًا بظهور حالة "مفعّل" وزر التعطيل —
+// enrollBtn و disableBtn دائمًا متبادلان (mutually exclusive): الأول
+// يظهر فقط بغياب factor verified، والثاني فقط بوجوده. هذا لا يغيّر أي
+// شيء في enforcement (تسجيل الدخول/aal2) ولا في استثناء super_admin
+// الموجود أصلًا — فقط يعكس نفس currentMfaState.hasVerifiedFactor في
+// عنصرين إضافيين من الواجهة.
 function updateMfaEnrollVisibility() {
-  const btn = document.getElementById("mfa-enroll-btn");
-  if (!btn) return;
+  const enrollBtn = document.getElementById("mfa-enroll-btn");
+  const disableBtn = document.getElementById("mfa-disable-btn");
+  const statusEl = document.getElementById("mfa-status-enabled");
   const isSuperAdmin = currentProfile && currentProfile.role === "super_admin";
-  btn.hidden = isSuperAdmin || currentMfaState.hasVerifiedFactor;
+
+  if (enrollBtn) enrollBtn.hidden = isSuperAdmin || currentMfaState.hasVerifiedFactor;
+  if (disableBtn) disableBtn.hidden = isSuperAdmin || !currentMfaState.hasVerifiedFactor;
+  if (statusEl) statusEl.hidden = isSuperAdmin || !currentMfaState.hasVerifiedFactor;
 }
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {
@@ -648,6 +659,88 @@ document.getElementById("mfa-enroll-verify-form").addEventListener("submit", asy
 
 document.getElementById("mfa-enroll-done-btn").addEventListener("click", () => {
   closeMfaEnrollOverlay();
+});
+
+// -------------------- تعطيل التحقق بخطوتين (Disable MFA) --------------------
+// مسار مستقل تمامًا عن closeMfaEnrollOverlay() أعلاه. الفرق:
+//   closeMfaEnrollOverlay()  → تنظيف factor بحالة unverified فقط، يُستدعى
+//                              تلقائيًا عند إلغاء/إغلاق نافذة enrollment.
+//                              لا يجوز ولا يُستدعى أبدًا على factor verified.
+//   disableMfa() (هنا)       → فعل صريح من المستخدم عبر زر مستقل، يعمل
+//                              فقط على factor verified، ويشترط أن تكون
+//                              الجلسة الحالية aal2 فعلًا قبل أي unenroll.
+// هذا هو المسار الوحيد في الكود الذي يجوز له حذف factor verified.
+async function disableMfa() {
+  const errorEl = document.getElementById("mfa-disable-error");
+  errorEl.style.display = "none";
+
+  const confirmed = confirm(
+    "تعطيل التحقق بخطوتين سيزيل وسيلة التحقق الحالية ويعيد الحساب لتسجيل الدخول بدون التحقق بخطوتين. هل تريد المتابعة؟"
+  );
+  if (!confirmed) return; // إلغاء المستخدم — لا شيء يتغيّر، لا أي طلب شبكة.
+
+  // نقرأ الـfactor الحالي من الخادم مباشرة عند التنفيذ (وليس factor ID
+  // ثابت أو currentMfaState مخزَّن مسبقًا) — نفس مبدأ حارس enrollment أعلاه.
+  const { data: existing, error: listError } = await supabaseClient.auth.mfa.listFactors();
+  if (listError) {
+    errorEl.textContent = "تعذّر التحقق من حالة التحقق بخطوتين الآن."
+      + (listError.message ? ` (${listError.message})` : "");
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const verifiedFactor = (existing?.totp || []).find((f) => f.status === "verified");
+  if (!verifiedFactor) {
+    // لا يوجد factor verified فعليًا على الخادم رغم ظهور الزر — نُزامن
+    // الواجهة فقط، لا حاجة لأي unenroll.
+    await refreshMfaState();
+    updateMfaEnrollVisibility();
+    return;
+  }
+
+  // حارس أمان إلزامي: لا unenroll على factor verified إلا من جلسة وصلت
+  // فعليًا لـ aal2 (تحقّق كامل بخطوتين لهذه الجلسة نفسها)، وليس فقط لأن
+  // الحساب يملك factor verified في القاعدة. هذا يمنع تعطيل MFA اعتمادًا
+  // فقط على كلمة المرور دون إتمام الخطوة الثانية لهذه الجلسة.
+  const { data: aalData, error: aalError } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aalError || !aalData || aalData.currentLevel !== "aal2") {
+    errorEl.textContent = "أكمل التحقق بخطوتين أولًا قبل تعطيله.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  const { error: unenrollError } = await supabaseClient.auth.mfa.unenroll({ factorId: verifiedFactor.id });
+  if (unenrollError) {
+    errorEl.textContent = "تعذّر تعطيل التحقق بخطوتين الآن."
+      + (unenrollError.message ? ` (${unenrollError.message})` : "");
+    errorEl.style.display = "block";
+    return;
+  }
+
+  // بعد unenroll ناجح على الخادم: نحدّث توكن الجلسة المحلي كي ينعكس
+  // مستوى aal الجديد فورًا. فشل هذا لا يمنع اعتبار التعطيل نفسه ناجحًا —
+  // الفعل الأساسي (unenroll) تم بالفعل على الخادم.
+  try {
+    await supabaseClient.auth.refreshSession();
+  } catch (e) {
+    console.error("تعذّر تحديث الجلسة بعد تعطيل MFA (التعطيل نفسه تم بنجاح):", e);
+  }
+
+  await refreshMfaState();
+  updateMfaEnrollVisibility();
+}
+
+document.getElementById("mfa-disable-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("mfa-disable-btn");
+  // حارس ضد الإرسال المتكرر/المتزامن — نفس نمط أزرار enrollment أعلاه:
+  // يمنع إرسال طلبَي unenroll متزامنين لو ضغط المستخدم مرتين بسرعة.
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await disableMfa();
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // -------------------- التبويبات --------------------
