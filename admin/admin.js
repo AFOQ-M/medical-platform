@@ -487,7 +487,20 @@ function openMfaEnrollOverlay() {
   document.getElementById("mfa-enroll-error").style.display = "none";
 }
 
-function closeMfaEnrollOverlay() {
+async function closeMfaEnrollOverlay() {
+  // P1-Final (مشكلة 2): كان الإغلاق/الإلغاء يمسح mfaEnrollPendingFactorId
+  // محليًا فقط دون إلغاء تسجيل factor غير المُتحقَّق منه على الخادم — هذا
+  // هو السبب الجذري المؤكَّد لتراكم unverified factors متروكة (تحقّقنا
+  // حيًا: factor واحد متروك بالضبط لهذا الحساب في auth.mfa_factors).
+  // الآن: إن كان هناك factor قيد الانتظار، نُلغي تسجيله فعليًا أولًا حتى
+  // لا يتعارض مع أي محاولة تسجيل لاحقة (تعارض friendly_name/الوصول لحد
+  // عدد factors المسموح). فشل unenroll هنا (مثلاً بسبب انقطاع شبكة) لا
+  // يمنع إغلاق الشاشة — لا نريد حبس المستخدم داخل overlay بسبب هذا التنظيف.
+  if (mfaEnrollPendingFactorId) {
+    try {
+      await supabaseClient.auth.mfa.unenroll({ factorId: mfaEnrollPendingFactorId });
+    } catch { /* تنظيف بأفضل جهد فقط — لا نمنع الإغلاق بسبب فشله */ }
+  }
   document.getElementById("mfa-enroll-overlay").hidden = true;
   document.getElementById("mfa-enroll-qr").innerHTML = "";
   document.getElementById("mfa-enroll-secret").textContent = "";
@@ -499,38 +512,62 @@ document.getElementById("mfa-enroll-btn").addEventListener("click", () => {
   openMfaEnrollOverlay();
 });
 
-document.getElementById("mfa-enroll-overlay").addEventListener("click", (e) => {
-  if (e.target.id === "mfa-enroll-overlay") closeMfaEnrollOverlay();
+document.getElementById("mfa-enroll-overlay").addEventListener("click", async (e) => {
+  if (e.target.id === "mfa-enroll-overlay") await closeMfaEnrollOverlay();
 });
 
-document.getElementById("mfa-enroll-cancel-btn").addEventListener("click", () => {
-  closeMfaEnrollOverlay();
+document.getElementById("mfa-enroll-cancel-btn").addEventListener("click", async () => {
+  await closeMfaEnrollOverlay();
 });
 
-document.getElementById("mfa-enroll-cancel-btn-2").addEventListener("click", () => {
-  closeMfaEnrollOverlay();
+document.getElementById("mfa-enroll-cancel-btn-2").addEventListener("click", async () => {
+  await closeMfaEnrollOverlay();
 });
 
 document.getElementById("mfa-enroll-start-btn").addEventListener("click", async () => {
   const errorEl = document.getElementById("mfa-enroll-error");
+  const startBtn = document.getElementById("mfa-enroll-start-btn");
   errorEl.style.display = "none";
 
-  const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: "totp" });
-  if (error || !data) {
-    errorEl.textContent = "تعذّر بدء تسجيل التحقق بخطوتين الآن.";
-    errorEl.style.display = "block";
-    return;
+  // حارس ضد النقر المزدوج/السريع: كان النقر مرتين قبل استجابة أول
+  // enroll() يُطلق طلبين POST /auth/v1/factors متزامنين — وهذا سبب
+  // مؤكَّد شائع لتعارض 422/403 على GoTrue (راجع تقرير الإصلاح). تعطيل
+  // الزر فورًا يمنع هذا السباق بالكامل.
+  if (startBtn.disabled) return;
+  startBtn.disabled = true;
+
+  try {
+    // تنظيف استباقي: إن كان هناك factor غير مُتحقَّق منه متروك من محاولة
+    // سابقة (قبل هذا الإصلاح، أو بسبب تحديث الصفحة أثناء enrollment سابق)
+    // نُلغي تسجيله أولًا — تركه يتعارض مع محاولة enroll() الجديدة (هذا هو
+    // السبب الجذري المؤكَّد حيًا لخطأ 422/403: factor واحد غير مُتحقَّق
+    // منه وُجد بالفعل متروكًا في auth.mfa_factors لحساب الاختبار).
+    const { data: existing } = await supabaseClient.auth.mfa.listFactors();
+    const staleUnverified = (existing?.totp || []).find((f) => f.status === "unverified");
+    if (staleUnverified) {
+      await supabaseClient.auth.mfa.unenroll({ factorId: staleUnverified.id });
+    }
+
+    const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: "totp" });
+    if (error || !data) {
+      errorEl.textContent = "تعذّر بدء تسجيل التحقق بخطوتين الآن."
+        + (error?.message ? ` (${error.message})` : "");
+      errorEl.style.display = "block";
+      return;
+    }
+
+    mfaEnrollPendingFactorId = data.id;
+    // لا نطبع data.totp.secret في console ولا نخزّنه في أي storage دائم —
+    // يُعرض فقط داخل DOM هذه الشاشة، ويُمسح عند إغلاقها (closeMfaEnrollOverlay).
+    document.getElementById("mfa-enroll-qr").innerHTML =
+      `<img src="${data.totp.qr_code}" alt="QR" width="180" height="180">`;
+    document.getElementById("mfa-enroll-secret").textContent = data.totp.secret;
+
+    document.getElementById("mfa-enroll-step-start").hidden = true;
+    document.getElementById("mfa-enroll-step-verify").hidden = false;
+  } finally {
+    startBtn.disabled = false;
   }
-
-  mfaEnrollPendingFactorId = data.id;
-  // لا نطبع data.totp.secret في console ولا نخزّنه في أي storage دائم —
-  // يُعرض فقط داخل DOM هذه الشاشة، ويُمسح عند إغلاقها (closeMfaEnrollOverlay).
-  document.getElementById("mfa-enroll-qr").innerHTML =
-    `<img src="${data.totp.qr_code}" alt="QR" width="180" height="180">`;
-  document.getElementById("mfa-enroll-secret").textContent = data.totp.secret;
-
-  document.getElementById("mfa-enroll-step-start").hidden = true;
-  document.getElementById("mfa-enroll-step-verify").hidden = false;
 });
 
 document.getElementById("mfa-enroll-verify-form").addEventListener("submit", async (e) => {

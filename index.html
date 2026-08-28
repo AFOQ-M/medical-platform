@@ -129,16 +129,59 @@
     });
   }
 
-  function renderRecentlyViewed() {
-    const list = readLocalList(RECENTLY_VIEWED_KEY);
-    if (!list.length) return;
+  /**
+   * يعيد فقط الموارد التي لا تزال ظاهرة فعليًا اليوم من بين قائمة IDs مخزَّنة
+   * محليًا — نفس منطق سلسلة الظهور المعتمد في search_resources() بالضبط:
+   * resources.status='published' AND subjects.is_active AND years.is_active
+   * (استبعاد faculties.is_active من هذه السلسلة قرار منتج موثَّق صراحة في
+   * sql/phase4_p1_4_years_subjects_is_active.sql، وليس نقصًا هنا). استخدام
+   * `!inner` على subjects/years يجعلهما INNER JOIN فعليًا، فأي مورد أصبح
+   * أبوه (مادة/سنة) غير نشط أو غير مرئي أصلاً عبر RLS يسقط من النتيجة
+   * تمامًا — هذا هو مصدر الحقيقة الحي، وليس مجرد إخفاء لاحق في الواجهة.
+   */
+  async function fetchStillVisibleResources(ids) {
+    if (!ids.length) return [];
+    const { data, error } = await supabaseClient
+      .from("resources")
+      .select(`
+        id, title, type, language, file_url, source_type, subject_id, verified, view_count,
+        subjects!inner(name, is_active, years!inner(is_active, universities(name), faculties(name)))
+      `)
+      .in("id", ids)
+      .eq("status", "published")
+      .eq("subjects.is_active", true)
+      .eq("subjects.years.is_active", true);
+
+    if (error) { console.error(error); return []; }
+
+    (data || []).forEach((r) => {
+      r.subject_name = r.subjects?.name || null;
+      r.faculty_name = r.subjects?.years?.faculties?.name || null;
+      r.university_name = r.subjects?.years?.universities?.name || null;
+    });
+    return data || [];
+  }
+
+  async function renderRecentlyViewed() {
+    const cached = readLocalList(RECENTLY_VIEWED_KEY);
+    if (!cached.length) return;
+
+    const visible = await fetchStillVisibleResources(cached.map((r) => r.id));
+    const byId = new Map(visible.map((r) => [r.id, r]));
+    // نحافظ على ترتيب "الأحدث أولاً" من localStorage، ونتجاوز بصمت أي عنصر
+    // لم يعد ظاهرًا (مورد أُخفي/حُذف، أو مادته/سنته أصبحت غير نشطة) — دون
+    // حذفه من localStorage نفسه (يبقى سجل "آخر ما شوهد" كما هو)، فقط لا
+    // نعرضه؛ فأقرب عنصر صالح تاليًا يأخذ مكانه تلقائيًا. لو لم يبقَ أي عنصر
+    // صالح يبقى القسم مخفيًا (نفس حالة "لا شيء لعرضه" الافتراضية).
+    const ordered = cached.map((r) => byId.get(r.id)).filter(Boolean);
+    if (!ordered.length) return;
 
     const section = document.getElementById("recently-viewed-section");
     const grid = document.getElementById("recently-viewed-grid");
     section.hidden = false;
     grid.style.gridTemplateColumns = "1fr";
     grid.innerHTML = "";
-    list.slice(0, 6).forEach((r) => grid.appendChild(buildResourceCard(r)));
+    ordered.slice(0, 6).forEach((r) => grid.appendChild(buildResourceCard(r)));
   }
 
   async function fetchPublicResourceFeed(orderColumn, limit) {
