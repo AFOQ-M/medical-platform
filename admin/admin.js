@@ -496,6 +496,13 @@ async function closeMfaEnrollOverlay() {
   // لا يتعارض مع أي محاولة تسجيل لاحقة (تعارض friendly_name/الوصول لحد
   // عدد factors المسموح). فشل unenroll هنا (مثلاً بسبب انقطاع شبكة) لا
   // يمنع إغلاق الشاشة — لا نريد حبس المستخدم داخل overlay بسبب هذا التنظيف.
+  //
+  // ملاحظة (إصلاح لاحق): معالج نجاح mfa-enroll-verify-form يُصفّر
+  // mfaEnrollPendingFactorId إلى null فور نجاح challengeAndVerify()، قبل
+  // عرض شاشة النجاح — لذلك عند الضغط على "تم" يكون هذا المتغيّر دائمًا
+  // null والشرط أدناه لا يتحقق، فلا يُحذف الـfactor الذي أصبح verified.
+  // unenroll() هنا يبقى يعمل فقط لتنظيف factor ما زال unverified فعلًا
+  // (المستخدم أغلق النافذة أو ضغط إلغاء قبل إكمال التحقق).
   if (mfaEnrollPendingFactorId) {
     try {
       await supabaseClient.auth.mfa.unenroll({ factorId: mfaEnrollPendingFactorId });
@@ -575,28 +582,47 @@ document.getElementById("mfa-enroll-verify-form").addEventListener("submit", asy
   const errorEl = document.getElementById("mfa-enroll-error");
   errorEl.style.display = "none";
 
-  const code = document.getElementById("mfa-enroll-code").value.trim();
-  if (!mfaEnrollPendingFactorId) {
-    errorEl.textContent = "انتهت صلاحية هذه الخطوة. أعد المحاولة.";
-    errorEl.style.display = "block";
-    return;
+  // حارس ضد الإرسال المتكرر: نفس نمط الحارس على mfa-enroll-start-btn.
+  // بدون هذا، نقر/submit مزدوج قبل استجابة أول challengeAndVerify() يُطلق
+  // أكثر من نداء challenge/verify متزامن لنفس الرمز (مؤكَّد حيًا في سجلات
+  // GoTrue ضمن تقرير التحقيق). تعطيل زر التأكيد فورًا يمنع هذا السباق.
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn && submitBtn.disabled) return;
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const code = document.getElementById("mfa-enroll-code").value.trim();
+    if (!mfaEnrollPendingFactorId) {
+      errorEl.textContent = "انتهت صلاحية هذه الخطوة. أعد المحاولة.";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.mfa.challengeAndVerify({
+      factorId: mfaEnrollPendingFactorId,
+      code,
+    });
+    if (error) {
+      errorEl.textContent = "رمز التحقق غير صحيح.";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    // نجاح: هذا الـfactor أصبح verified الآن على الخادم. نُصفّر
+    // mfaEnrollPendingFactorId فورًا وقبل عرض شاشة النجاح، حتى لا يستدعي
+    // الضغط على "تم" لاحقًا unenroll() لهذا الـfactor داخل
+    // closeMfaEnrollOverlay() (راجع تقرير التحقيق — هذا هو السبب الجذري
+    // لاختفاء الـfactor فور نجاح التسجيل).
+    mfaEnrollPendingFactorId = null;
+
+    await refreshMfaState();
+    updateMfaEnrollVisibility();
+
+    document.getElementById("mfa-enroll-step-verify").hidden = true;
+    document.getElementById("mfa-enroll-step-success").hidden = false;
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
-
-  const { error } = await supabaseClient.auth.mfa.challengeAndVerify({
-    factorId: mfaEnrollPendingFactorId,
-    code,
-  });
-  if (error) {
-    errorEl.textContent = "رمز التحقق غير صحيح.";
-    errorEl.style.display = "block";
-    return;
-  }
-
-  await refreshMfaState();
-  updateMfaEnrollVisibility();
-
-  document.getElementById("mfa-enroll-step-verify").hidden = true;
-  document.getElementById("mfa-enroll-step-success").hidden = false;
 });
 
 document.getElementById("mfa-enroll-done-btn").addEventListener("click", () => {
