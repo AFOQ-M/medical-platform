@@ -544,12 +544,33 @@ document.getElementById("mfa-enroll-start-btn").addEventListener("click", async 
   startBtn.disabled = true;
 
   try {
+    // نقرأ حالة الـfactors مباشرة من الخادم في بداية كل محاولة enrollment —
+    // وليس من currentMfaState المخزَّن مسبقًا — حتى لا يعتمد القرار على
+    // حالة واجهة قديمة (المعالج قد يُستدعى من console أو بعد تحديث لم
+    // يصل بعد لعناصر الواجهة).
+    const { data: existing } = await supabaseClient.auth.mfa.listFactors();
+
+    // حارس دفاعي: لا تستدعِ enroll() إطلاقًا إذا كان هناك factor TOTP بحالة
+    // verified موجود بالفعل (راجع تقرير التحقيق — هذا هو سبب 422 "friendly
+    // name already exists": enroll() كان يُستدعى رغم وجود factor verified
+    // سليم). لا يُحذف أو يُعدَّل هذا الـfactor بأي شكل هنا — نكتفي بإبلاغ
+    // المستخدم وإعادة مزامنة الواجهة. هذا الفحص مستقل عن إخفاء الزر HTML
+    // ويعمل حتى لو استُدعي المعالج بأي طريقة أخرى.
+    const alreadyVerified = (existing?.totp || []).find((f) => f.status === "verified");
+    if (alreadyVerified) {
+      errorEl.textContent = "التحقق بخطوتين مفعّل بالفعل لهذا الحساب.";
+      errorEl.style.display = "block";
+      await refreshMfaState();
+      updateMfaEnrollVisibility();
+      return;
+    }
+
     // تنظيف استباقي: إن كان هناك factor غير مُتحقَّق منه متروك من محاولة
     // سابقة (قبل هذا الإصلاح، أو بسبب تحديث الصفحة أثناء enrollment سابق)
     // نُلغي تسجيله أولًا — تركه يتعارض مع محاولة enroll() الجديدة (هذا هو
     // السبب الجذري المؤكَّد حيًا لخطأ 422/403: factor واحد غير مُتحقَّق
-    // منه وُجد بالفعل متروكًا في auth.mfa_factors لحساب الاختبار).
-    const { data: existing } = await supabaseClient.auth.mfa.listFactors();
+    // منه وُجد بالفعل متروكًا في auth.mfa_factors لحساب الاختبار). هذا
+    // التنظيف يستهدف unverified فقط — لا علاقة له بالحارس أعلاه.
     const staleUnverified = (existing?.totp || []).find((f) => f.status === "unverified");
     if (staleUnverified) {
       await supabaseClient.auth.mfa.unenroll({ factorId: staleUnverified.id });
