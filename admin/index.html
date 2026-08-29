@@ -3,22 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة التحكم — منصة الموارد الطبية</title>
+<title>لوحة التحكم — أفق المعرفة</title>
+<link rel="icon" type="image/png" href="../images/favicon.png">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
+<a href="#main-content" class="skip-link">تخطي إلى المحتوى الرئيسي</a>
+
 <header class="site-header">
   <div class="header-inner">
     <a href="../index.html" class="brand">
-      <span class="brand-mark">طب</span>
-      منصة الموارد الطبية
+      <img src="../images/afoq-branding-final.png" alt="شعار أفق المعرفة" class="brand-logo">
+      أفق المعرفة
     </a>
     <nav class="header-nav" id="admin-user-info"></nav>
   </div>
 </header>
 
-<main>
+<main id="main-content">
   <!-- ------------- شاشة تسجيل الدخول ------------- -->
   <div class="admin-login-box" id="login-box">
     <h1>تسجيل دخول الأدمن</h1>
@@ -31,7 +34,7 @@
         <label for="login-password">كلمة المرور</label>
         <input type="password" id="login-password" required autocomplete="current-password">
       </div>
-      <p id="login-error" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+      <p id="login-error" role="alert" style="color: var(--danger); font-size: .88rem; display:none;"></p>
       <button type="submit" class="btn btn-primary" style="width:100%;">دخول</button>
     </form>
   </div>
@@ -45,7 +48,7 @@
         <label for="mfa-verify-code">رمز التحقق</label>
         <input type="text" id="mfa-verify-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required>
       </div>
-      <p id="mfa-verify-error" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+      <p id="mfa-verify-error" role="alert" style="color: var(--danger); font-size: .88rem; display:none;"></p>
       <button type="submit" class="btn btn-primary" style="width:100%;">تحقق</button>
     </form>
   </div>
@@ -383,7 +386,7 @@
   </div>
 </main>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
 
 <!-- ------------- P1-7B: نافذة تسجيل التحقق بخطوتين (اختيارية) ------------- -->
 <div class="modal-overlay" id="mfa-enroll-overlay" hidden>

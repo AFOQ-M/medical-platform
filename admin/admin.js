@@ -856,9 +856,11 @@ async function loadUniversities() {
       <td data-label="الاسم">${escHtml(u.name)}</td>
       <td data-label="مختصر">${escHtml(u.short_name) || "—"}</td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}','${escAttr(u.name)}','${escAttr(u.short_name || "")}','${escAttr(u.logo_url || "")}')">تعديل</button>` : ""}
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('universities','${u.id}', loadUniversities)">حذف</button>` : ""}
-        ${!canEdit && !canDelete ? "—" : ""}
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}','${escAttr(u.name)}','${escAttr(u.short_name || "")}','${escAttr(u.logo_url || "")}')">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('universities','${u.id}', loadUniversities)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -937,10 +939,12 @@ async function loadFaculties() {
       <td data-label="الرمز">${escHtml(f.code) || "—"}</td>
       <td data-label="الحالة"><span class="status-badge ${f.is_active ? "published" : "hidden"}">${f.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editFaculty('${f.id}')">تعديل</button>` : ""}
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleFacultyActive('${f.id}', ${f.is_active})">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('faculties','${f.id}', loadFaculties)">حذف</button>` : ""}
-        ${!canEdit && !canDelete ? "—" : ""}
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editFaculty('${f.id}')">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${f.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleFacultyActive('${f.id}', ${f.is_active})">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('faculties','${f.id}', loadFaculties)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1176,10 +1180,12 @@ async function loadYears() {
       <td data-label="السنة">${escHtml(y.year_number)}</td>
       <td data-label="الحالة"><span class="status-badge ${y.is_active ? "published" : "hidden"}">${y.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number},${y.is_active})">تعديل</button>` : ""}
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleYearActive('${y.id}', ${y.is_active})">${y.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
-        ${!canEdit && !canDelete ? "—" : ""}
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number},${y.is_active})">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${y.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleYearActive('${y.id}', ${y.is_active})">${y.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1271,10 +1277,12 @@ async function loadSubjects() {
       <td data-label="الجامعة / الكلية / السنة">${location}</td>
       <td data-label="الحالة"><span class="status-badge ${s.is_active ? "published" : "hidden"}">${s.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}',${s.is_active})">تعديل</button>` : ""}
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleSubjectActive('${s.id}', ${s.is_active})">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
-        ${!canEdit && !canDelete ? "—" : ""}
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}',${s.is_active})">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${s.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleSubjectActive('${s.id}', ${s.is_active})">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1413,11 +1421,13 @@ function renderResourcesTable() {
       <td data-label="الحالة"><span class="status-badge ${statusClass}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
       <td data-label="المشاهدات">${escHtml(r.view_count ?? 0)}</td>
       <td>
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceHidden('${r.id}', ${r.status === "hidden"}, function(){})">${r.status === "hidden" ? "نشر" : "إخفاء"}</button>` : ""}
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceVerified('${r.id}', ${!!r.verified}, loadResources)">${r.verified ? "إلغاء التوثيق" : "توثيق"}</button>` : ""}
-        ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editResource('${r.id}')">تعديل</button>` : ""}
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('resources','${r.id}', loadResources)">حذف</button>` : ""}
-        ${!canEdit && !canDelete ? "—" : ""}
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-sm ${r.status === "hidden" ? "btn-state-on" : "btn-state-off"}" onclick="toggleResourceHidden('${r.id}', ${r.status === "hidden"}, function(){})">${r.status === "hidden" ? "نشر" : "إخفاء"}</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${r.verified ? "btn-state-off" : "btn-state-on"}" onclick="toggleResourceVerified('${r.id}', ${!!r.verified}, loadResources)">${r.verified ? "إلغاء التوثيق" : "توثيق"}</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editResource('${r.id}')">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('resources','${r.id}', loadResources)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1572,8 +1582,10 @@ async function loadReports() {
 
     const tdActions = document.createElement("td");
     tdActions.innerHTML = `
-      ${r.resources && canToggle ? `<button class="btn btn-outline btn-sm" onclick="toggleResourceHidden('${r.resources.id}', ${isHidden}, loadReports)">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
-      ${canResolve ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('reports','${r.id}', loadReports)">حذف البلاغ</button>` : ""}
+      <div class="row-actions">
+        ${r.resources && canToggle ? `<button class="btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}" onclick="toggleResourceHidden('${r.resources.id}', ${isHidden}, loadReports)">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
+        ${canResolve ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('reports','${r.id}', loadReports)">حذف البلاغ</button>` : ""}
+      </div>
     `;
     tr.appendChild(tdActions);
 
@@ -1675,7 +1687,7 @@ function buildUserPermissionCard(profile, userPerms, universities, faculties) {
   });
 
   const toggleBtn = document.createElement("button");
-  toggleBtn.className = "btn btn-outline btn-sm";
+  toggleBtn.className = `btn btn-sm ${profile.active ? "btn-state-off" : "btn-state-on"}`;
   toggleBtn.textContent = profile.active ? "تعطيل الحساب" : "تفعيل الحساب";
   toggleBtn.disabled = isSelf;
   toggleBtn.addEventListener("click", async () => {
