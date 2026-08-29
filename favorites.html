@@ -77,7 +77,42 @@
     { label: "المفضلة" },
   ]);
 
-  function renderFavorites() {
+  /**
+   * FAIL-003 fix: لا نثق ببيانات localStorage (العنوان، file_url، الحالة...)
+   * لعرض بطاقة قابلة للفتح، لأنها قد تكون قديمة (مورد أُخفي/عُطِّلت مادته أو
+   * سنته بعد إضافته للمفضلة). نستخدم من localStorage فقط الـid، ثم نعيد
+   * التحقق من الخادم بنفس سلسلة الظهور الكاملة المعتمدة في fetchStillVisibleResources()
+   * بـ index.html: status='published' AND subjects.is_active AND years.is_active،
+   * عبر !inner حتى تسقط أي نتيجة أبوها (مادة/سنة) غير نشط تلقائيًا من الاستعلام
+   * نفسه. البطاقة المعروضة تُبنى فقط من بيانات هذا الاستعلام الحي — لا نمرّر
+   * أبدًا الكائن القديم من localStorage إلى buildResourceCard().
+   * لا حذف تلقائي من localStorage هنا: العنصر غير الظاهر يُستبعد فقط من
+   * العرض، ويبقى تسجيله المحلي كما هو (نفس سلوك "تابع من حيث توقفت").
+   */
+  async function fetchVisibleFavoriteResources(ids) {
+    if (!ids.length) return [];
+    const { data, error } = await supabaseClient
+      .from("resources")
+      .select(`
+        id, title, type, language, file_url, source_type, subject_id, verified, view_count,
+        subjects!inner(name, is_active, years!inner(is_active, universities(name), faculties(name)))
+      `)
+      .in("id", ids)
+      .eq("status", "published")
+      .eq("subjects.is_active", true)
+      .eq("subjects.years.is_active", true);
+
+    if (error) { console.error(error); return null; }
+
+    (data || []).forEach((r) => {
+      r.subject_name = r.subjects?.name || null;
+      r.faculty_name = r.subjects?.years?.faculties?.name || null;
+      r.university_name = r.subjects?.years?.universities?.name || null;
+    });
+    return data || [];
+  }
+
+  async function renderFavorites() {
     const grid = document.getElementById("favorites-grid");
     const favorites = readLocalList(FAVORITES_KEY);
 
@@ -86,9 +121,46 @@
       return;
     }
 
+    // نستخرج فقط الـids الصالحة (تجاهل عناصر localStorage تالفة/بلا id)،
+    // مع إزالة التكرار مع الحفاظ على أول ظهور (الأحدث أولًا في القائمة المحلية).
+    const seen = new Set();
+    const orderedIds = [];
+    favorites.forEach((r) => {
+      if (r && typeof r.id === "string" && r.id && !seen.has(r.id)) {
+        seen.add(r.id);
+        orderedIds.push(r.id);
+      }
+    });
+
+    if (!orderedIds.length) {
+      renderState(grid, "لا توجد موارد في المفضلة بعد. اضغط ☆ على أي مورد لإضافته هنا.");
+      return;
+    }
+
+    renderState(grid, "جارٍ التحميل...");
+
+    const visible = await fetchVisibleFavoriteResources(orderedIds);
+
+    if (visible === null) {
+      renderState(grid, "تعذّر تحميل المفضلة. حاول مرة أخرى لاحقًا.");
+      return;
+    }
+
+    const byId = new Map(visible.map((r) => [r.id, r]));
+    // نحافظ على ترتيب المفضلة المحلي (الأحدث أولًا)، ونعرض فقط ما تأكَّد
+    // ظهوره فعليًا الآن من الخادم — أي عنصر لم يعد ظاهرًا (أو أُلغي نشره،
+    // أو صار جزءًا من مادة/سنة معطَّلة) يُستبعد بصمت من العرض دون حذفه من
+    // localStorage نفسه.
+    const ordered = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+
+    if (!ordered.length) {
+      renderState(grid, "الموارد المحفوظة في مفضلتك لم تعد متاحة حاليًا.");
+      return;
+    }
+
     grid.innerHTML = "";
     grid.style.gridTemplateColumns = "1fr";
-    favorites.forEach((r) => {
+    ordered.forEach((r) => {
       const card = buildResourceCard(r);
       if (r.subject_name || r.faculty_name || r.university_name) {
         const metaLine = document.createElement("div");

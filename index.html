@@ -189,9 +189,11 @@
       .from("resources")
       .select(`
         id, title, type, language, file_url, source_type, subject_id, verified, view_count,
-        subjects(name, years(university_id, faculty_id, universities(name), faculties(name)))
+        subjects!inner(name, is_active, years!inner(is_active, university_id, faculty_id, universities(name), faculties(name)))
       `)
       .eq("status", "published")
+      .eq("subjects.is_active", true)
+      .eq("subjects.years.is_active", true)
       .order(orderColumn, { ascending: false })
       .limit(limit);
 
