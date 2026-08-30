@@ -123,9 +123,9 @@ function buildAuthOverlay() {
       <h3>كيف تريد المتابعة؟</h3>
       <p class="hint" id="auth-status-line">تصفّح المنصة الآن كضيف.</p>
       <div class="modal-actions" style="flex-direction: column; align-items: stretch;">
-        <button type="button" class="btn btn-outline" id="auth-google-btn">المتابعة عبر Google</button>
-        <button type="button" class="btn btn-outline" id="auth-apple-btn">المتابعة عبر Apple</button>
-        <button type="button" class="btn btn-primary" id="auth-guest-btn">متابعة كضيف</button>
+        <button type="button" class="btn btn-outline" id="auth-google-btn">المتابعة عبر Google <span class="badge-soon">قريبًا</span></button>
+        <button type="button" class="btn btn-outline" id="auth-apple-btn">المتابعة عبر Apple <span class="badge-soon">قريبًا</span></button>
+        <button type="button" class="btn btn-primary" id="auth-guest-btn">متابعة كضيف — بدون حساب</button>
       </div>
       <p class="hint" style="margin-top:14px; margin-bottom:0;">
         متابعة كضيف: تصفّح المنصة دون إنشاء حساب.

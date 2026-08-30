@@ -18,7 +18,7 @@
       أفق المعرفة
     </a>
     <div class="header-actions">
-      <nav class="header-nav"><a href="search.html" class="nav-link">تصفّح كل الموارد</a></nav>
+      <nav class="header-nav"><a href="platform.html" class="nav-link">تصفّح كل الموارد</a></nav>
       <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
       <button type="button" class="icon-btn" id="account-trigger" aria-label="الحساب">👤</button>
       <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
@@ -27,76 +27,133 @@
 </header>
 
 <main id="main-content">
-  <section class="home-hero">
-    <div class="home-hero-inner">
-      <div class="home-hero-content">
-        <span class="home-eyebrow"><span class="home-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
-        <h1>ابحث عن مصادرك الدراسية</h1>
-        <p class="home-hero-lead">كتب، ملخصات، سلايدات، وأسئلة — منظّمة حسب جامعتك وسنتك ومادتك</p>
-        <form class="search-form" action="search.html" method="get">
-          <input
-            class="search-input"
-            type="search"
-            name="q"
-            placeholder="ابحث باسم المادة أو المورد..."
-            autocomplete="off"
-            required
-          >
-          <button type="submit" class="btn btn-primary">بحث</button>
-        </form>
-        <a href="search.html" class="home-hero-secondary">تصفّح كل الموارد <span aria-hidden="true">←</span></a>
+
+  <!-- ==================== الهيرو: هوية أفق + رسم "الأفق" + CTA رئيسي ==================== -->
+  <section class="landing-hero">
+    <div class="landing-hero-inner">
+      <div class="landing-hero-text">
+        <span class="landing-eyebrow"><span class="landing-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
+        <h1 class="landing-hero-title">مراجعك الطبية، مرتّبة من الجامعة حتى المورد</h1>
+        <p class="landing-hero-lead">أفق فريق يجمع الكتب والملخصات والسلايدات وأسئلة الامتحانات السابقة في مكان واحد، منظَّمة بحسب جامعتك وكليتك وسنتك ومادتك — لتصل إلى ما تحتاجه دون أن تبحث في كل مكان.</p>
+        <div class="landing-cta-row">
+          <button type="button" class="btn btn-primary landing-cta-btn" id="hero-auth-trigger">دخول / تسجيل</button>
+          <a href="#landing-about" class="landing-secondary-link">أو تصفّح المحتوى أولاً <span aria-hidden="true">↓</span></a>
+        </div>
       </div>
-      <aside class="home-hero-panel" aria-label="وصول سريع">
-        <h2 class="home-hero-panel-title">ابدأ من هنا</h2>
-        <a class="home-quick-link" href="#universities-section">
-          <span>استعراض الجامعات</span>
-          <span class="home-quick-arrow" aria-hidden="true">←</span>
-        </a>
-        <a class="home-quick-link" href="search.html">
-          <span>تصفّح كل الموارد</span>
-          <span class="home-quick-arrow" aria-hidden="true">←</span>
-        </a>
-        <a class="home-quick-link" href="favorites.html">
-          <span>المفضلة المحفوظة</span>
-          <span class="home-quick-arrow" aria-hidden="true">←</span>
-        </a>
-      </aside>
+      <div class="landing-horizon" aria-hidden="true">
+        <span class="landing-horizon-label landing-horizon-label-outer">من كل الجامعات</span>
+        <div class="landing-horizon-rings">
+          <span class="ring ring-1"></span>
+          <span class="ring ring-2"></span>
+          <span class="ring ring-3"></span>
+          <span class="ring ring-4"></span>
+          <span class="landing-horizon-core"></span>
+        </div>
+        <span class="landing-horizon-label landing-horizon-label-inner">إلى موردك بالضبط</span>
+        <div class="landing-horizon-line"></div>
+      </div>
     </div>
   </section>
 
-  <div id="recently-viewed-section" class="home-section" hidden>
-    <div class="home-section-head">
-      <h2>تابع من حيث توقفت</h2>
-      <span class="home-section-line" aria-hidden="true"></span>
+  <!-- ==================== عن أفق ==================== -->
+  <div class="landing-section" id="landing-about">
+    <div class="landing-section-head">
+      <h2 class="landing-kicker">عن أفق المعرفة</h2>
     </div>
-    <div id="recently-viewed-grid" class="grid" style="margin-bottom: 32px;"></div>
+    <div class="landing-about-grid">
+      <article class="landing-about-row">
+        <h3>من نحن</h3>
+        <p>أفق فريق يبني هذه المنصة ليجمع مراجع الطب والدراسة في مكان واحد منظّم، بدل أن تبقى مشتّتة بين مجموعات وروابط متفرقة.</p>
+      </article>
+      <article class="landing-about-row">
+        <h3>ماذا يقدّم أفق</h3>
+        <p>موارد دراسية مرتّبة ضمن تسلسل واضح: الجامعة، فالكلية، فالسنة، فالفصل، فالمادة، فالمورد نفسه.</p>
+      </article>
+      <article class="landing-about-row">
+        <h3>لماذا هذه المنصة</h3>
+        <p>المراجع الدراسية غالبًا مشتّتة بين مصادر متفرقة يصعب تتبّعها. أفق يجمعها في مكان واحد، منظّمة بحسب مسارك الجامعي تحديدًا.</p>
+      </article>
+    </div>
   </div>
 
-  <section class="home-section" id="universities-section">
-    <div class="home-section-head">
-      <h2>اختر جامعتك</h2>
-      <span class="home-section-line" aria-hidden="true"></span>
+  <!-- ==================== ماذا يقدّم أفق: مفردات أنواع الموارد ==================== -->
+  <div class="landing-section">
+    <div class="landing-section-head">
+      <span class="landing-kicker">داخل كل مادة</span>
+      <h2 class="landing-section-title">كل نوع مرجع بمكانه</h2>
     </div>
-    <div id="universities-grid" class="grid">
-      <div class="state-msg">جارٍ التحميل...</div>
+    <div class="landing-provides-grid">
+      <p class="landing-provides-text">داخل كل مادة دراسية، تجد الموارد مصنّفة بحسب نوعها — فتعرف مباشرة إن كنت تبحث عن محاضرة، أو سلايدات، أو كتاب، أو ملخص، أو ملاحظات، أو أسئلة سابقة. نفس التصنيف الذي تراه في بطاقات الموارد نفسها.</p>
+      <div class="landing-type-legend" role="list" aria-label="أنواع الموارد المتاحة">
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="lecture" aria-hidden="true"></span>محاضرة</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="slides" aria-hidden="true"></span>سلايدات</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="book" aria-hidden="true"></span>كتاب</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="summary" aria-hidden="true"></span>ملخص</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="notes" aria-hidden="true"></span>ملاحظات</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="questions" aria-hidden="true"></span>أسئلة</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="past_exam" aria-hidden="true"></span>امتحان سابق</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== لماذا هذه المنصة ==================== -->
+  <div class="landing-section">
+    <div class="landing-why">
+      <span class="landing-why-mark" aria-hidden="true">”</span>
+      <p>المراجع الدراسية غالبًا مشتّتة بين مجموعات وقنوات وروابط متفرقة يصعب تتبّعها لاحقًا. أفق يجمعها في مكان واحد، منظّمة بحسب جامعتك وكليتك ومادتك تحديدًا — لا بحث عشوائي، ولا مصادر ضائعة.</p>
+    </div>
+  </div>
+
+  <!-- ==================== ماذا ستجد بالداخل: التسلسل الهرمي ==================== -->
+  <div class="landing-section">
+    <div class="landing-section-head">
+      <span class="landing-kicker">ماذا ستجد بالداخل</span>
+      <h2 class="landing-section-title">من الجامعة إلى المورد، بخطوة واضحة تلو الأخرى</h2>
+    </div>
+    <div class="landing-flow" role="list">
+      <a class="landing-flow-step" href="platform.html" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">١</span>الجامعة
+      </a>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٢</span>الكلية
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٣</span>السنة الدراسية
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٤</span>الفصل الدراسي
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٥</span>المادة
+      </span>
+      <a class="landing-flow-step landing-flow-step-final" href="search.html" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٦</span>المورد
+      </a>
+    </div>
+  </div>
+
+  <!-- ==================== شريط CTA ختامي ==================== -->
+  <section class="landing-hero landing-cta-band">
+    <div class="landing-hero-inner">
+      <div class="landing-hero-text">
+        <span class="landing-eyebrow"><span class="landing-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
+        <h2 class="landing-hero-title">ابدأ رحلتك مع أفق الآن</h2>
+        <div class="landing-cta-row">
+          <button type="button" class="btn btn-primary landing-cta-btn" id="final-auth-trigger">دخول / تسجيل</button>
+          <a href="platform.html" class="landing-secondary-link">تصفّح المنصة <span aria-hidden="true">←</span></a>
+        </div>
+      </div>
+      <div class="landing-horizon landing-horizon--simple" aria-hidden="true">
+        <div class="landing-horizon-rings">
+          <span class="ring ring-3"></span>
+          <span class="ring ring-4"></span>
+          <span class="landing-horizon-core"></span>
+        </div>
+        <div class="landing-horizon-line"></div>
+      </div>
     </div>
   </section>
 
-  <div id="popular-resources-section" class="home-section" hidden>
-    <div class="home-section-head">
-      <h2>الأكثر طلبًا 🔥</h2>
-      <span class="home-section-line" aria-hidden="true"></span>
-    </div>
-    <div id="popular-resources-grid" class="grid"></div>
-  </div>
-
-  <div id="recent-resources-section" class="home-section" hidden>
-    <div class="home-section-head">
-      <h2>آخر الموارد المضافة</h2>
-      <span class="home-section-line" aria-hidden="true"></span>
-    </div>
-    <div id="recent-resources-grid" class="grid"></div>
-  </div>
 </main>
 
 <footer class="site-footer">
@@ -108,47 +165,21 @@
     <p class="footer-desc">منصة تنظّم المراجع والموارد الطبية والأكاديمية بحسب الجامعة والكلية والمادة، لتسهيل الوصول إليها والاستفادة منها.</p>
     <nav class="footer-links" aria-label="روابط سريعة">
       <a href="index.html">الرئيسية</a>
-      <a href="search.html">تصفّح الموارد</a>
+      <a href="platform.html">تصفّح الموارد</a>
       <a href="favorites.html">المفضلة</a>
     </nav>
     <div class="footer-social" aria-label="تابعنا">
-      <a class="social-link" href="https://www.facebook.com/groups/784943901296258/?ref=share&mibextid=NSMWBT" target="_blank" rel="noopener noreferrer" aria-label="فيسبوك فريق أفق">📘</a>
-      <a class="social-link" href="https://whatsapp.com/channel/0029VbC5CLlFnSzAGWR6yP10" target="_blank" rel="noopener noreferrer" aria-label="قناة واتساب فريق أفق">💬</a>
-      <a class="social-link" href="https://t.me/AFOQ_Team" target="_blank" rel="noopener noreferrer" aria-label="قناة تليغرام فريق أفق">✈️</a>
-      <a class="social-link" href="https://www.instagram.com/mhjfuhrhuu785?igsh=MWR5Z2p0ejNicHF3ZQ==" target="_blank" rel="noopener noreferrer" aria-label="إنستغرام فريق أفق">📷</a>
-      <a class="social-link" href="https://www.tiktok.com/@bop1095" target="_blank" rel="noopener noreferrer" aria-label="تيك توك فريق أفق">🎵</a>
+      <a class="social-link" href="https://www.facebook.com/groups/784943901296258/?ref=share&mibextid=NSMWBT" target="_blank" rel="noopener noreferrer" aria-label="فيسبوك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3h-2c-2.2 0-4 1.8-4 4v3H6v4h2v7h4v-7h3l1-4h-4V7c0-.6.4-1 1-1h3V3z"/></svg></a>
+      <a class="social-link" href="https://whatsapp.com/channel/0029VbC5CLlFnSzAGWR6yP10" target="_blank" rel="noopener noreferrer" aria-label="قناة واتساب فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 1.8.5 3.5 1.5 5L2 22l6-1.5c1.2.6 2.6 1 4 1 5.5 0 10-4.1 10-9.3S17.5 2 12 2zm5.2 13.3c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.5-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.2.1.3 0 .5-.1.2-.1.3-.3.5-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.9 1.4 1.9 2.3 1.3 1.1 2.4 1.5 2.7 1.6.3.1.5.1.7-.1.2-.2.8-.9 1-1.2.2-.3.4-.2.7-.1.3.1 1.7.8 2 1 .3.1.5.2.6.3.1.2.1.9-.1 1.5z"/></svg></a>
+      <a class="social-link" href="https://t.me/AFOQ_Team" target="_blank" rel="noopener noreferrer" aria-label="قناة تليغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 3.5 2.7 10.8c-.9.3-.9 1.6.1 1.9l4.6 1.4 1.8 5.6c.3.9 1.4 1.1 2 .4l2.5-2.8 4.7 3.5c.8.6 1.9.1 2.1-.8l3-15.4c.2-1-.8-1.8-1.7-1.5zM8.9 13.8l9.1-6.9c.3-.2.6.2.3.5l-7.6 7.3c-.3.3-.5.7-.5 1.1l-.2 2.5-1.2-4.5z"/></svg></a>
+      <a class="social-link" href="https://www.instagram.com/mhjfuhrhuu785?igsh=MWR5Z2p0ejNicHF3ZQ==" target="_blank" rel="noopener noreferrer" aria-label="إنستغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1"/></svg></a>
+      <a class="social-link" href="https://www.tiktok.com/@bop1095" target="_blank" rel="noopener noreferrer" aria-label="تيك توك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.5 2h2.7c.2 1.6 1.1 3 2.4 3.9 1 .7 2.1 1 3.2 1.1v2.8c-1.7 0-3.3-.5-4.7-1.4v6.9c0 3.6-2.9 6.5-6.5 6.5S5.1 18.9 5.1 15.3c0-3.5 2.7-6.3 6.1-6.5v2.9c-1.8.2-3.2 1.7-3.2 3.6 0 2 1.6 3.6 3.6 3.6s3.6-1.6 3.6-3.6V2z"/></svg></a>
     </div>
     <div class="footer-bottom">© 2026 أفق المعرفة. جميع الحقوق محفوظة.</div>
   </div>
 </footer>
 
 <a href="#main-content" class="back-to-top" aria-label="العودة إلى الأعلى">↑</a>
-
-<div class="modal-overlay" id="report-modal" hidden>
-  <div class="modal-box">
-    <h3>الإبلاغ عن مشكلة</h3>
-    <p class="hint">المورد: <strong id="report-resource-name"></strong></p>
-    <form id="report-form">
-      <div class="field">
-        <label for="report-reason">نوع المشكلة</label>
-        <select id="report-reason" required>
-          <option value="broken_link">الرابط لا يعمل</option>
-          <option value="wrong_file">الملف غير صحيح</option>
-          <option value="copyright">محتوى محمي بحقوق نشر</option>
-          <option value="other">أخرى</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="report-note">ملاحظات إضافية (اختياري)</label>
-        <textarea id="report-note" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="submit" id="report-submit-btn" class="btn btn-primary">إرسال البلاغ</button>
-        <button type="button" id="report-cancel-btn" class="btn btn-outline">إلغاء</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <div class="toast" id="toast" hidden></div>
 
@@ -157,151 +188,27 @@
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
-  async function loadUniversities() {
-    const grid = document.getElementById("universities-grid");
-    const { data, error } = await supabaseClient
-      .from("universities")
-      .select("id, name, short_name")
-      .order("name", { ascending: true });
+  // ============================================================
+  // Homepage V2 — منطق خاص بصفحة الهبوط فقط (لا تعديل على auth.js/app.js)
+  // ============================================================
 
-    if (error) {
-      console.error(error);
-      renderState(grid, "تعذّر تحميل قائمة الجامعات، حاول لاحقًا.");
-      return;
+  // زرّا "دخول / تسجيل" (Hero + الشريط الختامي) يفتحان نفس نافذة
+  // المصادقة الموجودة أصلاً (openAuthOverlay من auth.js) — بلا أي
+  // منطق مصادقة جديد ولا نافذة ثانية.
+  document.getElementById("hero-auth-trigger").addEventListener("click", openAuthOverlay);
+  document.getElementById("final-auth-trigger").addEventListener("click", openAuthOverlay);
+
+  // "متابعة كضيف" داخل auth.js حاليًا تكتفي بإغلاق النافذة (closeAuthOverlay)
+  // فقط، بلا أي تحويل — وهذا سلوكها الصحيح والمقصود في كل صفحة أخرى (البقاء
+  // في نفس الصفحة). على صفحة الهبوط تحديدًا فقط، حيث لا يوجد محتوى منصّة
+  // خلف هذه النافذة، نضيف هنا (محليًا لهذه الصفحة فقط، دون لمس auth.js)
+  // استماعًا إضافيًا لنفس الزر الموجود مسبقًا (#auth-guest-btn) لتحويل
+  // الزائر إلى platform.html بعد إغلاق النافذة — تنقّل فقط، لا منطق مصادقة.
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "auth-guest-btn") {
+      window.location.href = "platform.html";
     }
-
-    if (!data || data.length === 0) {
-      renderState(grid, "لا توجد جامعات مضافة بعد.");
-      return;
-    }
-
-    grid.innerHTML = "";
-    data.forEach((uni) => {
-      const a = document.createElement("a");
-      a.className = "card";
-      a.href = `university.html?id=${uni.id}`;
-      a.innerHTML = `
-        <div class="card-icon">${escHtml((uni.short_name || uni.name).slice(0, 2))}</div>
-        <h3>${escHtml(uni.name)}</h3>
-        <div class="card-sub">عرض السنوات الدراسية</div>
-      `;
-      grid.appendChild(a);
-    });
-  }
-
-  /**
-   * يعيد فقط الموارد التي لا تزال ظاهرة فعليًا اليوم من بين قائمة IDs مخزَّنة
-   * محليًا — نفس منطق سلسلة الظهور المعتمد في search_resources() بالضبط:
-   * resources.status='published' AND subjects.is_active AND years.is_active
-   * (استبعاد faculties.is_active من هذه السلسلة قرار منتج موثَّق صراحة في
-   * sql/phase4_p1_4_years_subjects_is_active.sql، وليس نقصًا هنا). استخدام
-   * `!inner` على subjects/years يجعلهما INNER JOIN فعليًا، فأي مورد أصبح
-   * أبوه (مادة/سنة) غير نشط أو غير مرئي أصلاً عبر RLS يسقط من النتيجة
-   * تمامًا — هذا هو مصدر الحقيقة الحي، وليس مجرد إخفاء لاحق في الواجهة.
-   */
-  async function fetchStillVisibleResources(ids) {
-    if (!ids.length) return [];
-    const { data, error } = await supabaseClient
-      .from("resources")
-      .select(`
-        id, title, type, language, file_url, source_type, subject_id, verified, view_count,
-        subjects!inner(name, is_active, years!inner(is_active, universities(name), faculties(name)))
-      `)
-      .in("id", ids)
-      .eq("status", "published")
-      .eq("subjects.is_active", true)
-      .eq("subjects.years.is_active", true);
-
-    if (error) { console.error(error); return []; }
-
-    (data || []).forEach((r) => {
-      r.subject_name = r.subjects?.name || null;
-      r.faculty_name = r.subjects?.years?.faculties?.name || null;
-      r.university_name = r.subjects?.years?.universities?.name || null;
-    });
-    return data || [];
-  }
-
-  async function renderRecentlyViewed() {
-    const cached = readLocalList(RECENTLY_VIEWED_KEY);
-    if (!cached.length) return;
-
-    const visible = await fetchStillVisibleResources(cached.map((r) => r.id));
-    const byId = new Map(visible.map((r) => [r.id, r]));
-    // نحافظ على ترتيب "الأحدث أولاً" من localStorage، ونتجاوز بصمت أي عنصر
-    // لم يعد ظاهرًا (مورد أُخفي/حُذف، أو مادته/سنته أصبحت غير نشطة) — دون
-    // حذفه من localStorage نفسه (يبقى سجل "آخر ما شوهد" كما هو)، فقط لا
-    // نعرضه؛ فأقرب عنصر صالح تاليًا يأخذ مكانه تلقائيًا. لو لم يبقَ أي عنصر
-    // صالح يبقى القسم مخفيًا (نفس حالة "لا شيء لعرضه" الافتراضية).
-    const ordered = cached.map((r) => byId.get(r.id)).filter(Boolean);
-    if (!ordered.length) return;
-
-    const section = document.getElementById("recently-viewed-section");
-    const grid = document.getElementById("recently-viewed-grid");
-    section.hidden = false;
-    grid.style.gridTemplateColumns = "1fr";
-    grid.innerHTML = "";
-    ordered.slice(0, 6).forEach((r) => grid.appendChild(buildResourceCard(r)));
-  }
-
-  async function fetchPublicResourceFeed(orderColumn, limit) {
-    const { data, error } = await supabaseClient
-      .from("resources")
-      .select(`
-        id, title, type, language, file_url, source_type, subject_id, verified, view_count,
-        subjects!inner(name, is_active, years!inner(is_active, university_id, faculty_id, universities(name), faculties(name)))
-      `)
-      .eq("status", "published")
-      .eq("subjects.is_active", true)
-      .eq("subjects.years.is_active", true)
-      .order(orderColumn, { ascending: false })
-      .limit(limit);
-
-    if (error) { console.error(error); return []; }
-
-    (data || []).forEach((r) => {
-      r.subject_name = r.subjects?.name || null;
-      r.faculty_name = r.subjects?.years?.faculties?.name || null;
-      r.university_name = r.subjects?.years?.universities?.name || null;
-    });
-    return data || [];
-  }
-
-  function renderResourceFeedSection(sectionId, gridId, resources) {
-    const section = document.getElementById(sectionId);
-    const grid = document.getElementById(gridId);
-    if (!resources.length) return;
-
-    section.hidden = false;
-    grid.style.gridTemplateColumns = "1fr";
-    grid.innerHTML = "";
-    resources.forEach((r) => {
-      const card = buildResourceCard(r);
-      const metaLine = document.createElement("div");
-      metaLine.className = "card-sub";
-      metaLine.style.fontSize = ".82rem";
-      metaLine.style.marginTop = "-6px";
-      metaLine.textContent = [r.subject_name, r.faculty_name, r.university_name].filter(Boolean).join(" · ");
-      card.insertBefore(metaLine, card.querySelector(".resource-actions"));
-      grid.appendChild(card);
-    });
-  }
-
-  async function loadRecentResources() {
-    const data = await fetchPublicResourceFeed("created_at", 6);
-    renderResourceFeedSection("recent-resources-section", "recent-resources-grid", data);
-  }
-
-  async function loadPopularResources() {
-    const data = await fetchPublicResourceFeed("view_count", 6);
-    // لا معنى لعرض "الأكثر طلبًا" إن كانت كل الموارد بلا أي مشاهدة مسجَّلة بعد
-    renderResourceFeedSection("popular-resources-section", "popular-resources-grid", data.filter((r) => r.view_count > 0));
-  }
-
-  loadUniversities();
-  renderRecentlyViewed();
-  loadPopularResources();
-  loadRecentResources();
+  });
 </script>
 </body>
 </html>

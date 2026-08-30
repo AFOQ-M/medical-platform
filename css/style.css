@@ -1321,6 +1321,437 @@ table.admin-table th {
 .perm-checkbox { display: flex; align-items: center; gap: 5px; font-size: .85rem; cursor: pointer; }
 .perm-checkbox input { width: 16px; height: 16px; cursor: pointer; }
 
+/* ====================================================================
+   Homepage V2 — صفحة هبوط أفق (Landing Page) — DESIGN REDO
+   ====================================================================
+   كل ما يلي حصري لعناصر index.html (بادئة landing-) ولا يشارك أي صنف
+   مع platform.html أو أي صفحة أخرى (لا .home-hero/.home-section/.card
+   العامة — تلك تبقى كما هي تمامًا في كل مكان آخر). القيم كلها مشتقة من
+   نفس متغيرات الهوية الحالية (--primary/--accent/--bg/--ink...)، بلا
+   لوحة ألوان أو خط جديد. شارة "قريبًا" (badge-soon) أسفل هذا القسم
+   مشتركة مع نافذة المصادقة الظاهرة في كل الصفحات ولم تُعدَّل. */
+
+/* -------------------- إيقاع عام لأقسام الصفحة -------------------- */
+
+.landing-section { margin-bottom: 76px; }
+
+.landing-section-head { margin-bottom: 28px; }
+
+.landing-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .02em;
+  color: var(--primary);
+}
+
+.landing-kicker::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.landing-section-title {
+  margin: 10px 0 0;
+  max-width: 22ch;
+}
+
+/* -------------------- الهيرو -------------------- */
+/* بنية غير متماثلة: نص الهوية يقابله رسم "الأفق" — خط ذهبي رفيع
+   وحلقات متقاربة نحو مركز مضيء، تجسيد بصري حرفي لاسم المنصة ولفكرة
+   "تضييق مصادر كثيرة إلى مورد واحد محدد" — لا رسم زخرفي عام. */
+
+.landing-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  padding: 40px 22px;
+  margin-bottom: 64px;
+}
+
+.landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(560px 360px at 100% 0%, rgba(255, 255, 255, .05), transparent 65%);
+}
+
+.landing-hero-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.landing-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.landing-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: rgba(255, 255, 255, .92);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.landing-eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(201, 165, 103, .22);
+  flex-shrink: 0;
+}
+
+.landing-hero-title {
+  color: #fff;
+  font-size: clamp(1.85rem, 1.2rem + 2.8vw, 2.9rem);
+  line-height: 1.22;
+  margin: 0;
+  max-width: 15ch;
+}
+
+.landing-hero-lead {
+  color: rgba(255, 255, 255, .82);
+  font-size: clamp(1rem, .93rem + .25vw, 1.1rem);
+  line-height: 1.75;
+  max-width: 44ch;
+  margin: 0;
+}
+
+.landing-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.landing-cta-btn { min-height: 44px; padding-inline: 26px; }
+
+.landing-secondary-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: rgba(255, 255, 255, .82);
+  font-weight: 700;
+  font-size: .9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .3);
+  transition: color .15s, border-color .15s;
+}
+
+.landing-secondary-link:hover,
+.landing-secondary-link:focus-visible {
+  color: #fff;
+  border-color: #fff;
+}
+
+.landing-secondary-link span { display: inline-block; transition: transform .15s; }
+.landing-secondary-link:hover span { transform: translateY(3px); }
+
+/* -------------------- رسم "الأفق": حلقات متقاربة فوق خط الأفق -------------------- */
+
+.landing-horizon {
+  position: relative;
+  z-index: 1;
+  height: 220px;
+  border-radius: var(--radius-sm);
+}
+
+.landing-horizon-rings {
+  position: absolute;
+  inset-inline-start: 50%;
+  top: 38%;
+  width: 0;
+  height: 0;
+}
+
+.landing-horizon-rings .ring {
+  position: absolute;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(201, 165, 103, .38);
+}
+
+.ring-1 { width: 260px; height: 260px; }
+.ring-2 { width: 195px; height: 195px; border-color: rgba(201, 165, 103, .5); }
+.ring-3 { width: 132px; height: 132px; border-color: rgba(201, 165, 103, .65); }
+.ring-4 { width: 74px; height: 74px; border-color: rgba(201, 165, 103, .85); }
+
+.landing-horizon-core {
+  position: absolute;
+  top: 0; left: 0;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 10px rgba(201, 165, 103, .18), 0 0 40px 6px rgba(201, 165, 103, .35);
+}
+
+.landing-horizon-line {
+  position: absolute;
+  inset-inline: 4%;
+  top: 66%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 165, 103, .55) 18%, rgba(201, 165, 103, .55) 82%, transparent);
+}
+
+.landing-horizon-label {
+  position: absolute;
+  font-size: .74rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, .72);
+  white-space: nowrap;
+}
+
+.landing-horizon-label-outer { top: 4%; inset-inline-end: 6%; }
+.landing-horizon-label-inner { top: 40%; inset-inline-start: 50%; transform: translate(-50%, 26px); color: rgba(255,255,255,.92); }
+
+.landing-horizon--simple .ring-1,
+.landing-horizon--simple .ring-2,
+.landing-horizon--simple .landing-horizon-label { display: none; }
+
+/* -------------------- عن أفق: شريط تحريري بفواصل ذهبية بدل بطاقات -------------------- */
+
+.landing-about-grid { display: flex; flex-direction: column; }
+
+.landing-about-row {
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing-about-row:first-of-type { border-top: 1px solid var(--line); }
+.landing-about-row:last-of-type { border-bottom: 1px solid var(--line); }
+
+.landing-about-row h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--primary-dark);
+}
+
+.landing-about-row p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  line-height: 1.75;
+}
+
+/* -------------------- ماذا يقدّم أفق: نص + مفردات أنواع الموارد الحقيقية -------------------- */
+
+.landing-provides-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.landing-provides-text {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.8;
+  max-width: 56ch;
+}
+
+.landing-type-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.landing-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.landing-type-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.landing-type-dot[data-type="book"] { background: var(--type-book); }
+.landing-type-dot[data-type="summary"] { background: var(--type-summary); }
+.landing-type-dot[data-type="questions"] { background: var(--type-questions); }
+.landing-type-dot[data-type="lecture"] { background: var(--type-lecture); }
+.landing-type-dot[data-type="slides"] { background: var(--type-slides); }
+.landing-type-dot[data-type="notes"] { background: var(--type-notes); }
+.landing-type-dot[data-type="past_exam"] { background: var(--type-past_exam); }
+
+/* -------------------- لماذا هذه المنصة: اقتباس محوري -------------------- */
+
+.landing-why {
+  position: relative;
+  padding-block: 8px;
+  padding-inline-start: 30px;
+  border-inline-start: 3px solid var(--accent);
+}
+
+.landing-why-mark {
+  display: block;
+  font-family: 'Cairo', sans-serif;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.landing-why p {
+  margin: 0;
+  max-width: 58ch;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+/* -------------------- ماذا ستجد بالداخل: سلسلة الهرم -------------------- */
+
+.landing-flow {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.landing-flow-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: .95rem;
+  transition: color .15s, padding-inline-start .15s;
+}
+
+.landing-flow-step:first-of-type { border-top: 1px solid var(--line); }
+
+.landing-flow-marker {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+
+a.landing-flow-step:hover,
+a.landing-flow-step:focus-visible {
+  color: var(--primary);
+  padding-inline-start: 10px;
+}
+
+a.landing-flow-step:hover .landing-flow-marker,
+a.landing-flow-step:focus-visible .landing-flow-marker {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.landing-flow-step-final {
+  color: var(--primary-dark);
+}
+
+.landing-flow-step-final .landing-flow-marker {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+a.landing-flow-step-final:hover,
+a.landing-flow-step-final:focus-visible { color: var(--primary); }
+
+/* -------------------- شريط CTA الختامي -------------------- */
+
+.landing-cta-band { padding: 48px 22px; margin-bottom: 0; }
+.landing-cta-band .landing-hero-inner { grid-template-columns: 1fr; justify-items: center; }
+.landing-cta-band .landing-hero-text { align-items: center; text-align: center; }
+.landing-cta-band .landing-hero-title { max-width: 18ch; }
+.landing-cta-band .landing-horizon { width: 100%; max-width: 420px; height: 120px; }
+.landing-cta-band .landing-horizon-rings { top: 62%; }
+
+/* شارة "قريبًا" بجانب أزرار Google/Apple في نافذة المصادقة (نسخ/CSS فقط) — مشتركة مع كل الصفحات، غير معدَّلة */
+.badge-soon {
+  display: inline-block;
+  margin-inline-start: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: .72rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* -------------------- استجابة صفحة الهبوط -------------------- */
+
+@media (min-width: 900px) {
+  .landing-hero { padding: 64px 56px; }
+  .landing-hero-inner { grid-template-columns: 1.2fr .8fr; gap: 48px; }
+  .landing-hero-title { max-width: 13ch; }
+  .landing-about-row { flex-direction: row; gap: 32px; }
+  .landing-about-row h3 { flex: 0 0 220px; margin: 0; }
+  .landing-provides-grid { grid-template-columns: 1.3fr .9fr; }
+  .landing-flow-step { padding: 18px 4px; }
+  .landing-cta-band .landing-hero-inner { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .landing-hero { padding: 30px 16px; margin-bottom: 48px; }
+  .landing-horizon { height: 150px; }
+  .ring-1, .ring-2 { display: none; }
+  .landing-horizon-label-outer { display: none; }
+  .landing-section { margin-bottom: 56px; }
+  .landing-cta-row { flex-direction: column; align-items: stretch; }
+  .landing-cta-btn { width: 100%; }
+  .landing-secondary-link { justify-content: center; }
+  .landing-why { padding-inline-start: 18px; }
+}
+
 /* -------------------- استجابة للشاشات (Responsive) -------------------- */
 
 @media (min-width: 720px) {
