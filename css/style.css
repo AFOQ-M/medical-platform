@@ -285,6 +285,217 @@ main {
   border-color: var(--primary);
 }
 
+/* ====================================================================
+   الصفحة الرئيسية العامة — تجديد الواجهة (Homepage Premium Redesign)
+   ====================================================================
+   كل ما يلي مخصّص حصريًا لعناصر index.html (بادئة home-) ولا يمس أي
+   صنف مشترك مع صفحات أخرى (.search-hero/.search-form/.search-input
+   تبقى كما هي لصفحة النتائج search.html؛ .grid/.card/.resource-card
+   تبقى كما هي في كل الموقع). الألوان والمسافات وأنصاف الأقطار كلها من
+   نفس متغيرات الهوية الحالية (UI-3)، بلا لوحة ألوان جديدة. */
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--primary);
+  border-bottom: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 44px 24px;
+  box-shadow: var(--shadow-hover);
+  margin-bottom: 40px;
+}
+
+/* توهّج زخرفي هادئ خلف المحتوى — CSS فقط، بلا أي صورة/أصل جديد،
+   وبلا أي تأثير على قابلية القراءة (فوق طبقته مباشرة). */
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(480px 320px at 88% -10%, rgba(201, 165, 103, .16), transparent 70%),
+    radial-gradient(420px 300px at -10% 110%, rgba(255, 255, 255, .05), transparent 70%);
+}
+
+.home-hero-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.home-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.home-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: rgba(255, 255, 255, .92);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.home-eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(201, 165, 103, .22);
+  flex-shrink: 0;
+}
+
+.home-hero h1 {
+  color: #fff;
+  font-size: clamp(1.9rem, 1.15rem + 3.2vw, 3.1rem);
+  line-height: 1.18;
+  margin: 0;
+  max-width: 16ch;
+}
+
+.home-hero-lead {
+  color: rgba(255, 255, 255, .82);
+  font-size: clamp(1rem, .92rem + .3vw, 1.12rem);
+  line-height: 1.75;
+  max-width: 46ch;
+  margin: 0;
+}
+
+.home-hero-content .search-form {
+  margin: 6px 0 0;
+  max-width: 480px;
+  width: 100%;
+}
+
+/* نفس منطق الاندماج المستخدم أصلًا في .search-hero .search-input:
+   الحقل يذوب داخل الكبسولة البيضاء المحيطة به بدل إطاره الرمادي
+   الافتراضي، بلا أي تأثير على .search-input في أي مكان آخر. */
+.home-hero .search-input {
+  background: transparent;
+  border: 2px solid transparent;
+}
+
+.home-hero .search-input:focus {
+  border-color: var(--primary);
+}
+
+.home-hero-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  color: #fff;
+  font-weight: 700;
+  font-size: .9rem;
+  transition: background .15s, border-color .15s;
+}
+
+.home-hero-secondary:hover,
+.home-hero-secondary:focus-visible {
+  background: rgba(255, 255, 255, .1);
+  border-color: rgba(255, 255, 255, .5);
+}
+
+.home-hero-secondary span { transition: transform .15s; }
+.home-hero-secondary:hover span { transform: translateX(-3px); }
+
+.home-hero-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-hero-panel-title {
+  color: var(--ink-soft);
+  font-family: 'Tajawal', sans-serif;
+  font-weight: 700;
+  font-size: .8rem;
+  margin: 0 0 6px;
+  padding: 0 4px;
+}
+
+.home-quick-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 12px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: .92rem;
+  border-top: 1px solid var(--line);
+  transition: background .15s;
+}
+
+.home-hero-panel .home-quick-link:first-of-type { border-top: none; }
+
+.home-quick-link:hover,
+.home-quick-link:focus-visible {
+  background: var(--bg);
+}
+
+.home-quick-arrow {
+  color: var(--primary);
+  transition: transform .15s;
+  flex-shrink: 0;
+}
+
+.home-quick-link:hover .home-quick-arrow { transform: translateX(-3px); }
+
+/* -------------------- تجميع أقسام المحتوى في الرئيسية -------------------- */
+
+.home-section { margin-bottom: 48px; }
+
+.home-section-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.home-section-head h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.home-section-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, var(--line) 0%, transparent 100%);
+}
+
+@media (min-width: 960px) {
+  .home-hero { padding: 60px 48px; }
+  .home-hero-inner { grid-template-columns: 1.15fr .85fr; gap: 40px; }
+  .home-hero-panel { padding: 22px; align-self: stretch; }
+}
+
+@media (max-width: 480px) {
+  .home-hero { padding: 32px 18px; }
+  .home-section-line { display: none; }
+  .home-section-head h2 { white-space: normal; }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

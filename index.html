@@ -27,39 +27,74 @@
 </header>
 
 <main id="main-content">
-  <section class="search-hero">
-    <h1>ابحث عن مصادرك الدراسية</h1>
-    <p>كتب، ملخصات، سلايدات، وأسئلة — منظّمة حسب جامعتك وسنتك ومادتك</p>
-    <form class="search-form" action="search.html" method="get">
-      <input
-        class="search-input"
-        type="search"
-        name="q"
-        placeholder="ابحث باسم المادة أو المورد..."
-        autocomplete="off"
-        required
-      >
-      <button type="submit" class="btn btn-primary">بحث</button>
-    </form>
+  <section class="home-hero">
+    <div class="home-hero-inner">
+      <div class="home-hero-content">
+        <span class="home-eyebrow"><span class="home-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
+        <h1>ابحث عن مصادرك الدراسية</h1>
+        <p class="home-hero-lead">كتب، ملخصات، سلايدات، وأسئلة — منظّمة حسب جامعتك وسنتك ومادتك</p>
+        <form class="search-form" action="search.html" method="get">
+          <input
+            class="search-input"
+            type="search"
+            name="q"
+            placeholder="ابحث باسم المادة أو المورد..."
+            autocomplete="off"
+            required
+          >
+          <button type="submit" class="btn btn-primary">بحث</button>
+        </form>
+        <a href="search.html" class="home-hero-secondary">تصفّح كل الموارد <span aria-hidden="true">←</span></a>
+      </div>
+      <aside class="home-hero-panel" aria-label="وصول سريع">
+        <h2 class="home-hero-panel-title">ابدأ من هنا</h2>
+        <a class="home-quick-link" href="#universities-section">
+          <span>استعراض الجامعات</span>
+          <span class="home-quick-arrow" aria-hidden="true">←</span>
+        </a>
+        <a class="home-quick-link" href="search.html">
+          <span>تصفّح كل الموارد</span>
+          <span class="home-quick-arrow" aria-hidden="true">←</span>
+        </a>
+        <a class="home-quick-link" href="favorites.html">
+          <span>المفضلة المحفوظة</span>
+          <span class="home-quick-arrow" aria-hidden="true">←</span>
+        </a>
+      </aside>
+    </div>
   </section>
 
-  <div id="recently-viewed-section" hidden>
-    <h2>تابع من حيث توقفت</h2>
+  <div id="recently-viewed-section" class="home-section" hidden>
+    <div class="home-section-head">
+      <h2>تابع من حيث توقفت</h2>
+      <span class="home-section-line" aria-hidden="true"></span>
+    </div>
     <div id="recently-viewed-grid" class="grid" style="margin-bottom: 32px;"></div>
   </div>
 
-  <h2>اختر جامعتك</h2>
-  <div id="universities-grid" class="grid">
-    <div class="state-msg">جارٍ التحميل...</div>
-  </div>
+  <section class="home-section" id="universities-section">
+    <div class="home-section-head">
+      <h2>اختر جامعتك</h2>
+      <span class="home-section-line" aria-hidden="true"></span>
+    </div>
+    <div id="universities-grid" class="grid">
+      <div class="state-msg">جارٍ التحميل...</div>
+    </div>
+  </section>
 
-  <div id="popular-resources-section" hidden>
-    <h2>الأكثر طلبًا 🔥</h2>
+  <div id="popular-resources-section" class="home-section" hidden>
+    <div class="home-section-head">
+      <h2>الأكثر طلبًا 🔥</h2>
+      <span class="home-section-line" aria-hidden="true"></span>
+    </div>
     <div id="popular-resources-grid" class="grid"></div>
   </div>
 
-  <div id="recent-resources-section" hidden>
-    <h2>آخر الموارد المضافة</h2>
+  <div id="recent-resources-section" class="home-section" hidden>
+    <div class="home-section-head">
+      <h2>آخر الموارد المضافة</h2>
+      <span class="home-section-line" aria-hidden="true"></span>
+    </div>
     <div id="recent-resources-grid" class="grid"></div>
   </div>
 </main>
