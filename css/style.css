@@ -805,6 +805,18 @@ a.card:hover, a.card:focus-visible {
 
 .subject-search-input:focus { border-color: var(--primary); outline: none; }
 
+/* :focus-visible صريح لهذين الحقلين تحديدًا: قاعدة :focus عليهما (أعلاه)
+   تُلغي outline افتراضيًا، وبما أن specificity الخاص بها يساوي specificity
+   :focus-visible (صنف واحد + pseudo-class واحدة لكل منهما)، فالفوز هنا بترتيب
+   الظهور في الملف لا بالخصوصية — لذلك وُضعت هذه القاعدة بعد الاثنتين معًا
+   لتفوز فعليًا عند التنقل بلوحة المفاتيح، بنفس قيم :focus-visible العامة
+   للموقع (--accent) دون تغيير الشكل عند focus بالماوس/اللمس. */
+.search-input:focus-visible,
+.subject-search-input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* -------------------- حالات فارغة / تحميل -------------------- */
 
 .state-msg {

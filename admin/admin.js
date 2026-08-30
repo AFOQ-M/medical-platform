@@ -857,7 +857,7 @@ async function loadUniversities() {
       <td data-label="مختصر">${escHtml(u.short_name) || "—"}</td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}','${escAttr(u.name)}','${escAttr(u.short_name || "")}','${escAttr(u.logo_url || "")}')">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}')">تعديل</button>` : ""}
           ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('universities','${u.id}', loadUniversities)">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
@@ -885,11 +885,18 @@ document.getElementById("uni-form").addEventListener("submit", async (e) => {
   loadUniversities();
 });
 
-function editUniversity(id, name, shortName, logoUrl) {
-  document.getElementById("uni-edit-id").value = id;
-  document.getElementById("uni-name").value = name;
-  document.getElementById("uni-short-name").value = shortName;
-  document.getElementById("uni-logo-url").value = logoUrl;
+function editUniversity(id) {
+  // الأمان: id فقط يصل عبر onclick (UUID، لا يحتاج ترميز ولا يمكنه كسر
+  // السياق) — بيانات الجامعة الفعلية (name/short_name/logo_url، وهي نصوص
+  // حرة قد يدخلها أي حساب لديه صلاحية "إضافة/تعديل" على أي جامعة) تُقرأ من
+  // universitiesById، المصدر الآمن الذي عبّأته loadUniversities() مسبقًا،
+  // بدل تمريرها كنص خام داخل onclick حيث كانت عرضة لكسر سياق JavaScript.
+  const u = universitiesById[id];
+  if (!u) return;
+  document.getElementById("uni-edit-id").value = u.id;
+  document.getElementById("uni-name").value = u.name;
+  document.getElementById("uni-short-name").value = u.short_name || "";
+  document.getElementById("uni-logo-url").value = u.logo_url || "";
   document.getElementById("uni-form-title").textContent = "تعديل جامعة";
   document.getElementById("uni-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("uni-cancel-btn").hidden = false;
@@ -1278,7 +1285,7 @@ async function loadSubjects() {
       <td data-label="الحالة"><span class="status-badge ${s.is_active ? "published" : "hidden"}">${s.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}','${s.year_id}','${uniId || ""}','${facId || ""}','${escAttr(s.name)}','${escAttr(s.code || "")}','${escAttr(s.semester || "")}',${s.is_active})">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}')">تعديل</button>` : ""}
           ${canEdit ? `<button class="btn btn-sm ${s.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleSubjectActive('${s.id}', ${s.is_active})">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
           ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
@@ -1319,15 +1326,23 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   loadSubjects();
 });
 
-function editSubject(id, yearId, universityId, facultyId, name, code, semester, isActive) {
-  document.getElementById("subj-edit-id").value = id;
-  document.getElementById("subj-university").value = universityId;
+function editSubject(id) {
+  // نفس مبدأ editUniversity: id فقط (UUID) يصل عبر onclick، وكل الحقول
+  // النصية الحرة (name/code/semester) وكل معرّفات السياق (yearId/universityId/
+  // facultyId) تُقرأ من subjectsById الآمن بدل تمريرها كنص خام داخل onclick.
+  const s = subjectsById[id];
+  if (!s) return;
+  const yearId = s.year_id;
+  const universityId = s.years?.university_id;
+  const facultyId = s.years?.faculty_id;
+  document.getElementById("subj-edit-id").value = s.id;
+  document.getElementById("subj-university").value = universityId || "";
   populateFacultySelect("subj-faculty", universityId, facultyId || null);
   populateYearSelectForFaculty("subj-year", facultyId || null, yearId);
-  document.getElementById("subj-name").value = name;
-  document.getElementById("subj-code").value = code;
-  document.getElementById("subj-semester").value = semester || "";
-  document.getElementById("subj-active").checked = !!isActive;
+  document.getElementById("subj-name").value = s.name;
+  document.getElementById("subj-code").value = s.code || "";
+  document.getElementById("subj-semester").value = s.semester || "";
+  document.getElementById("subj-active").checked = !!s.is_active;
   document.getElementById("subj-form-title").textContent = "تعديل مادة";
   document.getElementById("subj-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("subj-cancel-btn").hidden = false;
