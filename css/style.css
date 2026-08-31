@@ -7,25 +7,42 @@
 
 :root {
   /* ألوان الهوية */
-  --bg: #F2F6F5;
+  --bg: #F9FBFC;
+  --muted-bg: #EEF4F6;
   --surface: #FFFFFF;
-  --ink: #12262A;
-  --ink-soft: #4B6266;
-  --primary: #034634;
-  --primary-dark: #023125;
-  --accent: #C9A567;
-  --line: #DCE6E4;
-  --line-strong: #C3D3D0;
-  --danger: #C0392B;
+  --ink: #0F172A;
+  --ink-soft: #475569;
+  --ink-faint: #94A3B8; /* تباين 2.56:1 على أبيض — استخدم فقط مع نص كبير/عريض (≥18.7px عريض) وليس لنص المحتوى العادي، حفاظًا على WCAG AA */
+  --primary: #0F4C5C;
+  --primary-dark: #0A3A47;
+  --secondary: #1F7A8C;
+  --accent: #E9A426;
+  --inverse: #0F2A33;
+  --line: #E2E8F0;
+  --line-strong: #CBD5E1;
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+  --danger-border: #FECACA;
+  --success-bg: #E4F5EA;
+  --success-border: #BFE6CC;
+  --neutral-bg: #F1F1F1;
+  --focus: var(--accent);
 
-  /* ألوان أنواع الموارد */
-  --type-book: #D64545;
-  --type-summary: #2F6FED;
+  /* ألوان أنواع الموارد — شارات فاتحة + نص/حدود بدرجة داكنة لضمان تباين واضح */
+  --type-book: #5B21B6;
+  --type-book-bg: #EDE9FE;
+  --type-summary: #0F766E;
+  --type-summary-bg: #CCFBF1;
   --type-questions: #2E9E5B;
-  --type-lecture: #7C5CBF;
-  --type-slides: #E08A2A;
-  --type-notes: #1AA1A1;
-  --type-past_exam: #B5443C;
+  --type-questions-bg: #E4F5EA;
+  --type-lecture: #0E7490;
+  --type-lecture-bg: #E0F2F7;
+  --type-slides: #1F7A8C;
+  --type-slides-bg: #E6F0F3;
+  --type-notes: #92400E;
+  --type-notes-bg: #FEF3C7;
+  --type-past_exam: #9D174D;
+  --type-past_exam-bg: #FCE7F3;
 
   --radius: 14px;
   --radius-sm: 8px;
@@ -59,7 +76,7 @@ h1, h2, h3, h4, .display {
 a { color: inherit; text-decoration: none; }
 
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -267,7 +284,7 @@ main {
   border-radius: 999px;
   font-family: 'Tajawal', sans-serif;
   font-size: 1rem;
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink);
 }
 
@@ -451,7 +468,7 @@ main {
 
 .home-quick-link:hover,
 .home-quick-link:focus-visible {
-  background: var(--bg);
+  background: var(--muted-bg);
 }
 
 .home-quick-arrow {
@@ -517,10 +534,10 @@ main {
 
 .btn-outline {
   background: transparent;
-  border: 2px solid var(--line-strong);
-  color: var(--ink);
+  border: 2px solid var(--primary);
+  color: var(--primary);
 }
-.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-outline:hover { background: var(--muted-bg); border-color: var(--primary-dark); color: var(--primary-dark); }
 
 .btn-danger {
   background: var(--danger);
@@ -595,7 +612,7 @@ a.card:hover, a.card:focus-visible {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: var(--bg);
+  background: var(--muted-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -684,7 +701,7 @@ a.card:hover, a.card:focus-visible {
   justify-content: center;
   transition: color .15s, transform .1s, background .15s;
 }
-.favorite-btn:hover { transform: scale(1.15); color: var(--accent); background: var(--bg); }
+.favorite-btn:hover { transform: scale(1.15); color: var(--accent); background: var(--muted-bg); }
 .favorite-btn.active { color: var(--accent); }
 
 .resource-meta {
@@ -701,27 +718,26 @@ a.card:hover, a.card:focus-visible {
   border-radius: 999px;
   font-size: .78rem;
   font-weight: 700;
-  color: #fff;
 }
 
-.tag[data-type="book"] { background: var(--type-book); }
-.tag[data-type="summary"] { background: var(--type-summary); }
-.tag[data-type="questions"] { background: var(--type-questions); }
-.tag[data-type="lecture"] { background: var(--type-lecture); }
-.tag[data-type="slides"] { background: var(--type-slides); }
-.tag[data-type="notes"] { background: var(--type-notes); }
-.tag[data-type="past_exam"] { background: var(--type-past_exam); }
+.tag[data-type="book"] { background: var(--type-book-bg); color: var(--type-book); }
+.tag[data-type="summary"] { background: var(--type-summary-bg); color: var(--type-summary); }
+.tag[data-type="questions"] { background: var(--type-questions-bg); color: var(--type-questions); }
+.tag[data-type="lecture"] { background: var(--type-lecture-bg); color: var(--type-lecture); }
+.tag[data-type="slides"] { background: var(--type-slides-bg); color: var(--type-slides); }
+.tag[data-type="notes"] { background: var(--type-notes-bg); color: var(--type-notes); }
+.tag[data-type="past_exam"] { background: var(--type-past_exam-bg); color: var(--type-past_exam); }
 
 .tag-lang {
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink-soft);
   border: 1px solid var(--line);
 }
 
 .tag-verified {
-  background: #E4F5EA;
+  background: var(--success-bg);
   color: var(--type-questions);
-  border: 1px solid #BFE6CC;
+  border: 1px solid var(--success-border);
 }
 
 .resource-actions {
@@ -797,7 +813,7 @@ a.card:hover, a.card:focus-visible {
   border: 2px solid var(--line);
   font-family: 'Tajawal', sans-serif;
   font-size: .86rem;
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink);
   flex: 1 1 220px;
   max-width: 320px;
@@ -813,7 +829,7 @@ a.card:hover, a.card:focus-visible {
    للموقع (--accent) دون تغيير الشكل عند focus بالماوس/اللمس. */
 .search-input:focus-visible,
 .subject-search-input:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -873,7 +889,7 @@ a.card:hover, a.card:focus-visible {
   border-radius: var(--radius-sm);
   font-family: 'Tajawal', sans-serif;
   font-size: .92rem;
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink);
 }
 
@@ -935,7 +951,7 @@ a.card:hover, a.card:focus-visible {
   text-decoration: none;
   color: var(--ink);
 }
-.global-search-item:hover { background: var(--bg); }
+.global-search-item:hover { background: var(--muted-bg); }
 
 .global-search-item .resource-type-icon { font-size: 1.1rem; flex-shrink: 0; }
 
@@ -1053,7 +1069,7 @@ a.card:hover, a.card:focus-visible {
 }
 
 .footer-links a {
-  color: var(--ink-soft);
+  color: var(--secondary);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -1076,7 +1092,7 @@ a.card:hover, a.card:focus-visible {
   height: 44px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink-soft);
   font-size: 1.1rem;
   text-decoration: none;
@@ -1144,11 +1160,14 @@ a.card:hover, a.card:focus-visible {
   color: var(--ink-soft);
 }
 
+.admin-tab-btn:hover { border-color: var(--line-strong); color: var(--ink); }
+
 .admin-tab-btn.active {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
 }
+.admin-tab-btn.active:hover { color: #fff; }
 
 .admin-panel { display: none; }
 .admin-panel.active { display: block; }
@@ -1181,15 +1200,17 @@ table.admin-table th {
   font-weight: 700;
 }
 
+table.admin-table tbody tr:hover { background: var(--muted-bg); }
+
 .status-badge {
   padding: 3px 10px;
   border-radius: 999px;
   font-size: .76rem;
   font-weight: 700;
 }
-.status-badge.published { background: #E4F5EA; color: var(--type-questions); }
-.status-badge.hidden { background: #F1F1F1; color: var(--ink-soft); }
-.status-badge.reported { background: #FBE7E4; color: var(--danger); }
+.status-badge.published { background: var(--success-bg); color: var(--type-questions); }
+.status-badge.hidden { background: var(--neutral-bg); color: var(--ink-soft); }
+.status-badge.reported { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
 
 .form-grid {
   display: grid;
@@ -1203,7 +1224,7 @@ table.admin-table th {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ink);
+  background: var(--inverse);
   color: #fff;
   padding: 12px 22px;
   border-radius: 999px;
@@ -1274,7 +1295,7 @@ table.admin-table th {
 }
 
 .stat-card {
-  background: var(--bg);
+  background: var(--muted-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 16px;
@@ -1298,7 +1319,7 @@ table.admin-table th {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 16px;
-  background: var(--bg);
+  background: var(--muted-bg);
 }
 
 .user-perm-header {
@@ -1606,7 +1627,7 @@ table.admin-table th {
   gap: 7px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(--bg);
+  background: var(--muted-bg);
   font-size: .8rem;
   font-weight: 700;
   color: var(--ink);
@@ -1732,7 +1753,7 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
   margin-inline-start: 8px;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--bg);
+  background: var(--muted-bg);
   color: var(--ink-soft);
   font-size: .72rem;
   font-weight: 700;
