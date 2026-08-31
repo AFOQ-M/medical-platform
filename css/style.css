@@ -1595,6 +1595,87 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   line-height: 1.75;
 }
 
+/* -------------------- عن أفق: سلسلة "لماذا أفق" المصغّرة (نص فقط) -------------------- */
+
+.landing-why-chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-weight: 700;
+  font-size: .92rem;
+  color: var(--primary-dark);
+}
+
+.landing-why-chain span { color: var(--line-strong); font-weight: 400; }
+
+/* -------------------- عن أفق: عنوان فرعي بلا كيكر (بين المجموعات) -------------------- */
+
+.landing-about-subhead { margin: 36px 0 20px; }
+.landing-about-subhead h3 { margin: 0 0 8px; }
+.landing-about-grid--single .landing-about-row:first-of-type { border-top: none; }
+
+/* -------------------- عن أفق: من المعرفة إلى الأثر (تسلسل مميّز) -------------------- */
+
+.landing-impact-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.landing-impact-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.landing-impact-step-final {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.landing-impact-mark {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  background: var(--muted-bg);
+  color: var(--ink-soft);
+}
+
+.landing-impact-step-final .landing-impact-mark {
+  background: rgba(255, 255, 255, .18);
+  color: #fff;
+}
+
+.landing-impact-arrow {
+  align-self: center;
+  color: var(--line-strong);
+  font-size: 1.1rem;
+  transform: rotate(90deg);
+}
+
+/* -------------------- عن أفق: بطاقات "إلى أين نتّجه" -------------------- */
+
+.landing-future-grid { margin: 0; }
+.card h4 { font-size: 1.05rem; margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+/* -------------------- عن أفق: خاتمة مقتبسة -------------------- */
+
+.landing-about-closing { margin-top: 36px; }
+
 /* -------------------- ماذا يقدّم أفق: نص + مفردات أنواع الموارد الحقيقية -------------------- */
 
 .landing-provides-grid {
@@ -1771,6 +1852,9 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
   .landing-provides-grid { grid-template-columns: 1.3fr .9fr; }
   .landing-flow-step { padding: 18px 4px; }
   .landing-cta-band .landing-hero-inner { grid-template-columns: 1fr; }
+  .landing-impact-flow { flex-direction: row; align-items: stretch; }
+  .landing-impact-step { flex: 1; flex-direction: column; text-align: center; gap: 8px; }
+  .landing-impact-arrow { transform: none; }
 }
 
 @media (max-width: 560px) {
