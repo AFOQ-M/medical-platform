@@ -303,14 +303,16 @@ async function loadCurrentUserAuthorization(authUser) {
 
   await refreshMfaState();
 
-  // P1-7A — قرار العمل المعتمد:
-  // - super_admin: لا يُطلب منه إكمال MFA إطلاقًا مهما كانت حالته (حتى
-  //   لو لديه factor verified ولم يُكمل aal2) — دخول مباشر دائمًا.
-  // - غيره: إن لم يملك أي factor verified، دخول مباشر (MFA اختياري،
-  //   لا يُفرض تلقائيًا). إن ملك factor verified ولم يصل بعد لـ aal2،
-  //   تُعرض شاشة التحقق بخطوتين قبل الداشبورد.
-  const isSuperAdmin = currentProfile.role === "super_admin";
-  if (!isSuperAdmin && currentMfaState.hasVerifiedFactor && currentMfaState.currentLevel !== "aal2") {
+  // P1-7A / محدَّث بعد m8 — القرار الحالي المطابق لإنفاذ قاعدة البيانات:
+  // - أي حساب (بما فيه super_admin) يملك MFA factor موثّق (verified) ولم
+  //   يصل بعد لـ aal2 في الجلسة الحالية: تُعرض شاشة التحقق بخطوتين قبل
+  //   الداشبورد. هذا يطابق فعليًا ما تفرضه fn_has_permission()/
+  //   fn_is_super_admin() على مستوى القاعدة منذ m8 (لم يعد super_admin
+  //   مستثنى من AAL2 هناك)، وقد كان هذا الشرط هنا (!isSuperAdmin) هو آخر
+  //   نقطة في الواجهة لا تزال تطبّق الاستثناء القديم قبل m8.
+  // - أي حساب بلا factor verified: دخول مباشر (MFA اختياري، لا يُفرض
+  //   تلقائيًا) — لم يتغيّر.
+  if (currentMfaState.hasVerifiedFactor && currentMfaState.currentLevel !== "aal2") {
     showMfaVerify();
     return;
   }
@@ -1475,6 +1477,37 @@ function isValidResourceUrl(rawUrl) {
   }
 }
 
+// نسخة مطابقة لمنطق js/app.js (resolveResourceUrl) — الملفان سكربتان
+// مستقلان بلا أي تجميع/استيراد مشترك في هذا المشروع، فالتكرار هنا
+// أقل تدخلًا من إنشاء ملف utils.js جديد يُحمَّل في كل صفحات HTML.
+// الاستخدام هنا مختلف عن app.js: هذا التحقق وقت الحفظ في نموذج
+// الأدمن (رفض رابط غير صالح قبل التخزين)، بينما app.js يستخدم نفس
+// الاستخراج وقت العرض العام لبناء رابط التحميل المباشر. file_url
+// المخزَّن يبقى رابط المشاركة الأصلي كما ألصقه الأدمن دون أي تعديل.
+function parseGoogleDriveUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { isFolder: false, fileId: null };
+  }
+  if (parsed.hostname !== "drive.google.com") {
+    return { isFolder: false, fileId: null };
+  }
+  if (parsed.pathname.startsWith("/drive/folders/")) {
+    return { isFolder: true, fileId: null };
+  }
+  const fileMatch = parsed.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) {
+    return { isFolder: false, fileId: fileMatch[1] };
+  }
+  const idParam = parsed.searchParams.get("id");
+  if (idParam && /^[a-zA-Z0-9_-]+$/.test(idParam)) {
+    return { isFolder: false, fileId: idParam };
+  }
+  return { isFolder: false, fileId: null };
+}
+
 document.getElementById("res-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const id = document.getElementById("res-edit-id").value;
@@ -1485,13 +1518,25 @@ document.getElementById("res-form").addEventListener("submit", async (e) => {
     showToast("رابط الملف غير صالح — أدخل رابطًا كاملاً يبدأ بـ http:// أو https://");
     return;
   }
+  const storageProvider = document.getElementById("res-storage-provider").value;
+  if (storageProvider === "google_drive") {
+    const gdrive = parseGoogleDriveUrl(fileUrl);
+    if (gdrive.isFolder) {
+      showToast("هذا رابط مجلد Google Drive وليس ملفًا — الصق رابط الملف نفسه، لا رابط المجلد");
+      return;
+    }
+    if (!gdrive.fileId) {
+      showToast("تعذّر التعرّف على معرّف الملف من رابط Google Drive — تأكد من نسخ رابط مشاركة الملف كاملاً");
+      return;
+    }
+  }
   const payload = {
     subject_id: subjectId,
     title: document.getElementById("res-title").value.trim(),
     type: document.getElementById("res-type").value,
     language: document.getElementById("res-language").value,
     file_url: fileUrl,
-    storage_provider: document.getElementById("res-storage-provider").value,
+    storage_provider: storageProvider,
     source_type: document.getElementById("res-source-type").value,
     status: document.getElementById("res-status").value,
     keywords: document.getElementById("res-keywords").value.trim() || null,

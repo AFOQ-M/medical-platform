@@ -148,6 +148,58 @@ function safeResourceUrl(url) {
   }
 }
 
+// Google Drive: تحويل رابط مشاركة عادي (كما يلصقه الأدمن) إلى رابط
+// تحميل مباشر. resources.file_url يبقى كما أدخله الأدمن دون أي تعديل
+// (نفس القيمة المخزَّنة أصلًا) — التحويل يحدث هنا فقط، وقت العرض،
+// ولا يمسّ قاعدة البيانات إطلاقًا. يدعم بالضبط الصيغ الثلاث المعروفة:
+//   drive.google.com/file/d/FILE_ID/view
+//   drive.google.com/open?id=FILE_ID
+//   drive.google.com/uc?id=FILE_ID  (أو uc?export=download&id=FILE_ID)
+// روابط المجلدات (drive.google.com/drive/folders/...) تُرفض عمدًا هنا
+// (isFolder:true) فلا تتولّد لها أي رابط تحميل. أي مضيف غير
+// drive.google.com، أو رابط لا يحوي معرّف ملف يمكن التعرّف عليه، يُعاد
+// له fileId:null — والمستدعي (resolveResourceUrl أدناه) يتراجع حينها
+// إلى resource.file_url الأصلي كما هو، فلا ينكسر أي مورد موجود.
+function parseGoogleDriveUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { isFolder: false, fileId: null };
+  }
+  if (parsed.hostname !== "drive.google.com") {
+    return { isFolder: false, fileId: null };
+  }
+  if (parsed.pathname.startsWith("/drive/folders/")) {
+    return { isFolder: true, fileId: null };
+  }
+  const fileMatch = parsed.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) {
+    return { isFolder: false, fileId: fileMatch[1] };
+  }
+  const idParam = parsed.searchParams.get("id");
+  if (idParam && /^[a-zA-Z0-9_-]+$/.test(idParam)) {
+    return { isFolder: false, fileId: idParam };
+  }
+  return { isFolder: false, fileId: null };
+}
+
+function buildGoogleDriveDownloadUrl(fileId) {
+  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+}
+
+// نقطة القرار الوحيدة: Google Drive فقط تمرّ بمنطق الاستخراج/التحويل
+// أعلاه؛ أي storage_provider آخر (backblaze/telegram/external) يستمر
+// بسلوكه الحالي دون أي تغيير — يُعاد file_url كما هو ليمرّ بعدها على
+// safeResourceUrl() كالمعتاد.
+function resolveResourceUrl(resource) {
+  if (resource.storage_provider === "google_drive") {
+    const { fileId } = parseGoogleDriveUrl(resource.file_url);
+    if (fileId) return buildGoogleDriveDownloadUrl(fileId);
+  }
+  return resource.file_url;
+}
+
 /** يبني عنصر DOM لبطاقة مورد واحد */
 function buildResourceCard(resource) {
   const card = document.createElement("div");
@@ -210,7 +262,7 @@ function buildResourceCard(resource) {
   openBtn.className = "btn btn-primary btn-sm";
   openBtn.target = "_blank";
   openBtn.rel = "noopener noreferrer";
-  openBtn.href = safeResourceUrl(resource.file_url);
+  openBtn.href = safeResourceUrl(resolveResourceUrl(resource));
 
   if (resource.source_type === "external_link") {
     openBtn.textContent = "الذهاب إلى المصدر الرسمي ↗";
