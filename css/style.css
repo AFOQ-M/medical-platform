@@ -630,6 +630,16 @@ a.card:hover, a.card:focus-visible {
   font-size: .85rem;
 }
 
+/* Phase 5 P1 — Courses MVP: صورة غلاف اختيارية أعلى بطاقة الدورة في
+   courses.html. لا ألوان جديدة — نفس --radius-sm ونفس بنية .card. */
+.course-card-cover {
+  width: calc(100% + 40px);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  margin: -20px -20px 4px -20px;
+}
+
 /* -------------------- بطاقة المورد (Resource Card) -------------------- */
 /* الشكل مستوحى من "بطاقة الفهرسة" المكتبية: شريط ملوّن جانبي حسب النوع */
 
@@ -660,6 +670,26 @@ a.card:hover, a.card:focus-visible {
 .resource-card[data-type="slides"] { border-inline-start-color: var(--type-slides); }
 .resource-card[data-type="notes"] { border-inline-start-color: var(--type-notes); }
 .resource-card[data-type="past_exam"] { border-inline-start-color: var(--type-past_exam); }
+
+/* Phase 5 P1 — Courses MVP: بطاقة درس على course.html — نفس بنية
+   .resource-card تمامًا لكن بلا شريط لون جانبي (لا يوجد "نوع" ملوّن
+   مكافئ لأنواع الموارد لكل نوع محتوى درس). */
+.lesson-card { border-inline-start: 6px solid var(--line-strong); }
+.lesson-text-content {
+  color: var(--ink);
+  white-space: pre-wrap;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Phase 5 P1 — Courses MVP: صورة غلاف الدورة أعلى course.html. */
+.course-detail-cover {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
 
 .resource-title {
   display: flex;
@@ -1209,6 +1239,10 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
 .status-badge.published { background: var(--success-bg); color: var(--type-questions); }
 .status-badge.hidden { background: var(--neutral-bg); color: var(--ink-soft); }
 .status-badge.reported { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+/* Phase 5 P1 — Courses MVP: حالة "مسودة" الإضافية لجداول الدورات/الدروس.
+   لا ألوان جديدة — نفس متغيرات neutral-bg/ink-soft/line الموجودة أصلاً،
+   بحد إضافي متقطّع فقط للتمييز البصري عن status-badge.hidden. */
+.status-badge.draft { background: var(--neutral-bg); color: var(--ink-soft); border: 1px dashed var(--line-strong); }
 
 .form-grid {
   display: grid;

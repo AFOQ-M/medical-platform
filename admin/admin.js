@@ -22,6 +22,11 @@ const ENTITY_LABELS = {
   academic_structure: "الجامعات/الكليات/السنوات/المواد",
   resources: "الموارد",
   reports: "التقارير",
+  // Phase 5 P1 — Courses MVP: أُضيفت هنا فقط (أصغر تغيير ممكن)، بعد
+  // التحقق (C-0) أن buildScopeBlock في هذا الملف تشتق أنواع الكيانات
+  // من Object.keys(ENTITY_LABELS) بشكل عام — لا حاجة لأي تعديل آخر في
+  // واجهة منح الصلاحيات حتى تعمل مع الدورات.
+  courses: "الدورات",
 };
 const ACTION_LABELS = { view: "عرض", create: "إضافة", edit: "تعديل", delete: "حذف" };
 
@@ -42,6 +47,13 @@ let subjectsById = {};            // id -> { id, name, code, year_id }
 let subjectsCache = [];
 let resourcesCache = [];          // آخر نتيجة تحميل لتبويب "الموارد" (لفلترة العنوان/النوع/الحالة محليًا)
 let resourcesById = {};           // id -> صف المورد الكامل (لتعبئة نموذج التعديل دون تمرير بيانات غير موثوقة عبر onclick)
+
+// Phase 5 P1 — Courses MVP: نفس نمط الكاش أعلاه، لكن الدورات مستقلة
+// تمامًا عن الهرم الأكاديمي (لا university_id/faculty_id/year_id).
+let coursesCache = [];
+let coursesById = {};             // id -> صف الدورة الكامل (لتعبئة نموذج التعديل)
+let courseLessonsCache = [];      // آخر دروس مُحمَّلة (لدورة واحدة مختارة في lesson-course-select)
+let courseLessonsById = {};
 
 // يطابق منطق fn_has_permission(entity_type, university_id, faculty_id, action) في قاعدة
 // البيانات (للواجهة فقط — RLS هو الحاكم الفعلي). facultyId اختياري: null يعني "لا يوجد
@@ -355,6 +367,7 @@ function applyPermissionVisibility() {
     years: hasAnyPerm("academic_structure"),
     subjects: hasAnyPerm("academic_structure"),
     resources: hasAnyPerm("resources"),
+    courses: hasAnyPerm("courses"),
     reports: hasAnyPerm("reports"),
     users: currentProfile.role === "super_admin",
     dashboard: true,
@@ -769,6 +782,7 @@ async function loadAllData() {
   await loadYears();
   await loadSubjects();
   await loadResources();
+  await loadCourses();
   loadReports();
   if (currentProfile.role === "super_admin") loadUsersPanel();
 }
@@ -781,12 +795,13 @@ async function loadDashboard() {
   const grid = document.getElementById("dashboard-stats");
   grid.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
 
-  const [uni, fac, yrs, subj, res, rep, admins] = await Promise.all([
+  const [uni, fac, yrs, subj, res, courses, rep, admins] = await Promise.all([
     supabaseClient.from("universities").select("*", { count: "exact", head: true }),
     supabaseClient.from("faculties").select("*", { count: "exact", head: true }),
     supabaseClient.from("years").select("*", { count: "exact", head: true }),
     supabaseClient.from("subjects").select("*", { count: "exact", head: true }),
     supabaseClient.from("resources").select("*", { count: "exact", head: true }),
+    supabaseClient.from("courses").select("*", { count: "exact", head: true }),
     supabaseClient.from("reports").select("*", { count: "exact", head: true }),
     currentProfile.role === "super_admin"
       ? supabaseClient.from("profiles").select("*", { count: "exact", head: true })
@@ -795,7 +810,7 @@ async function loadDashboard() {
 
   const stats = [
     ["الجامعات", uni.count], ["الكليات", fac.count], ["السنوات", yrs.count], ["المواد", subj.count],
-    ["الموارد", res.count], ["البلاغات", rep.count],
+    ["الموارد", res.count], ["الدورات", courses.count], ["البلاغات", rep.count],
   ];
   if (currentProfile.role === "super_admin") stats.push(["الإداريون", admins.count]);
 
@@ -1681,6 +1696,263 @@ async function toggleResourceVerified(resourceId, currentlyVerified, refreshFn) 
   showToast(currentlyVerified ? "تم إلغاء توثيق المورد" : "تم توثيق المورد");
   refreshFn();
 }
+
+// ============================================================
+// الدورات (Courses MVP — Phase 5 P1)
+// ============================================================
+// نمط مطابق لقسم "المواد"/"الموارد" أعلاه: load*/edit*/reset*Form + جدول
+// + نموذج. الفرق الوحيد: لا قوائم متتالية (cascading selects) هنا لأن
+// الدورات مستقلة تمامًا عن الهرم الأكاديمي (university/faculty/year/
+// subject) — هذا مقصود (انظر تدقيق الدورات، القسم 8، الخيار A).
+// كل صلاحيات CRUD هنا تستخدم النطاق العام فقط: hasPerm("courses", null,
+// null, action) — يطابق fn_has_permission('courses', null, null, action)
+// في RLS تمامًا (لا نطاق جامعة/كلية للدورات في MVP).
+
+const COURSE_STATUS_LABELS = { draft: "مسودة", published: "منشورة", hidden: "مخفية" };
+const LESSON_CONTENT_TYPE_LABELS = { video_url: "رابط فيديو", external_link: "رابط خارجي", text: "نص" };
+
+async function loadCourses() {
+  const { data, error } = await supabaseClient
+    .from("courses")
+    .select("id, title, short_description, description, cover_image_url, instructor_name, language, status, sort_order")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  const tbody = document.querySelector("#course-table tbody");
+  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
+
+  coursesCache = data || [];
+  coursesById = {};
+  coursesCache.forEach((c) => { coursesById[c.id] = c; });
+
+  // تغذية قائمة "اختر دورة لإدارة دروسها" — نفس مبدأ populateSelect المستخدم
+  // للقوائم المتتالية الأخرى، لكن بلا اعتماد على مستوى أعلى (الدورات مستوى جذر).
+  populateSelect("lesson-course-select", coursesCache, (c) => c.title, true);
+  // إعادة إدراج خيار placeholder بعد إعادة بناء القائمة (populateSelect يبني من items فقط)
+  const lessonCourseSelect = document.getElementById("lesson-course-select");
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = coursesCache.length ? "اختر دورة" : "لا توجد دورات بعد";
+  lessonCourseSelect.insertBefore(placeholder, lessonCourseSelect.firstChild);
+  if (!lessonCourseSelect.value) lessonCourseSelect.value = "";
+
+  if (!coursesCache.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد دورات بعد</td></tr>`; return; }
+
+  const canEdit = hasPerm("courses", null, null, "edit");
+  const canDelete = hasPerm("courses", null, null, "delete");
+
+  tbody.innerHTML = "";
+  coursesCache.forEach((c) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="الدورة">${escHtml(c.title)}</td>
+      <td data-label="المدرّب / اللغة">${escHtml(c.instructor_name) || "—"}${c.language ? ` (${LANGUAGE_LABELS[c.language] || escHtml(c.language)})` : ""}</td>
+      <td data-label="الحالة"><span class="status-badge ${c.status}">${escHtml(COURSE_STATUS_LABELS[c.status] || c.status)}</span></td>
+      <td data-label="الترتيب">${escHtml(c.sort_order ?? 0)}</td>
+      <td>
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editCourse('${c.id}')">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('courses','${c.id}', loadCourses)">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("course-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("course-edit-id").value;
+  const coverUrl = document.getElementById("course-cover-url").value.trim();
+  if (coverUrl && !isValidResourceUrl(coverUrl)) {
+    showToast("رابط صورة الغلاف غير صالح — أدخل رابطًا يبدأ بـ http:// أو https://، أو اتركه فارغًا");
+    return;
+  }
+  const payload = {
+    title: document.getElementById("course-title").value.trim(),
+    instructor_name: document.getElementById("course-instructor").value.trim() || null,
+    language: document.getElementById("course-language").value || null,
+    status: document.getElementById("course-status").value,
+    sort_order: parseInt(document.getElementById("course-sort-order").value, 10) || 0,
+    cover_image_url: coverUrl || null,
+    short_description: document.getElementById("course-short-desc").value.trim() || null,
+    description: document.getElementById("course-description").value.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = id
+    ? await supabaseClient.from("courses").update(payload).eq("id", id).select().maybeSingle()
+    : await supabaseClient.from("courses").insert(payload).select().maybeSingle();
+
+  if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
+  logActivity(id ? "course_updated" : "course_created", "course", data?.id, payload.title);
+  resetCourseForm();
+  showToast(id ? "تم تعديل الدورة" : "تمت إضافة الدورة");
+  loadCourses();
+});
+
+function editCourse(id) {
+  const c = coursesById[id];
+  if (!c) return;
+  document.getElementById("course-edit-id").value = c.id;
+  document.getElementById("course-title").value = c.title;
+  document.getElementById("course-instructor").value = c.instructor_name || "";
+  document.getElementById("course-language").value = c.language || "";
+  document.getElementById("course-status").value = c.status;
+  document.getElementById("course-sort-order").value = c.sort_order ?? 0;
+  document.getElementById("course-cover-url").value = c.cover_image_url || "";
+  document.getElementById("course-short-desc").value = c.short_description || "";
+  document.getElementById("course-description").value = c.description || "";
+  document.getElementById("course-form-title").textContent = "تعديل دورة";
+  document.getElementById("course-submit-btn").textContent = "حفظ التعديل";
+  document.getElementById("course-cancel-btn").hidden = false;
+}
+
+function resetCourseForm() {
+  document.getElementById("course-form").reset();
+  document.getElementById("course-edit-id").value = "";
+  document.getElementById("course-status").value = "draft";
+  document.getElementById("course-sort-order").value = 0;
+  document.getElementById("course-form-title").textContent = "إضافة دورة";
+  document.getElementById("course-submit-btn").textContent = "إضافة";
+  document.getElementById("course-cancel-btn").hidden = true;
+}
+document.getElementById("course-cancel-btn").addEventListener("click", resetCourseForm);
+
+// -------------------- دروس الدورة --------------------
+// مقيّدة دائمًا بدورة واحدة مختارة (lesson-course-select) — لا جدول عام
+// لكل الدروس، لتفادي تحميل دروس دورات أخرى غير ذات صلة دفعة واحدة.
+
+document.getElementById("lesson-course-select").addEventListener("change", () => {
+  const courseId = document.getElementById("lesson-course-select").value;
+  const manager = document.getElementById("lesson-manager");
+  if (!courseId) { manager.hidden = true; return; }
+  manager.hidden = false;
+  resetLessonForm();
+  loadCourseLessons(courseId);
+});
+
+async function loadCourseLessons(courseId) {
+  const tbody = document.querySelector("#lesson-table tbody");
+  tbody.innerHTML = `<tr><td colspan="5">جارٍ التحميل...</td></tr>`;
+
+  const { data, error } = await supabaseClient
+    .from("course_lessons")
+    .select("id, course_id, title, content_type, content_url, content_text, duration_minutes, sort_order, status")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
+
+  courseLessonsCache = data || [];
+  courseLessonsById = {};
+  courseLessonsCache.forEach((l) => { courseLessonsById[l.id] = l; });
+
+  if (!courseLessonsCache.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد دروس بعد لهذه الدورة</td></tr>`; return; }
+
+  const canEdit = hasPerm("courses", null, null, "edit");
+  const canDelete = hasPerm("courses", null, null, "delete");
+
+  tbody.innerHTML = "";
+  courseLessonsCache.forEach((l) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="الدرس">${escHtml(l.title)}</td>
+      <td data-label="النوع">${escHtml(LESSON_CONTENT_TYPE_LABELS[l.content_type] || l.content_type)}</td>
+      <td data-label="الحالة"><span class="status-badge ${l.status}">${escHtml(COURSE_STATUS_LABELS[l.status] || l.status)}</span></td>
+      <td data-label="الترتيب">${escHtml(l.sort_order ?? 0)}</td>
+      <td>
+        <div class="row-actions">
+          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editLesson('${l.id}')">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('course_lessons','${l.id}', function(){ loadCourseLessons('${courseId}'); })">حذف</button>` : ""}
+          ${!canEdit && !canDelete ? "—" : ""}
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// إظهار/إخفاء حقل الرابط مقابل حقل النص حسب نوع المحتوى — نفس مبدأ
+// إظهار/إخفاء الحقول الشرطية الموجود أصلاً في نماذج أخرى بالمشروع
+// (مثال: نموذج التقرير العام في subject.html/... يُظهر/يُخفي حقولاً بالمثل).
+function updateLessonContentFieldVisibility() {
+  const type = document.getElementById("lesson-content-type").value;
+  document.getElementById("lesson-content-url-field").hidden = type === "text";
+  document.getElementById("lesson-content-text-field").hidden = type !== "text";
+}
+document.getElementById("lesson-content-type").addEventListener("change", updateLessonContentFieldVisibility);
+
+document.getElementById("lesson-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const courseId = document.getElementById("lesson-course-select").value;
+  if (!courseId) { showToast("اختر دورة أولاً"); return; }
+  const id = document.getElementById("lesson-edit-id").value;
+  const contentType = document.getElementById("lesson-content-type").value;
+  const contentUrl = document.getElementById("lesson-content-url").value.trim();
+  const contentText = document.getElementById("lesson-content-text").value.trim();
+
+  if (contentType !== "text") {
+    if (!contentUrl || !isValidResourceUrl(contentUrl)) {
+      showToast("رابط المحتوى غير صالح — أدخل رابطًا كاملاً يبدأ بـ http:// أو https://");
+      return;
+    }
+  } else if (!contentText) {
+    showToast("أدخل نص الدرس");
+    return;
+  }
+
+  const durationRaw = document.getElementById("lesson-duration").value;
+  const payload = {
+    course_id: courseId,
+    title: document.getElementById("lesson-title").value.trim(),
+    content_type: contentType,
+    content_url: contentType !== "text" ? contentUrl : null,
+    content_text: contentType === "text" ? contentText : null,
+    duration_minutes: durationRaw === "" ? null : parseInt(durationRaw, 10),
+    sort_order: parseInt(document.getElementById("lesson-sort-order").value, 10) || 0,
+    status: document.getElementById("lesson-status").value,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = id
+    ? await supabaseClient.from("course_lessons").update(payload).eq("id", id).select().maybeSingle()
+    : await supabaseClient.from("course_lessons").insert(payload).select().maybeSingle();
+
+  if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
+  logActivity(id ? "course_lesson_updated" : "course_lesson_created", "course_lesson", data?.id, payload.title);
+  resetLessonForm();
+  showToast(id ? "تم تعديل الدرس" : "تمت إضافة الدرس");
+  loadCourseLessons(courseId);
+});
+
+function editLesson(id) {
+  const l = courseLessonsById[id];
+  if (!l) return;
+  document.getElementById("lesson-edit-id").value = l.id;
+  document.getElementById("lesson-title").value = l.title;
+  document.getElementById("lesson-content-type").value = l.content_type;
+  document.getElementById("lesson-content-url").value = l.content_url || "";
+  document.getElementById("lesson-content-text").value = l.content_text || "";
+  document.getElementById("lesson-duration").value = l.duration_minutes ?? "";
+  document.getElementById("lesson-sort-order").value = l.sort_order ?? 0;
+  document.getElementById("lesson-status").value = l.status;
+  updateLessonContentFieldVisibility();
+  document.getElementById("lesson-form-title").textContent = "تعديل درس";
+  document.getElementById("lesson-submit-btn").textContent = "حفظ التعديل";
+  document.getElementById("lesson-cancel-btn").hidden = false;
+}
+
+function resetLessonForm() {
+  document.getElementById("lesson-form").reset();
+  document.getElementById("lesson-edit-id").value = "";
+  document.getElementById("lesson-content-type").value = "video_url";
+  document.getElementById("lesson-status").value = "draft";
+  document.getElementById("lesson-sort-order").value = 0;
+  updateLessonContentFieldVisibility();
+  document.getElementById("lesson-form-title").textContent = "إضافة درس";
+  document.getElementById("lesson-submit-btn").textContent = "إضافة";
+  document.getElementById("lesson-cancel-btn").hidden = true;
+}
+document.getElementById("lesson-cancel-btn").addEventListener("click", resetLessonForm);
 
 // ============================================================
 // المستخدمون والصلاحيات (Super Admin فقط)
