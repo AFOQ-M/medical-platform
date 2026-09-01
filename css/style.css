@@ -630,6 +630,13 @@ a.card:hover, a.card:focus-visible {
   font-size: .85rem;
 }
 
+/* UI micro-change — Courses homepage card CTA: keep the button its natural
+   size instead of stretching to the full width of the flex-column .card. */
+.card .card-cta {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
 /* Phase 5 P1 — Courses MVP: صورة غلاف اختيارية أعلى بطاقة الدورة في
    courses.html. لا ألوان جديدة — نفس --radius-sm ونفس بنية .card. */
 .course-card-cover {
