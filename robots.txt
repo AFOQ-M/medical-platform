@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+Sitemap: https://afoq-m.github.io/medical-platform/sitemap.xml
