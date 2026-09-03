@@ -202,6 +202,30 @@ img { max-width: 100%; display: block; }
 }
 .icon-btn:hover { background: rgba(255, 255, 255, .28); }
 
+/* حالة "الحساب مرتبط بـGoogle" فقط — #account-trigger يتحول من دائرة
+   ثابتة 44x44 (أيقونة واحدة) إلى حبة (pill) بعرض تلقائي تحتوي صورة
+   الحساب + الاسم. لا تغيير على .icon-btn الأساسية (تبقى كما هي لبقية
+   الأزرار وللحساب في حالة الضيف). */
+.icon-btn.account-linked {
+  width: auto;
+  padding-inline: 6px 14px;
+  gap: 8px;
+}
+.account-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.account-name {
+  font-size: .85rem;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* -------------------- المحتوى الأساسي -------------------- */
 
 main {
