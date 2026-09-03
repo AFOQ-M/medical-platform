@@ -226,6 +226,126 @@ img { max-width: 100%; display: block; }
   white-space: nowrap;
 }
 
+/* -------------------- قائمة الحساب الجانبية (Account Sidebar) --------------------
+   تُبنى بالكامل عبر JS (js/auth.js: buildAccountSidebar) بنفس نمط نافذة
+   المصادقة (.modal-overlay) ونافذة البحث الشامل — عنصر واحد يُعاد استخدامه
+   في كل صفحة تحمّل auth.js، لا تكرار HTML لكل صفحة. تظهر من جهة اليمين
+   فعليًا (right: 0) بصرف النظر عن dir="rtl" الحالي على <html>، كما هو
+   مطلوب صراحةً لهذه الميزة تحديدًا. */
+
+.account-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 42, .5);
+  z-index: 100;
+}
+.account-sidebar-overlay[hidden] { display: none; }
+
+.account-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 320px;
+  max-width: 88vw;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+.account-sidebar[hidden] { display: none; }
+
+.account-sidebar-header {
+  display: flex;
+  justify-content: flex-start;
+  padding: 14px 14px 0;
+}
+
+.account-sidebar-close {
+  background: var(--muted-bg);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  font-size: .9rem;
+}
+.account-sidebar-close:hover { background: var(--line); }
+
+.account-sidebar-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px 20px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-sidebar-avatar-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--muted-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  overflow: hidden;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.account-sidebar-avatar { width: 100%; height: 100%; object-fit: cover; }
+
+.account-sidebar-name {
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px;
+  word-break: break-word;
+}
+.account-sidebar-status { font-size: .85rem; color: var(--ink-soft); margin: 0; }
+
+.account-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 2px;
+}
+
+.account-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: 'Tajawal', sans-serif;
+  font-size: .95rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: start;
+  cursor: pointer;
+}
+.account-sidebar-link:hover,
+.account-sidebar-link:focus-visible { background: var(--muted-bg); }
+
+.account-sidebar-link-disabled { color: var(--ink-soft); cursor: default; }
+
+.account-sidebar-icon { font-size: 1.15rem; flex-shrink: 0; }
+
+.account-sidebar-footer {
+  margin-top: auto;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.account-sidebar-signout { color: var(--danger); }
+.account-sidebar-signout:hover,
+.account-sidebar-signout:focus-visible { background: var(--danger-bg); }
+
 /* -------------------- المحتوى الأساسي -------------------- */
 
 main {

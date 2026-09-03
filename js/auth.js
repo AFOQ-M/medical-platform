@@ -44,6 +44,17 @@ function isAnonymousUser() {
 }
 
 /**
+ * true إن كان لدى المستخدم (الحالي افتراضيًا) حساب حقيقي مرتبط فعليًا —
+ * أي ليس ضيفًا (Anonymous) وليس null (جلسة لم تُحمَّل بعد). تُستخدم لتحديد
+ * أي واجهة تظهر عند الضغط على زر الحساب: نافذة تسجيل الدخول (ضيف) أو
+ * القائمة الجانبية للحساب (مستخدم حقيقي) — بدل تكرار نفس الشرط في كل مكان.
+ */
+function isLinkedAccountUser(user) {
+  const target = user !== undefined ? user : currentAuthUser;
+  return !isGuestUser(target) && target != null;
+}
+
+/**
  * true إن كان للمستخدم (الحالي افتراضيًا) هوية Google مرتبطة فعليًا —
  * سواء عبر linkIdentity (ترقية جلسة ضيف) أو signInWithOAuth مباشرة.
  * تُستخدم لمنع محاولة ربط مكرر (Test C) ولأي ميزة مستقبلية تحتاج التحقق
@@ -276,7 +287,7 @@ function updateAccountTriggerUI() {
   const trigger = document.getElementById("account-trigger");
   if (!trigger) return;
 
-  const linked = !isGuestUser(currentAuthUser) && currentAuthUser != null;
+  const linked = isLinkedAccountUser();
   trigger.textContent = ""; // إفراغ كامل قبل إعادة البناء، بلا استثناء
   trigger.classList.toggle("account-linked", linked);
 
@@ -319,7 +330,18 @@ function refreshAuthUI() {
   updateAccountTriggerUI();
 }
 
+/**
+ * نقطة الدخول الوحيدة لكل أزرار "الحساب / دخول" في الموقع العام
+ * (#account-trigger في الهيدر، وأزرار "دخول / تسجيل" في صفحة الهبوط).
+ * لمستخدم حقيقي مرتبط فعليًا (لا ضيف) تُفتح القائمة الجانبية للحساب مباشرة
+ * بدل نافذة "كيف تريد المتابعة؟" — حتى لا تظهر رسالة "تم ربط حسابك بهذا
+ * المتصفح" لمستخدم مسجَّل بالفعل من أي زر يستدعي هذه الدالة.
+ */
 function openAuthOverlay() {
+  if (isLinkedAccountUser()) {
+    openAccountSidebar();
+    return;
+  }
   buildAuthOverlay();
   refreshAuthUI();
   document.getElementById("auth-overlay").hidden = false;
@@ -334,6 +356,167 @@ function initAuthUI() {
   const trigger = document.getElementById("account-trigger");
   if (!trigger) return; // الصفحة لا تحتوي زر حساب (مثال: لوحة التحكم لا تحمّل هذا الملف أصلاً)
   trigger.addEventListener("click", openAuthOverlay);
+}
+
+// ------------------------------------------------------------
+// القائمة الجانبية للحساب (Account Sidebar) — تظهر فقط لمستخدم حقيقي
+// مرتبط (isLinkedAccountUser)، من جهة اليمين فعليًا. تُبنى مرة واحدة عبر
+// JS بنفس نمط buildAuthOverlay/buildGlobalSearchOverlay (بلا تكرار HTML
+// في كل صفحة). "الموارد" هنا رابط مباشر إلى platform.html — المدخل
+// الفعلي الحالي للهيكل الأكاديمي (جامعة ← كلية ← سنة ← فصل ← مادة) — دون
+// إنشاء أي قائمة أو رحلة مستقلة جديدة له.
+// ------------------------------------------------------------
+
+let accountSidebarPreviousFocus = null;
+
+function buildAccountSidebar() {
+  if (document.getElementById("account-sidebar")) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "account-sidebar-overlay";
+  overlay.id = "account-sidebar-overlay";
+  overlay.hidden = true;
+
+  const sidebar = document.createElement("aside");
+  sidebar.className = "account-sidebar";
+  sidebar.id = "account-sidebar";
+  sidebar.hidden = true;
+  sidebar.setAttribute("role", "dialog");
+  sidebar.setAttribute("aria-modal", "true");
+  sidebar.setAttribute("aria-label", "قائمة الحساب");
+
+  // كل النصوص هنا ثابتة من تأليفنا (لا بيانات مستخدم) — استخدام innerHTML
+  // لهيكل القائمة الساكن هنا آمن ومتّسق مع buildAuthOverlay. الاسم/الصورة
+  // الفعليان (بيانات من Google) يُملآن لاحقًا عبر DOM APIs/textContent فقط
+  // في updateAccountSidebarProfile، وليس هنا.
+  sidebar.innerHTML = `
+    <div class="account-sidebar-header">
+      <button type="button" class="icon-btn account-sidebar-close" id="account-sidebar-close" aria-label="إغلاق قائمة الحساب">✕</button>
+    </div>
+    <div class="account-sidebar-profile">
+      <div class="account-sidebar-avatar-wrap" id="account-sidebar-avatar-wrap"></div>
+      <p class="account-sidebar-name" id="account-sidebar-name"></p>
+      <p class="account-sidebar-status">حساب Google مرتبط <span aria-hidden="true">✓</span></p>
+    </div>
+    <nav class="account-sidebar-nav" aria-label="روابط الحساب">
+      <a href="index.html" class="account-sidebar-link">
+        <span class="account-sidebar-icon" aria-hidden="true">🏠</span><span>الرئيسية</span>
+      </a>
+      <a href="platform.html" class="account-sidebar-link">
+        <span class="account-sidebar-icon" aria-hidden="true">📚</span><span>الموارد</span>
+      </a>
+      <a href="courses.html" class="account-sidebar-link">
+        <span class="account-sidebar-icon" aria-hidden="true">🎓</span><span>الدورات</span>
+      </a>
+      <button type="button" class="account-sidebar-link account-sidebar-link-disabled" id="account-sidebar-forum">
+        <span class="account-sidebar-icon" aria-hidden="true">💬</span><span>ملتقى أفق</span>
+        <span class="badge-soon">قريبًا</span>
+      </button>
+      <a href="favorites.html" class="account-sidebar-link">
+        <span class="account-sidebar-icon" aria-hidden="true">⭐</span><span>المفضلة</span>
+      </a>
+    </nav>
+    <div class="account-sidebar-footer">
+      <button type="button" class="account-sidebar-link account-sidebar-signout" id="account-sidebar-signout">
+        <span class="account-sidebar-icon" aria-hidden="true">🚪</span><span>تسجيل الخروج</span>
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(sidebar);
+
+  overlay.addEventListener("click", closeAccountSidebar);
+  sidebar.querySelector("#account-sidebar-close").addEventListener("click", closeAccountSidebar);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !sidebar.hidden) closeAccountSidebar();
+  });
+
+  // ملتقى أفق: المسار غير موجود بعد (forum.html) — لا تُنشأ صفحة فارغة
+  // ولا يُربط رابط حقيقي مكسور؛ فقط تسجيل الحالة + إشعار عابر للمستخدم.
+  sidebar.querySelector("#account-sidebar-forum").addEventListener("click", () => {
+    console.log("Forum destination: NOT IMPLEMENTED YET");
+    showToast("ملتقى أفق قريبًا");
+  });
+
+  sidebar.querySelector("#account-sidebar-signout").addEventListener("click", handleAccountSignOut);
+}
+
+/** يملأ صورة/اسم القائمة الجانبية من currentAuthUser الحالي، بنفس دوال
+ *  bestAvatarUrl/bestDisplayName المستخدمة أصلاً لزر الحساب في الهيدر —
+ *  عبر DOM APIs/textContent فقط، لا innerHTML مع بيانات المستخدم. */
+function updateAccountSidebarProfile() {
+  const nameEl = document.getElementById("account-sidebar-name");
+  const avatarWrap = document.getElementById("account-sidebar-avatar-wrap");
+  if (!nameEl || !avatarWrap) return;
+
+  nameEl.textContent = bestDisplayName(currentAuthUser);
+
+  const avatarUrl = bestAvatarUrl(currentAuthUser);
+  avatarWrap.textContent = "";
+  if (avatarUrl) {
+    const img = document.createElement("img");
+    img.className = "account-sidebar-avatar";
+    img.alt = ""; // زخرفية — الاسم النصي المجاور يحمل المعنى لقارئ الشاشة
+    img.referrerPolicy = "no-referrer";
+    img.onerror = () => { img.replaceWith(document.createTextNode("👤")); };
+    img.src = avatarUrl;
+    avatarWrap.appendChild(img);
+  } else {
+    avatarWrap.appendChild(document.createTextNode("👤"));
+  }
+}
+
+function openAccountSidebar() {
+  buildAccountSidebar();
+  updateAccountSidebarProfile();
+  accountSidebarPreviousFocus = document.activeElement;
+  document.getElementById("account-sidebar-overlay").hidden = false;
+  const sidebar = document.getElementById("account-sidebar");
+  sidebar.hidden = false;
+  const closeBtn = document.getElementById("account-sidebar-close");
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeAccountSidebar() {
+  const overlay = document.getElementById("account-sidebar-overlay");
+  const sidebar = document.getElementById("account-sidebar");
+  if (overlay) overlay.hidden = true;
+  if (sidebar) sidebar.hidden = true;
+  // إعادة التركيز إلى العنصر الذي فتح القائمة (غالبًا #account-trigger) —
+  // بلا ذلك يُفقَد موضع لوحة المفاتيح بعد الإغلاق.
+  if (accountSidebarPreviousFocus && typeof accountSidebarPreviousFocus.focus === "function") {
+    accountSidebarPreviousFocus.focus();
+  }
+  accountSidebarPreviousFocus = null;
+}
+
+/**
+ * تسجيل الخروج الفعلي عبر Supabase signOut() الرسمية فقط — لا حذف يدوي
+ * لأي tokens أو localStorage/sessionStorage، ولا لمس لبيانات Favorites أو
+ * إعدادات Admin، ولا إنشاء أي جلسة ضيف يدويًا من هذه الدالة. عند النجاح
+ * نُحدِّث currentAuthUser والواجهة صراحةً هنا (بدل الانتظار فقط لحدث
+ * onAuthStateChange غير المتزامن أدناه، الذي يبقى مسجَّلاً ويعمل بلا
+ * تعارض — تحديثان متطابقان غير ضارّين معًا) لضمان عودة فورية وحتمية
+ * لحالة الضيف فور نجاح signOut().
+ */
+async function handleAccountSignOut() {
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    // رسالة عامة فقط للمستخدم؛ لا نطبع كائن الخطأ/الجلسة كاملاً في
+    // console (قد يحتوي تفاصيل حساسة) — فقط نص الرسالة إن وُجد.
+    console.error("تعذّر تسجيل الخروج:", error.message || "خطأ غير معروف");
+    showToast("تعذّر تسجيل الخروج الآن، حاول مرة أخرى.");
+    return;
+  }
+  // نحدّث currentAuthUI/الواجهة صراحةً هنا بدل الاعتماد فقط على حدث
+  // onAuthStateChange غير المتزامن (المُسجَّل أصلاً في DOMContentLoaded،
+  // ويبقى يعمل بلا تعارض — هذا التحديث المباشر متطابق معه وغير ضار حتى
+  // لو نُفِّذ الاثنان معًا) — لضمان عودة فورية وحتمية لحالة الضيف فور
+  // نجاح signOut()، دون إنشاء أي جلسة ضيف جديدة يدويًا هنا.
+  currentAuthUser = null;
+  refreshAuthUI();
+  closeAccountSidebar();
 }
 
 /**
