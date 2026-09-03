@@ -323,11 +323,33 @@ function updateAccountTriggerUI() {
   trigger.setAttribute("aria-label", `الحساب — ${name}`);
 }
 
+/**
+ * يحدّث نص زرّي "دخول / تسجيل" في صفحة الهبوط (#hero-auth-trigger في
+ * قسم Hero، و#final-auth-trigger في الشريط الختامي) ليعكسا حالة الدخول
+ * الفعلية، بنفس منطق updateAccountTriggerUI أعلاه (isLinkedAccountUser +
+ * bestDisplayName) بدل بقائهما ثابتين على "دخول / تسجيل" دائمًا.
+ * هذان العنصران موجودان فقط في index.html — أي صفحة أخرى لا تحتويهما
+ * تتجاهل هذه الدالة تلقائيًا (لا تأثير خارج صفحة الهبوط).
+ */
+function updateHeroAuthButtonsUI() {
+  const buttons = ["hero-auth-trigger", "final-auth-trigger"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+  if (buttons.length === 0) return;
+
+  const linked = isLinkedAccountUser();
+  const label = linked ? `حسابي — ${bestDisplayName(currentAuthUser)}` : "دخول / تسجيل";
+  buttons.forEach((btn) => {
+    btn.textContent = label; // نص فقط، لا innerHTML — نفس معيار الأمان المتّبع في الملف
+  });
+}
+
 /** يُستدعى من كل نقطة قد تتغيّر فيها حالة المصادقة — يبقي كل عناصر
  *  الواجهة المرتبطة بها متزامنة معًا بدل تكرار نفس زوج الاستدعاءات. */
 function refreshAuthUI() {
   updateAuthStatusLine();
   updateAccountTriggerUI();
+  updateHeroAuthButtonsUI();
 }
 
 /**
