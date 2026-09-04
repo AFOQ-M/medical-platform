@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — أفق المعرفة</title>
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">تخطي إلى المحتوى الرئيسي</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="../index.html" class="brand">
+      <img src="../images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo">
+      أفق المعرفة
+    </a>
+    <nav class="header-nav" id="admin-user-info"></nav>
+  </div>
+</header>
+
+<main id="main-content">
+  <!-- ------------- شاشة تسجيل الدخول ------------- -->
+  <div class="admin-login-box" id="login-box">
+    <h1>تسجيل دخول الأدمن</h1>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">البريد الإلكتروني</label>
+        <input type="email" id="login-email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="login-password">كلمة المرور</label>
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </div>
+      <p id="login-error" role="alert" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+      <button type="submit" class="btn btn-primary" style="width:100%;">دخول</button>
+    </form>
+  </div>
+
+  <!-- ------------- شاشة التحقق بخطوتين (P1-7A) ------------- -->
+  <div class="admin-login-box" id="mfa-verify-box" hidden>
+    <h1>التحقق بخطوتين</h1>
+    <p class="hint">أدخل رمز التحقق من تطبيق المصادقة للمتابعة.</p>
+    <form id="mfa-verify-form">
+      <div class="field">
+        <label for="mfa-verify-code">رمز التحقق</label>
+        <input type="text" id="mfa-verify-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required>
+      </div>
+      <p id="mfa-verify-error" role="alert" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+      <button type="submit" class="btn btn-primary" style="width:100%;">تحقق</button>
+    </form>
+  </div>
+
+  <!-- ------------- لوحة التحكم (بعد الدخول) ------------- -->
+  <div class="admin-shell" id="dashboard" hidden>
+    <div style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span id="mfa-status-enabled" class="hint" hidden>✓ التحقق بخطوتين مفعّل</span>
+      <button id="mfa-enroll-btn" class="btn btn-outline btn-sm" hidden>تفعيل التحقق بخطوتين</button>
+      <button id="mfa-disable-btn" class="btn btn-outline btn-sm" hidden>تعطيل التحقق بخطوتين</button>
+      <button id="logout-btn" class="btn btn-outline btn-sm">تسجيل الخروج</button>
+    </div>
+    <p id="mfa-disable-error" style="color: var(--danger); font-size: .88rem; display:none; text-align:end;"></p>
+
+    <div class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="dashboard">لوحة المعلومات</button>
+      <button class="admin-tab-btn" data-tab="universities">الجامعات</button>
+      <button class="admin-tab-btn" data-tab="faculties">الكليات</button>
+      <button class="admin-tab-btn" data-tab="years">السنوات</button>
+      <button class="admin-tab-btn" data-tab="subjects">المواد</button>
+      <button class="admin-tab-btn" data-tab="resources">الموارد</button>
+      <button class="admin-tab-btn" data-tab="courses">الدورات</button>
+      <button class="admin-tab-btn" data-tab="reports">التقارير</button>
+      <button class="admin-tab-btn" data-tab="users">المستخدمون والصلاحيات</button>
+    </div>
+
+    <!-- لوحة المعلومات -->
+    <section class="admin-panel active" id="panel-dashboard">
+      <div class="admin-panel-inner">
+        <h3>نظرة عامة</h3>
+        <div class="dashboard-stats" id="dashboard-stats">
+          <div class="state-msg">جارٍ التحميل...</div>
+        </div>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <h3>آخر الموارد المضافة</h3>
+        <ul class="dashboard-recent-list" id="dashboard-recent"></ul>
+      </div>
+    </section>
+
+    <!-- الجامعات -->
+    <section class="admin-panel" id="panel-universities">
+      <div class="admin-panel-inner">
+        <h3 id="uni-form-title">إضافة جامعة</h3>
+        <form id="uni-form">
+          <input type="hidden" id="uni-edit-id">
+          <div class="form-grid">
+            <div class="field"><label>اسم الجامعة</label><input type="text" id="uni-name" required></div>
+            <div class="field"><label>الاسم المختصر</label><input type="text" id="uni-short-name"></div>
+            <div class="field"><label>رابط الشعار (اختياري)</label><input type="url" id="uni-logo-url"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="uni-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="uni-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="uni-table">
+            <thead><tr><th>الاسم</th><th>مختصر</th><th></th></tr></thead>
+            <tbody><tr><td colspan="3">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- الكليات -->
+    <section class="admin-panel" id="panel-faculties">
+      <div class="admin-panel-inner">
+        <h3 id="fac-form-title">إضافة كلية</h3>
+        <form id="fac-form">
+          <input type="hidden" id="fac-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="fac-university" required></select>
+            </div>
+            <div class="field"><label>اسم الكلية</label><input type="text" id="fac-name" required></div>
+            <div class="field"><label>الرمز (اختياري)</label><input type="text" id="fac-code"></div>
+            <div class="field"><label>الوصف (اختياري)</label><input type="text" id="fac-description"></div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="fac-active" checked>
+                مفعّلة
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="fac-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="fac-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="fac-table">
+            <thead><tr><th>الجامعة</th><th>الكلية</th><th>الرمز</th><th>الحالة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- السنوات -->
+    <section class="admin-panel" id="panel-years">
+      <div class="admin-panel-inner">
+        <h3 id="year-form-title">إضافة سنة دراسية</h3>
+        <form id="year-form">
+          <input type="hidden" id="year-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="year-university" required></select>
+            </div>
+            <div class="field">
+              <label>الكلية</label>
+              <select id="year-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>رقم السنة (1-6)</label>
+              <input type="number" id="year-number" min="1" max="6" required>
+            </div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="year-active" checked>
+                مفعّلة
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="year-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="year-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="year-table">
+            <thead><tr><th>الجامعة</th><th>الكلية</th><th>السنة</th><th>الحالة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- المواد -->
+    <section class="admin-panel" id="panel-subjects">
+      <div class="admin-panel-inner">
+        <h3 id="subj-form-title">إضافة مادة</h3>
+        <form id="subj-form">
+          <input type="hidden" id="subj-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="subj-university" required></select>
+            </div>
+            <div class="field">
+              <label>الكلية</label>
+              <select id="subj-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>السنة الدراسية</label>
+              <select id="subj-year" required>
+                <option value="">اختر الكلية أولاً</option>
+              </select>
+            </div>
+            <div class="field"><label>اسم المادة</label><input type="text" id="subj-name" required></div>
+            <div class="field"><label>رمز المادة (اختياري)</label><input type="text" id="subj-code"></div>
+            <div class="field">
+              <label>الفصل الدراسي</label>
+              <select id="subj-semester">
+                <option value="">غير محدد</option>
+                <option value="first">الفصل الأول</option>
+                <option value="second">الفصل الثاني</option>
+                <option value="summer">الفصل الصيفي</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="subj-active" checked>
+                مفعّلة
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="subj-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="subj-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="subj-table">
+            <thead><tr><th>المادة</th><th>الجامعة / الكلية / السنة</th><th>الحالة</th><th></th></tr></thead>
+            <tbody><tr><td colspan="4">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- الموارد -->
+    <section class="admin-panel" id="panel-resources">
+      <div class="admin-panel-inner">
+        <h3 id="res-form-title">إضافة مورد</h3>
+        <form id="res-form">
+          <input type="hidden" id="res-edit-id">
+          <div class="form-grid">
+            <div class="field">
+              <label>الجامعة</label>
+              <select id="res-university" required></select>
+            </div>
+            <div class="field">
+              <label>الكلية</label>
+              <select id="res-faculty" required>
+                <option value="">اختر الجامعة أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>السنة الدراسية</label>
+              <select id="res-year" required>
+                <option value="">اختر الكلية أولاً</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>المادة</label>
+              <select id="res-subject" required>
+                <option value="">اختر السنة أولاً</option>
+              </select>
+            </div>
+            <div class="field"><label>عنوان المورد</label><input type="text" id="res-title" required></div>
+            <div class="field">
+              <label>النوع</label>
+              <select id="res-type" required>
+                <option value="book">كتاب</option>
+                <option value="lecture">محاضرة</option>
+                <option value="slides">سلايدات</option>
+                <option value="summary">ملخص</option>
+                <option value="questions">أسئلة</option>
+                <option value="past_exam">امتحان سابق</option>
+                <option value="notes">ملاحظات</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>اللغة</label>
+              <select id="res-language">
+                <option value="ar">عربي</option>
+                <option value="en">إنجليزي</option>
+              </select>
+            </div>
+            <div class="field"><label>رابط الملف</label><input type="url" id="res-file-url" required></div>
+            <div class="field">
+              <label>كلمات مفتاحية (اختياري، مفصولة بفواصل)</label>
+              <input type="text" id="res-keywords" placeholder="مثال: epithelium, histology, tissues">
+            </div>
+            <div class="field">
+              <label>مزوّد التخزين</label>
+              <select id="res-storage-provider">
+                <option value="google_drive">Google Drive</option>
+                <option value="backblaze">Backblaze</option>
+                <option value="telegram">Telegram</option>
+                <option value="external">خارجي</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>نوع المصدر</label>
+              <select id="res-source-type">
+                <option value="student">رفع طلابي</option>
+                <option value="official">مصدر رسمي</option>
+                <option value="open_license">رخصة مفتوحة</option>
+                <option value="external_link">رابط خارجي (بدون استضافة)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>الحالة</label>
+              <select id="res-status">
+                <option value="published">منشور</option>
+                <option value="hidden">مخفي</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="perm-checkbox" style="font-weight:700; font-size:.88rem;">
+                <input type="checkbox" id="res-verified">
+                موثّق (Verified)
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="res-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="res-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="search-filters" style="margin-bottom:14px; margin-top:0;">
+          <input type="search" id="res-filter-search" class="subject-search-input" style="max-width:none;" placeholder="🔍 ابحث بالعنوان أو الكلمات المفتاحية...">
+          <select id="res-filter-type">
+            <option value="">كل الأنواع</option>
+            <option value="book">كتاب</option>
+            <option value="lecture">محاضرة</option>
+            <option value="slides">سلايدات</option>
+            <option value="summary">ملخص</option>
+            <option value="questions">أسئلة</option>
+            <option value="past_exam">امتحان سابق</option>
+            <option value="notes">ملاحظات</option>
+          </select>
+          <select id="res-filter-status">
+            <option value="">كل الحالات</option>
+            <option value="published">منشور</option>
+            <option value="hidden">مخفي</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table" id="res-table">
+            <thead><tr><th>العنوان</th><th>الموقع الأكاديمي</th><th>النوع</th><th>الحالة</th><th>المشاهدات</th><th></th></tr></thead>
+            <tbody><tr><td colspan="6">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- الدورات (Courses MVP — Phase 5 P1) -->
+    <section class="admin-panel" id="panel-courses">
+      <div class="admin-panel-inner">
+        <h3 id="course-form-title">إضافة دورة</h3>
+        <form id="course-form">
+          <input type="hidden" id="course-edit-id">
+          <div class="form-grid">
+            <div class="field"><label>عنوان الدورة</label><input type="text" id="course-title" required></div>
+            <div class="field"><label>اسم المدرّب (اختياري)</label><input type="text" id="course-instructor"></div>
+            <div class="field">
+              <label>اللغة (اختياري)</label>
+              <select id="course-language">
+                <option value="">غير محدد</option>
+                <option value="ar">عربي</option>
+                <option value="en">إنجليزي</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>الحالة</label>
+              <select id="course-status">
+                <option value="draft">مسودة</option>
+                <option value="published">منشورة</option>
+                <option value="hidden">مخفية</option>
+              </select>
+            </div>
+            <div class="field"><label>ترتيب العرض</label><input type="number" id="course-sort-order" value="0" step="1"></div>
+            <div class="field"><label>رابط صورة الغلاف (اختياري)</label><input type="url" id="course-cover-url" placeholder="https://..."></div>
+            <div class="field" style="grid-column: 1 / -1;"><label>وصف مختصر (اختياري)</label><input type="text" id="course-short-desc" maxlength="200"></div>
+            <div class="field" style="grid-column: 1 / -1;"><label>الوصف الكامل (اختياري)</label><textarea id="course-description" rows="4"></textarea></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" id="course-submit-btn">إضافة</button>
+          <button type="button" class="btn btn-outline btn-sm" id="course-cancel-btn" hidden>إلغاء التعديل</button>
+        </form>
+        <hr style="margin:20px 0; border-color: var(--line);">
+        <div class="table-wrap">
+          <table class="admin-table" id="course-table">
+            <thead><tr><th>الدورة</th><th>المدرّب / اللغة</th><th>الحالة</th><th>الترتيب</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+
+        <hr style="margin:24px 0; border-color: var(--line);">
+        <h3>دروس الدورة</h3>
+        <div class="field" style="max-width:420px;">
+          <label>اختر دورة لإدارة دروسها</label>
+          <select id="lesson-course-select">
+            <option value="">اختر دورة أولاً</option>
+          </select>
+        </div>
+
+        <div id="lesson-manager" hidden>
+          <h4 id="lesson-form-title" style="margin-top:16px;">إضافة درس</h4>
+          <form id="lesson-form">
+            <input type="hidden" id="lesson-edit-id">
+            <div class="form-grid">
+              <div class="field"><label>عنوان الدرس</label><input type="text" id="lesson-title" required></div>
+              <div class="field">
+                <label>نوع المحتوى</label>
+                <select id="lesson-content-type">
+                  <option value="video_url">رابط فيديو</option>
+                  <option value="external_link">رابط خارجي</option>
+                  <option value="text">نص</option>
+                </select>
+              </div>
+              <div class="field" id="lesson-content-url-field"><label>رابط المحتوى</label><input type="url" id="lesson-content-url" placeholder="https://..."></div>
+              <div class="field"><label>المدة (دقائق، اختياري)</label><input type="number" id="lesson-duration" min="0" step="1"></div>
+              <div class="field"><label>ترتيب العرض</label><input type="number" id="lesson-sort-order" value="0" step="1"></div>
+              <div class="field">
+                <label>الحالة</label>
+                <select id="lesson-status">
+                  <option value="draft">مسودة</option>
+                  <option value="published">منشور</option>
+                  <option value="hidden">مخفي</option>
+                </select>
+              </div>
+              <div class="field" id="lesson-content-text-field" style="grid-column: 1 / -1;" hidden>
+                <label>نص الدرس</label>
+                <textarea id="lesson-content-text" rows="5"></textarea>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" id="lesson-submit-btn">إضافة</button>
+            <button type="button" class="btn btn-outline btn-sm" id="lesson-cancel-btn" hidden>إلغاء التعديل</button>
+          </form>
+          <hr style="margin:20px 0; border-color: var(--line);">
+          <div class="table-wrap">
+            <table class="admin-table" id="lesson-table">
+              <thead><tr><th>الدرس</th><th>النوع</th><th>الحالة</th><th>الترتيب</th><th></th></tr></thead>
+              <tbody><tr><td colspan="5">اختر دورة لعرض دروسها</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- التقارير -->
+    <section class="admin-panel" id="panel-reports">
+      <div class="admin-panel-inner">
+        <h3>البلاغات الواردة</h3>
+        <div class="table-wrap">
+          <table class="admin-table" id="reports-table">
+            <thead><tr><th>المورد</th><th>السبب</th><th>ملاحظة</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- المستخدمون والصلاحيات (Super Admin فقط) -->
+    <section class="admin-panel" id="panel-users">
+      <div class="admin-panel-inner">
+        <h3>المستخدمون والصلاحيات</h3>
+        <p class="hint" style="color: var(--ink-soft); margin-bottom: 16px;">
+          لإنشاء مستخدم أدمن/موظف جديد: Supabase Dashboard ← Authentication ← Users ← Add User
+          (فعّل Auto Confirm User)، ثم امنحه صلاحياته من هنا.
+        </p>
+        <div id="users-list" class="users-list">
+          <div class="state-msg">جارٍ التحميل...</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+
+<!-- ------------- P1-7B: نافذة تسجيل التحقق بخطوتين (اختيارية) ------------- -->
+<div class="modal-overlay" id="mfa-enroll-overlay" hidden>
+  <div class="modal-box">
+    <h3>تفعيل التحقق بخطوتين</h3>
+
+    <div id="mfa-enroll-step-start">
+      <p class="hint">يضيف هذا خطوة تحقق إضافية عند تسجيل الدخول باستخدام تطبيق مصادقة (مثل Google Authenticator).</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="mfa-enroll-cancel-btn">إلغاء</button>
+        <button type="button" class="btn btn-primary" id="mfa-enroll-start-btn">بدء التفعيل</button>
+      </div>
+    </div>
+
+    <div id="mfa-enroll-step-verify" hidden>
+      <p class="hint">امسح رمز QR بتطبيق المصادقة، أو أدخل المفتاح يدويًا، ثم اكتب الرمز المعروض لديك.</p>
+      <div id="mfa-enroll-qr" style="text-align:center; margin-bottom:10px;"></div>
+      <p class="hint" style="text-align:center; word-break:break-all;" id="mfa-enroll-secret"></p>
+      <form id="mfa-enroll-verify-form">
+        <div class="field">
+          <label for="mfa-enroll-code">رمز التحقق</label>
+          <input type="text" id="mfa-enroll-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="mfa-enroll-cancel-btn-2">إلغاء</button>
+          <button type="submit" class="btn btn-primary">تأكيد</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="mfa-enroll-step-success" hidden>
+      <p class="hint">تم تفعيل التحقق بخطوتين بنجاح.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="mfa-enroll-done-btn">تم</button>
+      </div>
+    </div>
+
+    <p id="mfa-enroll-error" style="color: var(--danger); font-size: .88rem; display:none;"></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
+<script src="../js/supabase-client.js"></script>
+<script src="../js/app.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

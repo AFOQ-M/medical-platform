@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أفق المعرفة — الرئيسية</title>
+<meta name="description" content="أفق المعرفة — منصة تعليمية تجمع محاضرات وسلايدات وملخصات وموارد دراسية للطلاب الجامعيين، منظمة حسب الجامعة والكلية والمادة.">
+<link rel="canonical" href="https://afoq-m.github.io/medical-platform/">
+<meta property="og:title" content="أفق المعرفة">
+<meta property="og:description" content="أفق المعرفة — منصة تعليمية تجمع محاضرات وسلايدات وملخصات وموارد دراسية للطلاب الجامعيين، منظمة حسب الجامعة والكلية والمادة.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://afoq-m.github.io/medical-platform/">
+<meta property="og:image" content="https://afoq-m.github.io/medical-platform/images/afoq-branding-final.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="أفق المعرفة">
+<meta name="twitter:description" content="أفق المعرفة — منصة تعليمية تجمع محاضرات وسلايدات وملخصات وموارد دراسية للطلاب الجامعيين، منظمة حسب الجامعة والكلية والمادة.">
+<meta name="twitter:image" content="https://afoq-m.github.io/medical-platform/images/afoq-branding-final.png">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">تخطي إلى المحتوى الرئيسي</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo">
+      أفق المعرفة
+    </a>
+    <div class="header-actions">
+      <nav class="header-nav"><a href="platform.html" class="nav-link">تصفّح كل الموارد</a></nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <button type="button" class="icon-btn" id="account-trigger" aria-label="الحساب">👤</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+
+  <!-- ==================== الهيرو: هوية أفق + رسم "الأفق" + CTA رئيسي ==================== -->
+  <section class="landing-hero">
+    <div class="landing-hero-inner">
+      <div class="landing-hero-text">
+        <span class="landing-eyebrow"><span class="landing-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
+        <h1 class="landing-hero-title">مراجعك الطبية، مرتّبة من الجامعة حتى المورد</h1>
+        <p class="landing-hero-lead">أفق فريق يجمع الكتب والملخصات والسلايدات وأسئلة الامتحانات السابقة في مكان واحد، منظَّمة بحسب جامعتك وكليتك وسنتك ومادتك — لتصل إلى ما تحتاجه دون أن تبحث في كل مكان.</p>
+        <div class="landing-cta-row">
+          <button type="button" class="btn btn-primary landing-cta-btn" id="hero-auth-trigger">دخول / تسجيل</button>
+          <a href="courses.html" class="btn btn-primary landing-cta-btn">أكاديمية أفق الطبية</a>
+          <a href="#landing-about" class="landing-secondary-link">أو تصفّح المحتوى أولاً <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+      <div class="landing-horizon" aria-hidden="true">
+        <span class="landing-horizon-label landing-horizon-label-outer">من كل الجامعات</span>
+        <div class="landing-horizon-rings">
+          <span class="ring ring-1"></span>
+          <span class="ring ring-2"></span>
+          <span class="ring ring-3"></span>
+          <span class="ring ring-4"></span>
+          <span class="landing-horizon-core"></span>
+        </div>
+        <span class="landing-horizon-label landing-horizon-label-inner">إلى موردك بالضبط</span>
+        <div class="landing-horizon-line"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== عن أفق ==================== -->
+  <div class="landing-section" id="landing-about">
+    <div class="landing-section-head">
+      <span class="landing-kicker">عن أفق المعرفة</span>
+      <h2 class="landing-section-title">من نبدأ، وإلى أين نتّجه</h2>
+    </div>
+
+    <div class="landing-about-grid">
+      <article class="landing-about-row">
+        <h3>من نحن؟</h3>
+        <div class="landing-about-row-body">
+          <p class="landing-provides-text">فريق أفق (AFOQ) هو مبادرة شبابية فلسطينية مستقلة، انطلقت في <strong class="landing-about-highlight">26 ديسمبر 2025</strong> بجهود تطوعية وذاتية من مجموعة من طلاب وخريجي من مختلف الجامعات الفلسطينية، إيمانًا بأن الشباب الفلسطيني، رغم قسوة الظروف والتحديات، قادر على صناعة المعرفة، وبناء المبادرات، وترك أثر حقيقي في مجتمعه والعالم.</p>
+          <p class="landing-provides-text">انطلق أفق من فكرة بسيطة، لكنها تحمل طموحًا كبيرًا: أن تكون المعرفة وسيلة للنهوض، والتعليم طريقًا لصناعة المستقبل، والشباب قوة قادرة على تحويل التحديات إلى فرص.</p>
+        </div>
+      </article>
+
+      <article class="landing-about-row">
+        <h3>لماذا منصة أفق؟</h3>
+        <div class="landing-about-row-body">
+          <p class="landing-provides-text">جاءت فكرة منصة أفق الرقمية استجابةً لحاجة الطلاب إلى بيئة تعليمية تجمع المعرفة والمهارات والفرص في مكان واحد، بدلًا من تشتت المصادر وصعوبة الوصول إلى المحتوى التعليمي الموثوق.</p>
+          <p class="landing-provides-text">تهدف المنصة إلى توفير الدورات والمحاضرات والملخصات والموارد العلمية والفرص التعليمية بصورة منظمة وسهلة الوصول، مع ربط الطلاب بالخبرات والمتخصصين.</p>
+          <p class="landing-provides-text">كما تسعى إلى توظيف التكنولوجيا والذكاء الاصطناعي بصورة مسؤولة لتسهيل التعلم، وبناء مجتمع تعليمي يجمع الطلاب والخريجين والخبراء.</p>
+          <p class="landing-provides-text">منصة أفق ليست مجرد موقع إلكتروني، بل مساحة رقمية تربط بين المعرفة والمهارة والفرصة، وتساعد الشباب على تحويل التعلم إلى إنجاز وأثر.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="landing-impact-flow" role="group" aria-label="من المعرفة → إلى المهارة → إلى الفرصة → إلى الأثر.">
+      <div class="landing-impact-step" aria-hidden="true">من المعرفة</div>
+      <span class="landing-impact-arrow" aria-hidden="true">→</span>
+      <div class="landing-impact-step" aria-hidden="true">إلى المهارة</div>
+      <span class="landing-impact-arrow" aria-hidden="true">→</span>
+      <div class="landing-impact-step" aria-hidden="true">إلى الفرصة</div>
+      <span class="landing-impact-arrow" aria-hidden="true">→</span>
+      <div class="landing-impact-step landing-impact-step-final" aria-hidden="true">إلى الأثر.</div>
+    </div>
+
+    <div class="landing-about-grid landing-about-grid--single">
+      <article class="landing-about-row">
+        <h3>ماذا يقدم أفق؟</h3>
+        <div class="landing-about-row-body">
+          <p class="landing-provides-text">يقدم فريق أفق (AFOQ) منظومة من البرامج والخدمات التعليمية والتدريبية والمجتمعية التي تهدف إلى تمكين الشباب، وتطوير التعليم، وتعزيز الوعي الصحي، وتحويل المعرفة إلى أثر ملموس.</p>
+          <div class="grid">
+            <div class="card">
+              <h4>1. منصة أفق التعليمية</h4>
+              <p class="card-sub">إنشاء منصة تعليمية رقمية تجمع الدورات والمحاضرات والمواد العلمية والمصادر التعليمية في بيئة منظمة وسهلة الوصول.</p>
+            </div>
+            <a class="card" href="courses.html">
+              <h4>2. أكاديمية أفق الطبية</h4>
+              <p class="card-sub">إطلاق برامج تعليمية وتدريبية متخصصة لطلاب الكليات الصحية والطبية بالتعاون مع أطباء وأكاديميين متخصصين.</p>
+              <span class="btn btn-primary btn-sm card-cta" aria-hidden="true">أكاديمية أفق الطبية</span>
+            </a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- ==================== ماذا يقدّم أفق: مفردات أنواع الموارد ==================== -->
+  <div class="landing-section">
+    <div class="landing-section-head">
+      <span class="landing-kicker">داخل كل مادة</span>
+      <h2 class="landing-section-title">كل نوع مرجع بمكانه</h2>
+    </div>
+    <div class="landing-provides-grid">
+      <p class="landing-provides-text">داخل كل مادة دراسية، تجد الموارد مصنّفة بحسب نوعها — فتعرف مباشرة إن كنت تبحث عن محاضرة، أو سلايدات، أو كتاب، أو ملخص، أو ملاحظات، أو أسئلة سابقة. نفس التصنيف الذي تراه في بطاقات الموارد نفسها.</p>
+      <div class="landing-type-legend" role="list" aria-label="أنواع الموارد المتاحة">
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="lecture" aria-hidden="true"></span>محاضرة</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="slides" aria-hidden="true"></span>سلايدات</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="book" aria-hidden="true"></span>كتاب</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="summary" aria-hidden="true"></span>ملخص</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="notes" aria-hidden="true"></span>ملاحظات</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="questions" aria-hidden="true"></span>أسئلة</span>
+        <span class="landing-type-chip" role="listitem"><span class="landing-type-dot" data-type="past_exam" aria-hidden="true"></span>امتحان سابق</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== لماذا هذه المنصة ==================== -->
+  <div class="landing-section">
+    <div class="landing-why">
+      <span class="landing-why-mark" aria-hidden="true">”</span>
+      <p>المراجع الدراسية غالبًا مشتّتة بين مجموعات وقنوات وروابط متفرقة يصعب تتبّعها لاحقًا. أفق يجمعها في مكان واحد، منظّمة بحسب جامعتك وكليتك ومادتك تحديدًا — لا بحث عشوائي، ولا مصادر ضائعة.</p>
+    </div>
+  </div>
+
+  <!-- ==================== ماذا ستجد بالداخل: التسلسل الهرمي ==================== -->
+  <div class="landing-section">
+    <div class="landing-section-head">
+      <span class="landing-kicker">ماذا ستجد بالداخل</span>
+      <h2 class="landing-section-title">من الجامعة إلى المورد، بخطوة واضحة تلو الأخرى</h2>
+    </div>
+    <div class="landing-flow" role="list">
+      <a class="landing-flow-step" href="platform.html" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">١</span>الجامعة
+      </a>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٢</span>الكلية
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٣</span>السنة الدراسية
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٤</span>الفصل الدراسي
+      </span>
+      <span class="landing-flow-step" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٥</span>المادة
+      </span>
+      <a class="landing-flow-step landing-flow-step-final" href="search.html" role="listitem">
+        <span class="landing-flow-marker" aria-hidden="true">٦</span>المورد
+      </a>
+    </div>
+  </div>
+
+  <!-- ==================== شريط CTA ختامي ==================== -->
+  <section class="landing-hero landing-cta-band">
+    <div class="landing-hero-inner">
+      <div class="landing-hero-text">
+        <span class="landing-eyebrow"><span class="landing-eyebrow-dot" aria-hidden="true"></span>أفق المعرفة</span>
+        <h2 class="landing-hero-title">ابدأ رحلتك مع أفق الآن</h2>
+        <div class="landing-cta-row">
+          <button type="button" class="btn btn-primary landing-cta-btn" id="final-auth-trigger">دخول / تسجيل</button>
+          <a href="platform.html" class="landing-secondary-link">تصفّح المنصة <span aria-hidden="true">←</span></a>
+        </div>
+      </div>
+      <div class="landing-horizon landing-horizon--simple" aria-hidden="true">
+        <div class="landing-horizon-rings">
+          <span class="ring ring-3"></span>
+          <span class="ring ring-4"></span>
+          <span class="landing-horizon-core"></span>
+        </div>
+        <div class="landing-horizon-line"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="footer-logo">
+      أفق المعرفة
+    </div>
+    <p class="footer-desc">منصة تنظّم المراجع والموارد الطبية والأكاديمية بحسب الجامعة والكلية والمادة، لتسهيل الوصول إليها والاستفادة منها.</p>
+    <nav class="footer-links" aria-label="روابط سريعة">
+      <a href="index.html">الرئيسية</a>
+      <a href="platform.html">تصفّح الموارد</a>
+      <a href="favorites.html">المفضلة</a>
+    </nav>
+    <div class="footer-social" aria-label="تابعنا">
+      <a class="social-link" href="https://www.facebook.com/groups/784943901296258/?ref=share&mibextid=NSMWBT" target="_blank" rel="noopener noreferrer" aria-label="فيسبوك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3h-2c-2.2 0-4 1.8-4 4v3H6v4h2v7h4v-7h3l1-4h-4V7c0-.6.4-1 1-1h3V3z"/></svg></a>
+      <a class="social-link" href="https://whatsapp.com/channel/0029VbC5CLlFnSzAGWR6yP10" target="_blank" rel="noopener noreferrer" aria-label="قناة واتساب فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 1.8.5 3.5 1.5 5L2 22l6-1.5c1.2.6 2.6 1 4 1 5.5 0 10-4.1 10-9.3S17.5 2 12 2zm5.2 13.3c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.5-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.2.1.3 0 .5-.1.2-.1.3-.3.5-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.9 1.4 1.9 2.3 1.3 1.1 2.4 1.5 2.7 1.6.3.1.5.1.7-.1.2-.2.8-.9 1-1.2.2-.3.4-.2.7-.1.3.1 1.7.8 2 1 .3.1.5.2.6.3.1.2.1.9-.1 1.5z"/></svg></a>
+      <a class="social-link" href="https://t.me/AFOQ_Team" target="_blank" rel="noopener noreferrer" aria-label="قناة تليغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 3.5 2.7 10.8c-.9.3-.9 1.6.1 1.9l4.6 1.4 1.8 5.6c.3.9 1.4 1.1 2 .4l2.5-2.8 4.7 3.5c.8.6 1.9.1 2.1-.8l3-15.4c.2-1-.8-1.8-1.7-1.5zM8.9 13.8l9.1-6.9c.3-.2.6.2.3.5l-7.6 7.3c-.3.3-.5.7-.5 1.1l-.2 2.5-1.2-4.5z"/></svg></a>
+      <a class="social-link" href="https://www.instagram.com/mhjfuhrhuu785?igsh=MWR5Z2p0ejNicHF3ZQ==" target="_blank" rel="noopener noreferrer" aria-label="إنستغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1"/></svg></a>
+      <a class="social-link" href="https://www.tiktok.com/@bop1095" target="_blank" rel="noopener noreferrer" aria-label="تيك توك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.5 2h2.7c.2 1.6 1.1 3 2.4 3.9 1 .7 2.1 1 3.2 1.1v2.8c-1.7 0-3.3-.5-4.7-1.4v6.9c0 3.6-2.9 6.5-6.5 6.5S5.1 18.9 5.1 15.3c0-3.5 2.7-6.3 6.1-6.5v2.9c-1.8.2-3.2 1.7-3.2 3.6 0 2 1.6 3.6 3.6 3.6s3.6-1.6 3.6-3.6V2z"/></svg></a>
+    </div>
+    <div class="footer-bottom">© 2026 أفق المعرفة. جميع الحقوق محفوظة.</div>
+  </div>
+</footer>
+
+<a href="#main-content" class="back-to-top" aria-label="العودة إلى الأعلى">↑</a>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // ============================================================
+  // Homepage V2 — منطق خاص بصفحة الهبوط فقط (لا تعديل على auth.js/app.js)
+  // ============================================================
+
+  // زرّا "دخول / تسجيل" (Hero + الشريط الختامي) يفتحان نفس نافذة
+  // المصادقة الموجودة أصلاً (openAuthOverlay من auth.js) — بلا أي
+  // منطق مصادقة جديد ولا نافذة ثانية.
+  document.getElementById("hero-auth-trigger").addEventListener("click", openAuthOverlay);
+  document.getElementById("final-auth-trigger").addEventListener("click", openAuthOverlay);
+
+  // "متابعة كضيف" داخل auth.js حاليًا تكتفي بإغلاق النافذة (closeAuthOverlay)
+  // فقط، بلا أي تحويل — وهذا سلوكها الصحيح والمقصود في كل صفحة أخرى (البقاء
+  // في نفس الصفحة). على صفحة الهبوط تحديدًا فقط، حيث لا يوجد محتوى منصّة
+  // خلف هذه النافذة، نضيف هنا (محليًا لهذه الصفحة فقط، دون لمس auth.js)
+  // استماعًا إضافيًا لنفس الزر الموجود مسبقًا (#auth-guest-btn) لتحويل
+  // الزائر إلى platform.html بعد إغلاق النافذة — تنقّل فقط، لا منطق مصادقة.
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "auth-guest-btn") {
+      window.location.href = "platform.html";
+    }
+  });
+</script>
+</body>
+</html>

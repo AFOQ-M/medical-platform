@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نتائج البحث — أفق المعرفة</title>
+<meta name="description" content="ابحث في الموارد التعليمية المتاحة على منصة أفق المعرفة حسب المادة أو الجامعة أو نوع المورد.">
+<meta property="og:title" content="نتائج البحث — أفق المعرفة">
+<meta property="og:description" content="ابحث في الموارد التعليمية المتاحة على منصة أفق المعرفة حسب المادة أو الجامعة أو نوع المورد.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://afoq-m.github.io/medical-platform/images/afoq-branding-final.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="نتائج البحث — أفق المعرفة">
+<meta name="twitter:description" content="ابحث في الموارد التعليمية المتاحة على منصة أفق المعرفة حسب المادة أو الجامعة أو نوع المورد.">
+<meta name="twitter:image" content="https://afoq-m.github.io/medical-platform/images/afoq-branding-final.png">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">تخطي إلى المحتوى الرئيسي</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo">
+      أفق المعرفة
+    </a>
+    <div class="header-actions">
+      <nav class="header-nav"><a href="search.html" class="nav-link">تصفّح كل الموارد</a></nav>
+      <button type="button" class="icon-btn" id="global-search-trigger" aria-label="بحث">🔍</button>
+      <button type="button" class="icon-btn" id="account-trigger" aria-label="الحساب">👤</button>
+      <a href="favorites.html" class="icon-btn" aria-label="المفضلة">★</a>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  <nav class="breadcrumb" id="breadcrumb"></nav>
+
+  <section class="search-hero">
+    <h1>نتائج البحث</h1>
+    <form class="search-form" action="search.html" method="get">
+      <input class="search-input" type="search" name="q" id="search-input" placeholder="ابحث باسم المادة أو المورد أو الجامعة أو الكلية أو كلمات مفتاحية..." autocomplete="off">
+      <button type="submit" class="btn btn-primary">بحث</button>
+    </form>
+
+    <div class="search-filters" id="search-filters">
+      <span class="filters-label">تصفية النتائج:</span>
+      <select id="filter-type" aria-label="نوع المورد">
+        <option value="">كل الأنواع</option>
+        <option value="book">كتاب</option>
+        <option value="lecture">محاضرة</option>
+        <option value="slides">سلايدات</option>
+        <option value="summary">ملخص</option>
+        <option value="questions">أسئلة</option>
+        <option value="past_exam">امتحان سابق</option>
+        <option value="notes">ملاحظات</option>
+      </select>
+      <select id="filter-language" aria-label="اللغة">
+        <option value="">كل اللغات</option>
+        <option value="ar">عربي</option>
+        <option value="en">إنجليزي</option>
+      </select>
+      <select id="filter-university" aria-label="الجامعة">
+        <option value="">كل الجامعات</option>
+      </select>
+      <select id="filter-faculty" aria-label="الكلية">
+        <option value="">كل الكليات</option>
+      </select>
+      <select id="filter-year" aria-label="السنة الدراسية">
+        <option value="">كل السنوات</option>
+        <option value="1">سنة 1</option>
+        <option value="2">سنة 2</option>
+        <option value="3">سنة 3</option>
+        <option value="4">سنة 4</option>
+        <option value="5">سنة 5</option>
+        <option value="6">سنة 6</option>
+      </select>
+    </div>
+  </section>
+
+  <div id="results" class="grid">
+    <div class="state-msg">جارٍ البحث...</div>
+  </div>
+  <div class="load-more-wrap" id="load-more-wrap" hidden style="text-align:center; margin-top:20px;">
+    <button type="button" class="btn btn-outline" id="load-more-btn">تحميل المزيد</button>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="footer-logo">
+      أفق المعرفة
+    </div>
+    <p class="footer-desc">منصة تنظّم المراجع والموارد الطبية والأكاديمية بحسب الجامعة والكلية والمادة، لتسهيل الوصول إليها والاستفادة منها.</p>
+    <nav class="footer-links" aria-label="روابط سريعة">
+      <a href="index.html">الرئيسية</a>
+      <a href="search.html">تصفّح الموارد</a>
+      <a href="favorites.html">المفضلة</a>
+    </nav>
+    <div class="footer-social" aria-label="تابعنا">
+      <a class="social-link" href="https://www.facebook.com/groups/784943901296258/?ref=share&mibextid=NSMWBT" target="_blank" rel="noopener noreferrer" aria-label="فيسبوك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3h-2c-2.2 0-4 1.8-4 4v3H6v4h2v7h4v-7h3l1-4h-4V7c0-.6.4-1 1-1h3V3z"/></svg></a>
+      <a class="social-link" href="https://whatsapp.com/channel/0029VbC5CLlFnSzAGWR6yP10" target="_blank" rel="noopener noreferrer" aria-label="قناة واتساب فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 1.8.5 3.5 1.5 5L2 22l6-1.5c1.2.6 2.6 1 4 1 5.5 0 10-4.1 10-9.3S17.5 2 12 2zm5.2 13.3c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.5-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.2.1.3 0 .5-.1.2-.1.3-.3.5-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.9 1.4 1.9 2.3 1.3 1.1 2.4 1.5 2.7 1.6.3.1.5.1.7-.1.2-.2.8-.9 1-1.2.2-.3.4-.2.7-.1.3.1 1.7.8 2 1 .3.1.5.2.6.3.1.2.1.9-.1 1.5z"/></svg></a>
+      <a class="social-link" href="https://t.me/AFOQ_Team" target="_blank" rel="noopener noreferrer" aria-label="قناة تليغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 3.5 2.7 10.8c-.9.3-.9 1.6.1 1.9l4.6 1.4 1.8 5.6c.3.9 1.4 1.1 2 .4l2.5-2.8 4.7 3.5c.8.6 1.9.1 2.1-.8l3-15.4c.2-1-.8-1.8-1.7-1.5zM8.9 13.8l9.1-6.9c.3-.2.6.2.3.5l-7.6 7.3c-.3.3-.5.7-.5 1.1l-.2 2.5-1.2-4.5z"/></svg></a>
+      <a class="social-link" href="https://www.instagram.com/mhjfuhrhuu785?igsh=MWR5Z2p0ejNicHF3ZQ==" target="_blank" rel="noopener noreferrer" aria-label="إنستغرام فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1"/></svg></a>
+      <a class="social-link" href="https://www.tiktok.com/@bop1095" target="_blank" rel="noopener noreferrer" aria-label="تيك توك فريق أفق"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.5 2h2.7c.2 1.6 1.1 3 2.4 3.9 1 .7 2.1 1 3.2 1.1v2.8c-1.7 0-3.3-.5-4.7-1.4v6.9c0 3.6-2.9 6.5-6.5 6.5S5.1 18.9 5.1 15.3c0-3.5 2.7-6.3 6.1-6.5v2.9c-1.8.2-3.2 1.7-3.2 3.6 0 2 1.6 3.6 3.6 3.6s3.6-1.6 3.6-3.6V2z"/></svg></a>
+    </div>
+    <div class="footer-bottom">© 2026 أفق المعرفة. جميع الحقوق محفوظة.</div>
+  </div>
+</footer>
+
+<a href="#main-content" class="back-to-top" aria-label="العودة إلى الأعلى">↑</a>
+
+<div class="modal-overlay" id="report-modal" hidden>
+  <div class="modal-box">
+    <h3>الإبلاغ عن مشكلة</h3>
+    <p class="hint">المورد: <strong id="report-resource-name"></strong></p>
+    <form id="report-form">
+      <div class="field">
+        <label for="report-reason">نوع المشكلة</label>
+        <select id="report-reason" required>
+          <option value="broken_link">الرابط لا يعمل</option>
+          <option value="wrong_file">الملف غير صحيح</option>
+          <option value="copyright">محتوى محمي بحقوق نشر</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="report-note">ملاحظات إضافية (اختياري)</label>
+        <textarea id="report-note" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" id="report-submit-btn" class="btn btn-primary">إرسال البلاغ</button>
+        <button type="button" id="report-cancel-btn" class="btn btn-outline">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const query = (getQueryParam("q") || "").trim();
+  document.getElementById("search-input").value = query;
+
+  // -------------------- Pagination (Phase 4 P1-1) --------------------
+  // PAGE_SIZE يطابق القيمة الافتراضية القديمة لـ search_resources() (60)
+  // حتى تبقى الصفحة الأولى مطابقة تمامًا للسلوك السابق قبل هذا التعديل.
+  const PAGE_SIZE = 60;
+  let currentOffset = 0;
+  let loadingMore = false;
+
+  renderBreadcrumb(document.getElementById("breadcrumb"), [
+    { label: "الرئيسية", href: "index.html" },
+    { label: "نتائج البحث" },
+  ]);
+
+  let facultiesData = [];
+
+  async function loadUniversityFilterOptions() {
+    const { data } = await supabaseClient.from("universities").select("id, name").order("name");
+    const select = document.getElementById("filter-university");
+    (data || []).forEach((u) => {
+      const opt = document.createElement("option");
+      opt.value = u.id;
+      opt.textContent = u.name;
+      select.appendChild(opt);
+    });
+  }
+
+  async function loadFacultyFilterOptions() {
+    const { data } = await supabaseClient
+      .from("faculties")
+      .select("id, name, university_id")
+      .eq("is_active", true)
+      .order("name");
+    facultiesData = data || [];
+    refreshFacultyFilterOptions();
+  }
+
+  // فلتر الكلية يعتمد دائمًا على فلتر الجامعة المختار حاليًا (قائمة متتالية،
+  // وليس فلترين مستقلين) — إن لم تُختر جامعة تظهر كل الكليات المفعّلة.
+  function refreshFacultyFilterOptions() {
+    const universityId = document.getElementById("filter-university").value || null;
+    const select = document.getElementById("filter-faculty");
+    const currentValue = select.value;
+    select.innerHTML = `<option value="">كل الكليات</option>`;
+    const options = universityId ? facultiesData.filter((f) => f.university_id === universityId) : facultiesData;
+    options.forEach((f) => {
+      const opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = f.name;
+      select.appendChild(opt);
+    });
+    if (currentValue && options.some((o) => o.id === currentValue)) select.value = currentValue;
+  }
+
+  async function runSearch(append) {
+    const results = document.getElementById("results");
+    const loadMoreWrap = document.getElementById("load-more-wrap");
+    const type = document.getElementById("filter-type").value || null;
+    const language = document.getElementById("filter-language").value || null;
+    const universityId = document.getElementById("filter-university").value || null;
+    const facultyId = document.getElementById("filter-faculty").value || null;
+    const yearNumber = document.getElementById("filter-year").value ? parseInt(document.getElementById("filter-year").value, 10) : null;
+
+    if (!query && !type && !language && !universityId && !facultyId && !yearNumber) {
+      loadMoreWrap.hidden = true;
+      renderState(results, "اكتب كلمة للبحث عنها أو اختر فلترًا.");
+      return;
+    }
+
+    if (!append) {
+      // بحث/فلترة جديدة: نبدأ من الصفحة الأولى دائمًا.
+      currentOffset = 0;
+      document.title = query ? `بحث: ${query} — أفق المعرفة` : "نتائج البحث — أفق المعرفة";
+      renderState(results, "جارٍ البحث...");
+      loadMoreWrap.hidden = true;
+    }
+
+    // بحث شامل عبر دالة search_resources في قاعدة البيانات:
+    // يطابق العنوان + الكلمات المفتاحية + اسم/رمز المادة + اسم الجامعة + اسم الكلية
+    // p_limit/p_offset (Phase 4 P1-1): PAGE_SIZE يطابق الافتراضي القديم (60)،
+    // فسلوك الصفحة الأولى مطابق تمامًا لما كان قبل إضافة الترقيم.
+    const { data, error } = await supabaseClient.rpc("search_resources", {
+      p_query: query || null,
+      p_type: type,
+      p_university_id: universityId,
+      p_faculty_id: facultyId,
+      p_year_number: yearNumber,
+      p_subject_id: null,
+      p_language: language,
+      p_limit: PAGE_SIZE,
+      p_offset: currentOffset,
+    });
+
+    if (error) {
+      console.error(error);
+      if (!append) renderState(results, "تعذّر إجراء البحث، حاول لاحقًا.");
+      else showToast("تعذّر تحميل المزيد، حاول لاحقًا.");
+      return;
+    }
+
+    if (!append && (!data || data.length === 0)) {
+      renderState(results, query ? `لا توجد نتائج مطابقة لـ "${query}".` : "لا توجد نتائج مطابقة للفلاتر المحددة.");
+      return;
+    }
+
+    if (!append) {
+      results.innerHTML = "";
+      results.style.gridTemplateColumns = "1fr";
+    }
+    (data || []).forEach((r) => {
+      const card = buildResourceCard(r);
+      const metaLine = document.createElement("div");
+      metaLine.className = "card-sub";
+      metaLine.style.fontSize = ".82rem";
+      metaLine.style.color = "var(--ink-soft)";
+      metaLine.style.marginTop = "-6px";
+      metaLine.style.marginBottom = "8px";
+      const parts = [];
+      if (r.subject_name) parts.push(`مادة: ${r.subject_name}`);
+      if (r.faculty_name) parts.push(`كلية: ${r.faculty_name}`);
+      if (r.university_name) parts.push(`جامعة: ${r.university_name}`);
+      if (r.year_number) parts.push(`سنة ${r.year_number}`);
+      metaLine.textContent = parts.join(" · ");
+      card.insertBefore(metaLine, card.querySelector(".resource-actions"));
+      if (r.subject_id) {
+        const subLink = document.createElement("a");
+        subLink.href = `subject.html?id=${r.subject_id}`;
+        subLink.className = "card-sub";
+        subLink.style.textDecoration = "underline";
+        subLink.style.display = "block";
+        subLink.style.marginBottom = "8px";
+        subLink.textContent = "عرض المادة كاملة →";
+        card.insertBefore(subLink, card.querySelector(".resource-actions"));
+      }
+      results.appendChild(card);
+    });
+
+    currentOffset += (data || []).length;
+    // إظهار "تحميل المزيد" فقط إذا رجعت صفحة كاملة (data.length === PAGE_SIZE) —
+    // مؤشر بسيط ومضمون على احتمال وجود نتائج إضافية، بدون استعلام عدّ إضافي.
+    loadMoreWrap.hidden = !data || data.length < PAGE_SIZE;
+  }
+
+  document.getElementById("filter-university").addEventListener("change", () => {
+    // تغيّر الجامعة يُعيد فلترة قائمة الكليات، ويُفرغ الكلية المختارة سابقًا
+    // إن لم تعد تابعة للجامعة الجديدة (قاعدة القوائم المتتالية العامة).
+    document.getElementById("filter-faculty").value = "";
+    refreshFacultyFilterOptions();
+    runSearch();
+  });
+
+  document.querySelectorAll("#search-filters select").forEach((el) => {
+    if (el.id === "filter-university") return; // له معالج خاص أعلاه
+    // تنبيه: تمرير runSearch مباشرةً كمعالج حدث كان سيُمرّر كائن Event كوسيط
+    // أول (append)، وهو قيمة صحيحة (truthy) بالخطأ — لذلك نستدعيها هنا صراحةً
+    // بدون وسائط لضمان أنها دائمًا بحث جديد من الصفحة الأولى.
+    el.addEventListener("change", () => runSearch());
+  });
+
+  document.getElementById("load-more-btn").addEventListener("click", async () => {
+    if (loadingMore) return;
+    loadingMore = true;
+    const btn = document.getElementById("load-more-btn");
+    btn.disabled = true;
+    btn.textContent = "جارٍ التحميل...";
+    await runSearch(true);
+    btn.disabled = false;
+    btn.textContent = "تحميل المزيد";
+    loadingMore = false;
+  });
+
+  Promise.all([loadUniversityFilterOptions(), loadFacultyFilterOptions()]).then(() => runSearch());
+</script>
+</body>
+</html>
