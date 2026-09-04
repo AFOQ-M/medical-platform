@@ -263,19 +263,29 @@ console.log("AFOQ Account Sidebar + Sign Out — Regression Tests\n");
     assert.ok(html.includes('href="platform.html"'), "الموارد يجب أن تشير إلى platform.html (مدخل الهيكل الأكاديمي الحالي)، لا صفحة جديدة");
     assert.ok(html.includes('href="courses.html"'), "الدورات يجب أن تشير إلى courses.html");
     assert.ok(html.includes('href="favorites.html"'), "المفضلة يجب أن تشير إلى favorites.html");
-    assert.ok(!html.includes('href="forum.html"'), "forum.html غير موجودة بعد، ويجب ألا يُشار إليها كرابط حقيقي");
+    // Phase 6 (Forum MVP): forum.html أصبح موجودًا فعليًا — يجب أن يُشار
+    // إليه الآن كرابط حقيقي، بعكس الحالة المؤقتة السابقة.
+    assert.ok(html.includes('href="forum.html"'), "الملتقى يجب أن يشير إلى forum.html الآن بعد تنفيذ Forum MVP");
   });
 
-  // --- Test D2: رابط "الملتقى" لا يكسر شيئًا ويسجّل حالته بوضوح ---
-  await testAsync("Test D2 — Forum entry never navigates and logs its NOT IMPLEMENTED status", async () => {
-    const { sandbox, domElements, consoleLogs, toasts } = loadAuthJsWithMockSession({ initialSession: GOOGLE_SESSION });
+  // --- Test D2: رابط "الملتقى" أصبح رابطًا حقيقيًا (Phase 6 — Forum MVP) ---
+  await testAsync("Test D2 — Forum entry is a real link to forum.html, no placeholder left", async () => {
+    const { sandbox, domElements, consoleLogs } = loadAuthJsWithMockSession({ initialSession: GOOGLE_SESSION });
     await sandbox.ensureAuthSession();
     sandbox.openAccountSidebar();
-    const forumBtn = domElements["account-sidebar-forum"];
-    assert.strictEqual(forumBtn.tagName, "BUTTON", "forum entry must be a button (no real href), not a broken link");
-    forumBtn._listeners.click[0]();
-    assert.ok(consoleLogs.some((l) => l.includes("Forum destination: NOT IMPLEMENTED YET")));
-    assert.ok(toasts.length > 0, "should show a toast instead of navigating anywhere");
+    const forumLink = domElements["account-sidebar-forum"];
+    assert.strictEqual(forumLink.tagName, "A", "forum entry must now be a real <a> link, not a disabled <button>");
+    // ملاحظة: الـmock DOM أعلاه لا يحلّل href إلى _attrs عند تعيين
+    // innerHTML (فقط id+tag، راجع تعليق innerHTML setter أعلى الملف) —
+    // لذلك نتحقق من href مباشرة من نص HTML الساكن، بنفس أسلوب Test D.
+    const html = domElements["account-sidebar"]._innerHTML;
+    const forumBlockMatch = html.match(/<a href="forum\.html"[^]*?<\/a>/);
+    assert.ok(forumBlockMatch, "forum link block must be found in sidebar HTML");
+    assert.ok(!forumBlockMatch[0].includes("badge-soon"), "badge-soon (\"قريبًا\") must be removed from the forum entry");
+    assert.ok(
+      !consoleLogs.some((l) => l.includes("NOT IMPLEMENTED")),
+      "the NOT IMPLEMENTED placeholder log must no longer exist"
+    );
   });
 
   // --- Test E: تسجيل الخروج يستدعي Supabase signOut() فعليًا ---

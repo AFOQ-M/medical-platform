@@ -2083,3 +2083,171 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* ============================================================
+   Forum MVP — ملتقى أفق (Phase 6)
+   يعيد استخدام متغيرات الألوان ومكوّنات .card/.btn/.tag/.modal-overlay/
+   .field الموجودة أعلاه بالكامل — لا لوحة ألوان جديدة، ولا مكوّنات
+   Social-Media (Likes/Followers/Badges..) — طابع أكاديمي هادئ فقط،
+   بحسب توجيهات DESIGN_SYSTEM.md § 8 "Future Feature — Student Community".
+   ============================================================ */
+
+.forum-intro {
+  color: var(--ink-soft);
+  margin-top: -8px;
+  margin-bottom: 20px;
+  font-size: .98rem;
+}
+
+.forum-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.forum-toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: .92rem;
+}
+
+.forum-clear-filter-btn {
+  background: none;
+  border: none;
+  color: var(--secondary);
+  cursor: pointer;
+  font-size: .88rem;
+  padding: 2px 4px;
+  text-decoration: underline;
+}
+
+.forum-categories-section { margin-bottom: 36px; }
+
+.forum-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.forum-category-card { text-align: center; }
+
+.forum-topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forum-topic-card { display: block; }
+
+.forum-topic-card-head {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.forum-locked-tag {
+  background: var(--neutral-bg);
+  color: var(--ink-soft);
+}
+
+.forum-topic-card-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--ink-faint);
+  font-size: .85rem;
+  margin-top: 10px;
+}
+
+.forum-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* -------- صفحة الموضوع -------- */
+
+.forum-topic-detail {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.forum-topic-title {
+  margin: 4px 0 10px;
+  font-size: 1.5rem;
+}
+
+.forum-content-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  color: var(--ink);
+  margin: 16px 0;
+}
+
+.forum-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.btn-sm { padding: 6px 14px; font-size: .85rem; }
+
+.forum-danger-btn {
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+.forum-danger-btn:hover { background: var(--danger-bg); }
+
+.forum-locked-banner {
+  margin-top: 16px;
+  background: var(--muted-bg);
+  border-radius: 10px;
+}
+
+.forum-edit-title-input,
+.forum-edit-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.forum-edit-textarea { min-height: 120px; resize: vertical; }
+
+.forum-replies-section { margin-top: 8px; }
+
+.forum-replies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.forum-reply-card { padding: 18px; }
+
+.forum-reply-form-wrap {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .forum-topic-detail { padding: 16px; }
+  .forum-toolbar { flex-direction: column; align-items: stretch; }
+  .forum-toolbar .btn { width: 100%; }
+  .forum-item-actions .btn { flex: 1 1 auto; }
+}

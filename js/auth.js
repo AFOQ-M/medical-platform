@@ -430,10 +430,9 @@ function buildAccountSidebar() {
       <a href="courses.html" class="account-sidebar-link">
         <span class="account-sidebar-icon" aria-hidden="true">🎓</span><span>الدورات</span>
       </a>
-      <button type="button" class="account-sidebar-link account-sidebar-link-disabled" id="account-sidebar-forum">
+      <a href="forum.html" class="account-sidebar-link" id="account-sidebar-forum">
         <span class="account-sidebar-icon" aria-hidden="true">💬</span><span>ملتقى أفق</span>
-        <span class="badge-soon">قريبًا</span>
-      </button>
+      </a>
       <a href="favorites.html" class="account-sidebar-link">
         <span class="account-sidebar-icon" aria-hidden="true">⭐</span><span>المفضلة</span>
       </a>
@@ -454,12 +453,8 @@ function buildAccountSidebar() {
     if (e.key === "Escape" && !sidebar.hidden) closeAccountSidebar();
   });
 
-  // ملتقى أفق: المسار غير موجود بعد (forum.html) — لا تُنشأ صفحة فارغة
-  // ولا يُربط رابط حقيقي مكسور؛ فقط تسجيل الحالة + إشعار عابر للمستخدم.
-  sidebar.querySelector("#account-sidebar-forum").addEventListener("click", () => {
-    console.log("Forum destination: NOT IMPLEMENTED YET");
-    showToast("ملتقى أفق قريبًا");
-  });
+  // ملتقى أفق: forum.html أصبح موجودًا (Phase 6) — رابط عادي فقط
+  // (لا مستمع خاص هنا)، بنفس نمط بقية روابط القائمة أعلاه.
 
   sidebar.querySelector("#account-sidebar-signout").addEventListener("click", handleAccountSignOut);
 }
