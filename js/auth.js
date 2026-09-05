@@ -332,15 +332,23 @@ function updateAccountTriggerUI() {
  * تتجاهل هذه الدالة تلقائيًا (لا تأثير خارج صفحة الهبوط).
  */
 function updateHeroAuthButtonsUI() {
-  const buttons = ["hero-auth-trigger", "final-auth-trigger"]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
-  if (buttons.length === 0) return;
+  // كلا الزرّين قبل تسجيل الدخول (ضيف): "دخول / تسجيل" — كما كانا دائمًا.
+  // بعد تسجيل الدخول: hero-auth-trigger (العلوي) يعرض "القائمة" (الضغط
+  // عليه يفتح القائمة الجانبية عبر نفس مستمع الحدث الحالي، بلا أي تغيير
+  // في السلوك). final-auth-trigger (السفلي) يبقى "حسابي — [الاسم]" تمامًا
+  // كما كان قبل أي من هذه التعديلات.
+  const guestLabel = "دخول / تسجيل";
+  const linkedLabels = {
+    "hero-auth-trigger": "القائمة",
+    "final-auth-trigger": `حسابي — ${bestDisplayName(currentAuthUser)}`,
+  };
 
   const linked = isLinkedAccountUser();
-  const label = linked ? `حسابي — ${bestDisplayName(currentAuthUser)}` : "دخول / تسجيل";
-  buttons.forEach((btn) => {
-    btn.textContent = label; // نص فقط، لا innerHTML — نفس معيار الأمان المتّبع في الملف
+
+  Object.keys(linkedLabels).forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.textContent = linked ? linkedLabels[id] : guestLabel; // نص فقط، لا innerHTML — نفس معيار الأمان المتّبع في الملف
   });
 }
 
