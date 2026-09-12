@@ -143,6 +143,22 @@ create policy "public_insert_reports"
   on reports for insert
   with check (true);
 
+-- ============================================================
+-- ⚠️ ملاحظة تاريخية: السياستان أدناه
+-- ("admin_read_reports"/"admin_delete_reports") جزء من old schema
+-- البسيط (تقييد دور auth.role()='authenticated' على مستوى الدور فقط).
+-- ✓ تم استبدالهما فعلًا على قاعدة البيانات الحية بسياسات schema_phase2.sql
+--   الأكثر دقة: "auth_read_reports" (select) و"auth_delete_reports"
+--   (delete) عبر fn_has_permission('reports', ...) التي تفرض WHO->WHAT
+--   ->WHERE (دور + إجراء + نطاق جامعة/كلية) بدل السماح لأي مسجّل.
+-- لاحظ: schema.sql التاريخي أدناه يعبّر عن RLS فقط؛ app.js يدير دورية
+-- الوصول عبر hasAnyPerm/hasPerm (انظر admin/admin.js) بينما RLS هو
+-- الحَكَم الفعلي على مستوى القاعدة.
+-- لا تحذف هذا النص القديم (الملف مرجعي/تاريخي) ولا تعيد تنفيذه على
+-- قاعدة حية — schema_phase2.sql هو التنفيذ الحالي على القاعدة.
+-- (لا إنشاء migration؛ تعديل توثيقي على ملف مصدري رمزي فقط.)
+-- ============================================================
+
 create policy "admin_read_reports"
   on reports for select
   using (auth.role() = 'authenticated');

@@ -1321,11 +1321,18 @@ a.card:hover, a.card:focus-visible {
 
 .admin-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
+
+.admin-tabs::-webkit-scrollbar { height: 4px; }
+.admin-tabs::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+.admin-tabs::-webkit-scrollbar-track { background: transparent; }
 
 .admin-tab-btn {
   background: var(--surface);
@@ -1337,6 +1344,8 @@ a.card:hover, a.card:focus-visible {
   font-weight: 700;
   font-size: .88rem;
   color: var(--ink-soft);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .admin-tab-btn:hover { border-color: var(--line-strong); color: var(--ink); }
@@ -1357,6 +1366,51 @@ a.card:hover, a.card:focus-visible {
   border-radius: var(--radius);
   padding: 22px;
   box-shadow: var(--shadow);
+}
+
+/* F-08: طيّ نماذج الإضافة (details/summary) — مطوية افتراضيًا، مع بقاء
+   كل الحقول والسلوك كما هو. العنصر h3 داخل summary مسموح (heading content). */
+.admin-form-toggle {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+.admin-form-toggle > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  font-family: 'Tajawal', sans-serif;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-form-toggle > summary::-webkit-details-marker { display: none; }
+
+.admin-form-toggle > summary h3,
+.admin-form-toggle > summary h4 { margin: 0; font-size: 1rem; }
+
+.admin-form-toggle > summary::before {
+  content: "＋";
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--primary);
+  transition: transform .15s ease;
+}
+
+.admin-form-toggle[open] > summary::before { content: "−"; }
+
+.admin-form-toggle > .admin-form-toggle-body {
+  border-top: 1px solid var(--line);
+  padding: 16px;
+  background: var(--surface);
+}
+
+@media (max-width: 640px) {
+  .admin-form-toggle > summary { padding: 10px 12px; }
+  .admin-form-toggle > .admin-form-toggle-body { padding: 12px; }
 }
 
 .table-wrap { overflow-x: auto; }

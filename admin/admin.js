@@ -369,6 +369,7 @@ function applyPermissionVisibility() {
     resources: hasAnyPerm("resources"),
     courses: hasAnyPerm("courses"),
     reports: hasAnyPerm("reports"),
+    forum: hasAnyPerm("reports"),
     users: currentProfile.role === "super_admin",
     dashboard: true,
   };
@@ -784,6 +785,7 @@ async function loadAllData() {
   await loadResources();
   await loadCourses();
   loadReports();
+  loadForumReports();
   if (currentProfile.role === "super_admin") loadUsersPanel();
 }
 
@@ -795,24 +797,42 @@ async function loadDashboard() {
   const grid = document.getElementById("dashboard-stats");
   grid.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
 
-  const [uni, fac, yrs, subj, res, courses, rep, admins] = await Promise.all([
-    supabaseClient.from("universities").select("*", { count: "exact", head: true }),
-    supabaseClient.from("faculties").select("*", { count: "exact", head: true }),
-    supabaseClient.from("years").select("*", { count: "exact", head: true }),
-    supabaseClient.from("subjects").select("*", { count: "exact", head: true }),
-    supabaseClient.from("resources").select("*", { count: "exact", head: true }),
-    supabaseClient.from("courses").select("*", { count: "exact", head: true }),
-    supabaseClient.from("reports").select("*", { count: "exact", head: true }),
-    currentProfile.role === "super_admin"
-      ? supabaseClient.from("profiles").select("*", { count: "exact", head: true })
-      : Promise.resolve({ count: null }),
+  // F-06: عدّ كل جدول بمعالجة أخطاء معزولة — فشل أي استعلام يُسجَّل
+  // للمطوّر فقط (console.error) ويُظهر "—" في بطاقته، ولا يُسقط بقية
+  // البطاقات. شكل العرض الحالي ("—" عند الفشل) لم يتغيّر.
+  const countQuery = async (table) => {
+    try {
+      const { count, error } = await supabaseClient.from(table).select("*", { count: "exact", head: true });
+      if (error) { console.error(`loadDashboard: تعذّر عدّ ${table}`, error); return null; }
+      return count;
+    } catch (err) {
+      console.error(`loadDashboard: تعذّر عدّ ${table}`, err);
+      return null;
+    }
+  };
+
+  // F-01: استعلام count إضافي لـ forum_reports (بلاغات المنتدى) بنفس نمط
+  // الاستعلامات الأخرى. القراءة مسموحة عبر RLS الموجودة فعلًا
+  // (admin_read_all_forum_reports في phase7_forum_admin_moderation.sql:
+  // fn_is_super_admin() OR fn_has_permission('reports', null, 'view')) —
+  // لمن لا يملك الصلاحية تُعيد RLS صفرًا وليس خطأً، فلا حاجة لأي RLS جديدة.
+  const [uni, fac, yrs, subj, res, courses, rep, forumRep, admins] = await Promise.all([
+    countQuery("universities"),
+    countQuery("faculties"),
+    countQuery("years"),
+    countQuery("subjects"),
+    countQuery("resources"),
+    countQuery("courses"),
+    countQuery("reports"),
+    countQuery("forum_reports"),
+    currentProfile.role === "super_admin" ? countQuery("profiles") : Promise.resolve(null),
   ]);
 
   const stats = [
-    ["الجامعات", uni.count], ["الكليات", fac.count], ["السنوات", yrs.count], ["المواد", subj.count],
-    ["الموارد", res.count], ["الدورات", courses.count], ["البلاغات", rep.count],
+    ["الجامعات", uni], ["الكليات", fac], ["السنوات", yrs], ["المواد", subj],
+    ["الموارد", res], ["الدورات", courses], ["البلاغات", rep], ["بلاغات المنتدى", forumRep],
   ];
-  if (currentProfile.role === "super_admin") stats.push(["الإداريون", admins.count]);
+  if (currentProfile.role === "super_admin") stats.push(["الإداريون", admins]);
 
   grid.innerHTML = "";
   stats.forEach(([label, value]) => {
@@ -862,6 +882,8 @@ async function loadUniversities() {
   populateSelect("res-university", data, (u) => u.name);
 
   document.getElementById("uni-form").style.display = hasPerm("academic_structure", null, null, "create") ? "" : "none";
+  const uniFormToggle = document.getElementById("uni-form-toggle");
+  if (uniFormToggle) uniFormToggle.hidden = !hasPerm("academic_structure", null, null, "create");
 
   if (!data.length) { tbody.innerHTML = `<tr><td colspan="3">لا توجد جامعات بعد</td></tr>`; return; }
   tbody.innerHTML = "";
@@ -874,8 +896,8 @@ async function loadUniversities() {
       <td data-label="مختصر">${escHtml(u.short_name) || "—"}</td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editUniversity('${u.id}')">تعديل</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('universities','${u.id}', loadUniversities)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="universities" data-id="${u.id}">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="universities" data-id="${u.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -902,6 +924,16 @@ document.getElementById("uni-form").addEventListener("submit", async (e) => {
   loadUniversities();
 });
 
+// F-08: عند التعديل، اطوِ النموذج open ودخوله للعرض — النماذج أصبحت مطوية
+// افتراضيًا داخل <details class="admin-form-toggle"> لتفادي ظهورها مفتوحة
+// دائمًا فوق الجدول على الشاشات الضيقة.
+function openAdminAddForm(detailsId) {
+  const details = document.getElementById(detailsId);
+  if (!details) return;
+  details.open = true;
+  if (typeof details.scrollIntoView === "function") details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function editUniversity(id) {
   // الأمان: id فقط يصل عبر onclick (UUID، لا يحتاج ترميز ولا يمكنه كسر
   // السياق) — بيانات الجامعة الفعلية (name/short_name/logo_url، وهي نصوص
@@ -917,6 +949,7 @@ function editUniversity(id) {
   document.getElementById("uni-form-title").textContent = "تعديل جامعة";
   document.getElementById("uni-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("uni-cancel-btn").hidden = false;
+  openAdminAddForm("uni-form-toggle");
 }
 
 function resetUniForm() {
@@ -964,9 +997,9 @@ async function loadFaculties() {
       <td data-label="الحالة"><span class="status-badge ${f.is_active ? "published" : "hidden"}">${f.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editFaculty('${f.id}')">تعديل</button>` : ""}
-          ${canEdit ? `<button class="btn btn-sm ${f.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleFacultyActive('${f.id}', ${f.is_active})">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('faculties','${f.id}', loadFaculties)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="faculties" data-id="${f.id}">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${f.is_active ? "btn-state-off" : "btn-state-on"}" data-action="toggle-active" data-table="faculties" data-id="${f.id}" data-active="${f.is_active}">${f.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="faculties" data-id="${f.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -979,11 +1012,14 @@ function refreshFacFormUniversityOptions() {
   if (!select) return;
   const allowed = universitiesCache.filter((u) => hasPerm("academic_structure", u.id, null, "create"));
   const form = document.getElementById("fac-form");
+  const formToggle = document.getElementById("fac-form-toggle");
   if (!allowed.length) {
     form.style.display = "none";
+    if (formToggle) formToggle.hidden = true;
     return;
   }
   form.style.display = "";
+  if (formToggle) formToggle.hidden = false;
   populateSelect("fac-university", allowed, (u) => u.name);
 }
 
@@ -1021,6 +1057,7 @@ function editFaculty(facultyId) {
   document.getElementById("fac-form-title").textContent = "تعديل كلية";
   document.getElementById("fac-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("fac-cancel-btn").hidden = false;
+  openAdminAddForm("fac-form-toggle");
 }
 
 function resetFacForm() {
@@ -1205,9 +1242,9 @@ async function loadYears() {
       <td data-label="الحالة"><span class="status-badge ${y.is_active ? "published" : "hidden"}">${y.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editYear('${y.id}','${y.university_id}','${y.faculty_id || ""}',${y.year_number},${y.is_active})">تعديل</button>` : ""}
-          ${canEdit ? `<button class="btn btn-sm ${y.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleYearActive('${y.id}', ${y.is_active})">${y.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('years','${y.id}', loadYears)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="years" data-id="${y.id}" data-university-id="${y.university_id}" data-faculty-id="${y.faculty_id || ""}" data-year-number="${y.year_number}" data-active="${y.is_active}">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${y.is_active ? "btn-state-off" : "btn-state-on"}" data-action="toggle-active" data-table="years" data-id="${y.id}" data-active="${y.is_active}">${y.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="years" data-id="${y.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -1246,6 +1283,7 @@ function editYear(id, universityId, facultyId, yearNumber, isActive) {
   document.getElementById("year-form-title").textContent = "تعديل سنة دراسية";
   document.getElementById("year-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("year-cancel-btn").hidden = false;
+  openAdminAddForm("year-form-toggle");
 }
 
 function resetYearForm() {
@@ -1302,9 +1340,9 @@ async function loadSubjects() {
       <td data-label="الحالة"><span class="status-badge ${s.is_active ? "published" : "hidden"}">${s.is_active ? "مفعّلة" : "معطَّلة"}</span></td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editSubject('${s.id}')">تعديل</button>` : ""}
-          ${canEdit ? `<button class="btn btn-sm ${s.is_active ? "btn-state-off" : "btn-state-on"}" onclick="toggleSubjectActive('${s.id}', ${s.is_active})">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('subjects','${s.id}', loadSubjects)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="subjects" data-id="${s.id}">تعديل</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${s.is_active ? "btn-state-off" : "btn-state-on"}" data-action="toggle-active" data-table="subjects" data-id="${s.id}" data-active="${s.is_active}">${s.is_active ? "تعطيل" : "تفعيل"}</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="subjects" data-id="${s.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -1363,6 +1401,7 @@ function editSubject(id) {
   document.getElementById("subj-form-title").textContent = "تعديل مادة";
   document.getElementById("subj-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("subj-cancel-btn").hidden = false;
+  openAdminAddForm("subj-form-toggle");
 }
 
 function resetSubjForm() {
@@ -1454,10 +1493,10 @@ function renderResourcesTable() {
       <td data-label="المشاهدات">${escHtml(r.view_count ?? 0)}</td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-sm ${r.status === "hidden" ? "btn-state-on" : "btn-state-off"}" onclick="toggleResourceHidden('${r.id}', ${r.status === "hidden"}, function(){})">${r.status === "hidden" ? "نشر" : "إخفاء"}</button>` : ""}
-          ${canEdit ? `<button class="btn btn-sm ${r.verified ? "btn-state-off" : "btn-state-on"}" onclick="toggleResourceVerified('${r.id}', ${!!r.verified}, loadResources)">${r.verified ? "إلغاء التوثيق" : "توثيق"}</button>` : ""}
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editResource('${r.id}')">تعديل</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('resources','${r.id}', loadResources)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${r.status === "hidden" ? "btn-state-on" : "btn-state-off"}" data-action="toggle-resource-hidden" data-table="resources" data-id="${r.id}" data-hidden="${r.status === "hidden"}">${r.status === "hidden" ? "نشر" : "إخفاء"}</button>` : ""}
+          ${canEdit ? `<button class="btn btn-sm ${r.verified ? "btn-state-off" : "btn-state-on"}" data-action="toggle-resource-verified" data-table="resources" data-id="${r.id}" data-verified="${!!r.verified}">${r.verified ? "إلغاء التوثيق" : "توثيق"}</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="resources" data-id="${r.id}">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="resources" data-id="${r.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -1593,6 +1632,7 @@ function editResource(resourceId) {
   document.getElementById("res-form-title").textContent = "تعديل مورد";
   document.getElementById("res-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("res-cancel-btn").hidden = false;
+  openAdminAddForm("res-form-toggle");
 }
 
 function resetResForm() {
@@ -1658,8 +1698,8 @@ async function loadReports() {
     const tdActions = document.createElement("td");
     tdActions.innerHTML = `
       <div class="row-actions">
-        ${r.resources && canToggle ? `<button class="btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}" onclick="toggleResourceHidden('${r.resources.id}', ${isHidden}, loadReports)">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
-        ${canResolve ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('reports','${r.id}', loadReports)">حذف البلاغ</button>` : ""}
+        ${r.resources && canToggle ? `<button class="btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}" data-action="toggle-resource-hidden" data-table="reports" data-id="${r.resources.id}" data-hidden="${isHidden}">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
+        ${canResolve ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="reports" data-id="${r.id}">حذف البلاغ</button>` : ""}
       </div>
     `;
     tr.appendChild(tdActions);
@@ -1678,6 +1718,140 @@ async function toggleResourceHidden(resourceId, currentlyHidden, refreshFn) {
   showToast(currentlyHidden ? "تم إظهار المورد" : "تم إخفاء المورد");
   refreshFn();
   loadResources();
+}
+
+// ============================================================
+// بلاغات المنتدى (ملتقى أفق) — Phase 7
+// نفس أسلوب loadReports() أعلاه تمامًا: DOM + textContent لأي بيانات
+// قادمة من المستخدم (اسم الكاتب، عنوان الموضوع، محتوى الرد، ملاحظة
+// المُبلِّغ)، RLS (admin_read_all_forum_reports وما يرافقها في
+// phase7_forum_admin_moderation.sql) هي الحَكَم الفعلي لمن يرى هذا
+// الجدول أصلًا — hasAnyPerm/hasPerm هنا للواجهة فقط.
+// ============================================================
+
+const FORUM_REPORT_REASON_LABELS_ADMIN = {
+  offensive: "ألفاظ بذيئة أو إساءة",
+  harassment: "تنمر أو مضايقة",
+  inappropriate: "محتوى غير مناسب",
+  misinformation: "معلومات مضللة أو مزعجة",
+  other: "أخرى",
+};
+const FORUM_REPORT_STATUS_LABELS_ADMIN = { pending: "قيد المراجعة", reviewed: "تمت المراجعة", dismissed: "مرفوض" };
+
+async function loadForumReports() {
+  const { data, error } = await supabaseClient
+    .from("forum_reports")
+    .select(`
+      id, reason, details, status, created_at,
+      topic_id, reply_id,
+      forum_topics(id, title, author_name, is_hidden),
+      forum_replies(id, content, author_name, is_hidden, topic_id)
+    `)
+    .order("created_at", { ascending: false });
+
+  const tbody = document.querySelector("#forum-reports-table tbody");
+  if (error) { tbody.innerHTML = `<tr><td colspan="8">تعذّر التحميل</td></tr>`; console.error(error); return; }
+
+  if (!data.length) { tbody.innerHTML = `<tr><td colspan="8">لا توجد بلاغات منتدى حاليًا (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
+  tbody.innerHTML = "";
+
+  const canModerate = hasAnyPerm("reports") && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "edit"));
+
+  data.forEach((r) => {
+    const isTopic = !!r.topic_id;
+    const target = isTopic ? r.forum_topics : r.forum_replies;
+    const targetLabel = isTopic ? "موضوع" : "رد";
+    const targetText = isTopic ? (target?.title || "(موضوع محذوف)") : (target?.content || "(رد محذوف)");
+    const authorName = target?.author_name || "—";
+    const isHidden = target?.is_hidden === true;
+
+    const tr = document.createElement("tr");
+
+    const tdType = document.createElement("td");
+    tdType.setAttribute("data-label", "النوع");
+    tdType.textContent = targetLabel;
+    tr.appendChild(tdType);
+
+    const tdContent = document.createElement("td");
+    tdContent.setAttribute("data-label", "المحتوى المُبلَّغ عنه");
+    tdContent.textContent = targetText.length > 80 ? targetText.slice(0, 80) + "…" : targetText;
+    tr.appendChild(tdContent);
+
+    const tdAuthor = document.createElement("td");
+    tdAuthor.setAttribute("data-label", "الكاتب");
+    tdAuthor.textContent = authorName;
+    tr.appendChild(tdAuthor);
+
+    const tdReporter = document.createElement("td");
+    tdReporter.setAttribute("data-label", "المُبلِّغ");
+    tdReporter.textContent = r.details ? `ملاحظة: ${r.details}` : "—";
+    tr.appendChild(tdReporter);
+
+    const tdReason = document.createElement("td");
+    tdReason.setAttribute("data-label", "السبب");
+    tdReason.textContent = FORUM_REPORT_REASON_LABELS_ADMIN[r.reason] || r.reason;
+    tr.appendChild(tdReason);
+
+    const tdStatus = document.createElement("td");
+    tdStatus.setAttribute("data-label", "الحالة");
+    tdStatus.textContent = FORUM_REPORT_STATUS_LABELS_ADMIN[r.status] || r.status;
+    tr.appendChild(tdStatus);
+
+    const tdDate = document.createElement("td");
+    tdDate.setAttribute("data-label", "التاريخ");
+    tdDate.textContent = new Date(r.created_at).toLocaleDateString("ar-EG");
+    tr.appendChild(tdDate);
+
+    const tdActions = document.createElement("td");
+    if (canModerate && target) {
+      const hideBtn = document.createElement("button");
+      hideBtn.className = `btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}`;
+      hideBtn.textContent = isHidden ? (isTopic ? "إظهار الموضوع" : "إظهار الرد") : (isTopic ? "إخفاء الموضوع" : "إخفاء الرد");
+      hideBtn.addEventListener("click", () => toggleForumTargetHidden(isTopic ? "topic" : "reply", target.id, isHidden, loadForumReports));
+
+      const dismissBtn = document.createElement("button");
+      dismissBtn.className = "btn btn-sm btn-outline";
+      dismissBtn.textContent = "رفض البلاغ";
+      dismissBtn.disabled = r.status !== "pending";
+      dismissBtn.addEventListener("click", () => updateForumReportStatus(r.id, "dismissed", loadForumReports));
+
+      const reviewBtn = document.createElement("button");
+      reviewBtn.className = "btn btn-sm btn-primary";
+      reviewBtn.textContent = "تحديد كمُراجَع";
+      reviewBtn.disabled = r.status !== "pending";
+      reviewBtn.addEventListener("click", () => updateForumReportStatus(r.id, "reviewed", loadForumReports));
+
+      const actionsWrap = document.createElement("div");
+      actionsWrap.className = "row-actions";
+      actionsWrap.appendChild(hideBtn);
+      actionsWrap.appendChild(reviewBtn);
+      actionsWrap.appendChild(dismissBtn);
+      tdActions.appendChild(actionsWrap);
+    }
+    tr.appendChild(tdActions);
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function toggleForumTargetHidden(targetType, targetId, currentlyHidden, refreshFn) {
+  const table = targetType === "topic" ? "forum_topics" : "forum_replies";
+  const { error } = await supabaseClient.from(table).update({ is_hidden: !currentlyHidden }).eq("id", targetId);
+  if (error) { showToast("تعذّر تحديث حالة المحتوى"); console.error(error); return; }
+  logActivity(currentlyHidden ? "forum_content_restored" : "forum_content_hidden", targetType, targetId, null);
+  showToast(currentlyHidden ? "تم إظهار المحتوى" : "تم إخفاء المحتوى");
+  refreshFn();
+}
+
+async function updateForumReportStatus(reportId, newStatus, refreshFn) {
+  const { error } = await supabaseClient
+    .from("forum_reports")
+    .update({ status: newStatus, reviewed_at: new Date().toISOString(), reviewed_by: currentProfile.id })
+    .eq("id", reportId);
+  if (error) { showToast("تعذّر تحديث حالة البلاغ"); console.error(error); return; }
+  logActivity("forum_report_" + newStatus, "forum_report", reportId, null);
+  showToast(newStatus === "reviewed" ? "تم تحديد البلاغ كمُراجَع" : "تم رفض البلاغ");
+  refreshFn();
 }
 
 // P1-5: تبديل سريع لعلامة "موثّق" من صف المورد مباشرة في تبويب الموارد
@@ -1751,8 +1925,8 @@ async function loadCourses() {
       <td data-label="الترتيب">${escHtml(c.sort_order ?? 0)}</td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editCourse('${c.id}')">تعديل</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('courses','${c.id}', loadCourses)">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="courses" data-id="${c.id}">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="courses" data-id="${c.id}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -1805,6 +1979,7 @@ function editCourse(id) {
   document.getElementById("course-form-title").textContent = "تعديل دورة";
   document.getElementById("course-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("course-cancel-btn").hidden = false;
+  openAdminAddForm("course-form-toggle");
 }
 
 function resetCourseForm() {
@@ -1863,8 +2038,8 @@ async function loadCourseLessons(courseId) {
       <td data-label="الترتيب">${escHtml(l.sort_order ?? 0)}</td>
       <td>
         <div class="row-actions">
-          ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="editLesson('${l.id}')">تعديل</button>` : ""}
-          ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteRow('course_lessons','${l.id}', function(){ loadCourseLessons('${courseId}'); })">حذف</button>` : ""}
+          ${canEdit ? `<button class="btn btn-outline btn-sm" data-action="edit" data-table="course_lessons" data-id="${l.id}">تعديل</button>` : ""}
+          ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="course_lessons" data-id="${l.id}" data-course-id="${courseId}">حذف</button>` : ""}
           ${!canEdit && !canDelete ? "—" : ""}
         </div>
       </td>`;
@@ -1939,6 +2114,7 @@ function editLesson(id) {
   document.getElementById("lesson-form-title").textContent = "تعديل درس";
   document.getElementById("lesson-submit-btn").textContent = "حفظ التعديل";
   document.getElementById("lesson-cancel-btn").hidden = false;
+  openAdminAddForm("lesson-form-toggle");
 }
 
 function resetLessonForm() {
@@ -2238,6 +2414,68 @@ function labeledWrap(label, el) {
 // أدوات مساعدة
 // ============================================================
 
+// F-11: أزرار صفوف الجداول تُبنى عبر data-action/data-id (لا onclick داخل
+// سلاسل القوالب — لا حقن JS عبر القيم القادمة من قاعدة البيانات). الاستدعاء
+// يتم عبر تفويض أحداث (event delegation) على كل tbody مرة واحدة وقت التحميل.
+// نفس الأزرار، نفس النتائج، نفس الصلاحيات المعروضة — سلوك مطابق 100%.
+const ADMIN_ROW_REFRESHERS = {
+  universities: loadUniversities,
+  faculties: loadFaculties,
+  years: loadYears,
+  subjects: loadSubjects,
+  resources: loadResources,
+  reports: loadReports,
+  courses: loadCourses,
+};
+
+function handleAdminRowAction(btn) {
+  const { table, action, id } = btn.dataset;
+  if (action === "delete") {
+    const refresher = table === "course_lessons"
+      ? (btn.dataset.courseId ? () => loadCourseLessons(btn.dataset.courseId) : () => {})
+      : (ADMIN_ROW_REFRESHERS[table] || (() => {}));
+    return deleteRow(table, id, refresher);
+  }
+  if (action === "toggle-active") {
+    const currentlyActive = btn.dataset.active === "true";
+    if (table === "faculties") toggleFacultyActive(id, currentlyActive);
+    else if (table === "years") toggleYearActive(id, currentlyActive);
+    else if (table === "subjects") toggleSubjectActive(id, currentlyActive);
+    return;
+  }
+  if (action === "toggle-resource-hidden") {
+    const refresher = table === "resources" ? () => {} : (ADMIN_ROW_REFRESHERS[table] || (() => {}));
+    toggleResourceHidden(id, btn.dataset.hidden === "true", refresher);
+    return;
+  }
+  if (action === "toggle-resource-verified") {
+    toggleResourceVerified(id, btn.dataset.verified === "true", ADMIN_ROW_REFRESHERS[table] || (() => {}));
+    return;
+  }
+  if (action === "edit") {
+    switch (table) {
+      case "universities": editUniversity(id); break;
+      case "faculties": editFaculty(id); break;
+      case "years":
+        editYear(id, btn.dataset.universityId, btn.dataset.facultyId || null, parseInt(btn.dataset.yearNumber, 10), btn.dataset.active === "true");
+        break;
+      case "subjects": editSubject(id); break;
+      case "resources": editResource(id); break;
+      case "courses": editCourse(id); break;
+      case "course_lessons": editLesson(id); break;
+    }
+    return;
+  }
+}
+
+document.querySelectorAll(".admin-table tbody").forEach((tbody) => {
+  tbody.addEventListener("click", (event) => {
+    const btn = event.target.closest && event.target.closest("button[data-action]");
+    if (!btn) return;
+    handleAdminRowAction(btn);
+  });
+});
+
 async function deleteRow(table, id, refreshFn) {
   if (!confirm("هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.")) return;
   const { error } = await supabaseClient.from(table).delete().eq("id", id);
@@ -2258,20 +2496,6 @@ function populateSelect(selectId, items, labelFn, useIdField) {
     select.appendChild(opt);
   });
   if (currentValue) select.value = currentValue;
-}
-
-/**
- * ترميز نص غير موثوق للإدراج داخل قيمة سمة HTML (attribute) تُستخدم كوسيطة
- * JS ضمن onclick (مثال: onclick="fn('${escAttr(x)}')"). يجب ترميز الأحرف
- * الخمسة كاملة — وعلى رأسها "&" — وإلا يمكن لنص خام مثل الحرفين المتتاليين
- * "&quot;" أو "&#39;" (كنص عادي قادم من قاعدة البيانات، وليس ككيان HTML
- * فعلي مقصود) أن يُفكَّه المتصفح إلى علامة اقتباس حقيقية أثناء تحليل قيمة
- * السمة، فتنكسر السلسلة النصية داخل كود onclick ويُصبح حقن JS ممكنًا رغم
- * أن الدالة القديمة كانت "تُرمِّز" علامات الاقتباس الحرفية. لذلك نعيد
- * استخدام نفس منطق escHtml (ترميز كل الأحرف الخمسة في مرور واحد).
- */
-function escAttr(str) {
-  return escHtml(str);
 }
 
 /**
