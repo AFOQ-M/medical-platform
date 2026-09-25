@@ -141,6 +141,7 @@ function loadAuthJsWithMockSession({ initialSession = null } = {}) {
   const mockDocument = {
     getElementById(id) { return domElements[id] || null; },
     createElement(tag) { return makeElement("created-" + tag, tag.toUpperCase()); },
+    createElementNS(ns, tag) { return makeElement("created-ns-" + tag, tag.toUpperCase()); },
     createTextNode(text) { return { nodeType: 3, textContent: text }; },
     body: { appendChild(el) { bodyChildren.push(el); } },
     _listeners: {},
@@ -183,7 +184,7 @@ function loadAuthJsWithMockSession({ initialSession = null } = {}) {
     URLSearchParams,
     URL,
     window: {
-      location: { href: "https://afoq-m.github.io/medical-platform/courses.html", search: "", pathname: "/medical-platform/courses.html" },
+      location: { href: "https://afoq-m.pages.dev/courses.html", search: "", pathname: "/courses.html" },
       history: { replaceState() {} },
     },
     document: mockDocument,

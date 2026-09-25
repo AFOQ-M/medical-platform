@@ -1,0 +1,119 @@
+{
+  "artifact": "afoq-load-target-telemetry",
+  "schemaVersion": 2,
+  "runId": "vt4",
+  "mode": "target",
+  "startedAtIso": "2026-09-25T12:10:05.062Z",
+  "endedAtIso": "2026-09-25T12:10:10.075Z",
+  "elapsedSec": 5,
+  "final": false,
+  "uptimeSec": 5,
+  "processCpuPct": 0.62,
+  "rssMb": 66.5,
+  "heapMb": 8.4,
+  "activeConnections": 2,
+  "requests": 5942,
+  "requestRate": 1185.32,
+  "methods": {
+    "GET": 5942
+  },
+  "statusCounts": {
+    "200": 5940
+  },
+  "activeRequestsMax": 3,
+  "prematureCloses": 0,
+  "latencyMs": {
+    "status": "OK",
+    "count": 5940,
+    "truncated": null,
+    "p50": 761,
+    "p90": 1196,
+    "p95": 1407,
+    "p99": 1819,
+    "max": 24678,
+    "mean": 854
+  },
+  "eventLoop": {
+    "p50Us": 10035200,
+    "p95Us": 0,
+    "p99Us": 0,
+    "maxUs": 26329087,
+    "meanUs": 11833529
+  },
+  "samples": [
+    {
+      "tSec": 1,
+      "activeRequests": 0,
+      "completed": 0,
+      "requestsTotal": 0,
+      "activeConnections": null,
+      "processCpuPct": 0,
+      "rssMb": 50.3,
+      "heapMb": 5.5,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 25296895,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 2,
+      "activeRequests": 0,
+      "completed": 0,
+      "requestsTotal": 0,
+      "activeConnections": 0,
+      "processCpuPct": 0,
+      "rssMb": 50.3,
+      "heapMb": 5.5,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 25296895,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 3,
+      "activeRequests": 1,
+      "completed": 1787,
+      "requestsTotal": 1788,
+      "activeConnections": 0,
+      "processCpuPct": 10.9,
+      "rssMb": 65.5,
+      "heapMb": 8.2,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 26329087,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 4,
+      "activeRequests": 2,
+      "completed": 3871,
+      "requestsTotal": 3873,
+      "activeConnections": 2,
+      "processCpuPct": 4.7,
+      "rssMb": 63.5,
+      "heapMb": 8,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 26329087,
+      "prematureCloses": 0
+    }
+  ],
+  "meta": {
+    "nodeVersion": "v24.19.0",
+    "platform": "win32/x64",
+    "cpus": 12,
+    "samplerMs": 1000,
+    "snapshotMs": 5000,
+    "eventLoopNote": "monitorEventLoopDelay percentiles are cumulative since server start",
+    "classifications": {
+      "requests": "DIRECT",
+      "requestRate": "DERIVED",
+      "methods": "DIRECT",
+      "statusCounts": "DIRECT",
+      "latencyMs": "DIRECT (exact; NOT_AVAILABLE if truncated)",
+      "activeRequestsMax": "DIRECT",
+      "prematureCloses": "DIRECT",
+      "activeConnections": "DIRECT (server-side open sockets)",
+      "processCpuPct": "DIRECT",
+      "rssMb": "DIRECT",
+      "heapMb": "DIRECT",
+      "eventLoop": "DIRECT"
+    }
+  }
+}

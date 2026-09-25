@@ -1,0 +1,26 @@
+{
+  "target": "live",
+  "scenario": "B",
+  "baseUrl": "https://afoq-m.pages.dev",
+  "vu": 25,
+  "durationSec": 10,
+  "startedAtIso": "2026-09-25T09:04:54.204Z",
+  "totalRequests": 347,
+  "successful": 347,
+  "3xxRedirects": 0,
+  "4xx": [],
+  "4xxCount": 0,
+  "5xxCount": 0,
+  "timeouts": 0,
+  "connectionErrors": 0,
+  "errorRate": 0,
+  "requestsPerSecond": 34.7,
+  "latencyMs": {
+    "p50": 489,
+    "p90": 1393,
+    "p95": 2687,
+    "p99": 8124,
+    "max": 8879,
+    "mean": 792
+  }
+}

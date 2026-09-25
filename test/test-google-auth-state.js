@@ -23,17 +23,10 @@ const authJsSource = fs.readFileSync(AUTH_JS_PATH, "utf-8");
 
 let failures = 0;
 let passed = 0;
+const pendingTests = [];
 
 function test(name, fn) {
-  try {
-    fn();
-    console.log(`  PASS  ${name}`);
-    passed++;
-  } catch (err) {
-    console.log(`  FAIL  ${name}`);
-    console.log(`        ${err.message}`);
-    failures++;
-  }
+  pendingTests.push({ name, fn });
 }
 
 /** يبني بيئة (sandbox) جديدة تمامًا لكل اختبار — لا تسريب حالة بين
@@ -89,12 +82,16 @@ function loadAuthJsWithMockSession({ initialSession = null, anonymousSignInResul
       return domElements[id];
     },
     createElement(tag) { return makeElement("created-" + tag, tag.toUpperCase()); },
+    createElementNS(_ns, tag) { return makeElement("created-" + tag, tag.toUpperCase()); },
     createTextNode(text) { return { nodeType: 3, textContent: text }; },
     body: { appendChild() {} },
-    addEventListener() {},
+    addEventListener(type, cb) {
+      if (type === "DOMContentLoaded") domReadyCallback = cb;
+    },
   };
 
   let authStateCallback = null;
+  let domReadyCallback = null;
   const mockSupabaseClient = {
     auth: {
       async getSession() {
@@ -119,14 +116,21 @@ function loadAuthJsWithMockSession({ initialSession = null, anonymousSignInResul
 
   const sandbox = {
     console,
+    URL,
     URLSearchParams,
     window: {
-      location: { href: "https://afoq-m.github.io/medical-platform/index.html", search: "", pathname: "/medical-platform/index.html" },
+      location: { href: "https://afoq-m.pages.dev/index.html", search: "", pathname: "/index.html" },
       history: { replaceState() {} },
     },
     document: mockDocument,
     supabaseClient: mockSupabaseClient,
     sessionStorage: { setItem() {}, getItem() { return null; } },
+    localStorage: {
+      _data: {},
+      setItem(k, v) { this._data[k] = String(v); },
+      getItem(k) { return Object.prototype.hasOwnProperty.call(this._data, k) ? this._data[k] : null; },
+      removeItem(k) { delete this._data[k]; },
+    },
     showToast() {}, // معرَّفة أصلاً في js/app.js، غير محمَّلة هنا — محاكاة فارغة كافية لهذه الاختبارات
     setTimeout,
     clearTimeout,
@@ -136,7 +140,7 @@ function loadAuthJsWithMockSession({ initialSession = null, anonymousSignInResul
   vm.createContext(sandbox);
   vm.runInContext(authJsSource, sandbox, { filename: "js/auth.js" });
 
-  return { sandbox, domElements, triggerAuthStateChange: (session) => authStateCallback && authStateCallback("SIGNED_IN", session) };
+  return { sandbox, domElements, triggerAuthStateChange: (session) => authStateCallback && authStateCallback("SIGNED_IN", session), fireDomReady: async () => { if (domReadyCallback) await domReadyCallback(); } };
 }
 
 console.log("AFOQ Google Auth State — Regression Tests\n");
@@ -207,15 +211,16 @@ test("Test D — UI state propagation: account trigger shows avatar + name when 
 
 // --- Test D2: نفس الشيء عبر onAuthStateChange حي، مع fallback (لا صورة، لا اسم) ---
 test("Test D2 — Live SIGNED_IN event + safe fallbacks when no avatar/name metadata exists", async () => {
-  const { sandbox, domElements, triggerAuthStateChange } = loadAuthJsWithMockSession({ initialSession: null });
+  const { sandbox, domElements, triggerAuthStateChange, fireDomReady } = loadAuthJsWithMockSession({ initialSession: null });
+  // نمحاكي اكتمال DOM حقيقيًا: يعرّف مستمع الحالة الحقيقي من auth.js
+  // (المسؤول عن تحديث currentAuthUser الداخلي في closure الملف) —
+  // بدل كتابة sandbox.currentAuthUser (وهو خاصية غير فعّالة لأن المتغير
+  // فعليًا داخل closure وداخل سياق الـ vm).
   await sandbox.ensureAuthSession(); // يبدأ كضيف
-  sandbox.supabaseClient.auth.onAuthStateChange((_e, session) => {
-    sandbox.currentAuthUser = session ? session.user : null;
-    sandbox.refreshAuthUI();
-  });
+  await fireDomReady();
 
   const trigger = domElements["account-trigger"];
-  assert.strictEqual(trigger.textContent, "👤"); // لا يزال ضيفًا حتى الآن
+  assert.strictEqual(trigger.classList._classes.has("account-linked"), false, "still guest until the SIGNED_IN event");
 
   // مستخدم Google بلا أي user_metadata إطلاقًا (سيناريو fallback الكامل)
   const bareGoogleUser = { id: "u2", is_anonymous: false, email: "a.person@example.com", identities: [{ provider: "google" }] };
@@ -283,5 +288,63 @@ test("Test F — OAuth cancellation param is consumed safely without touching th
   assert.strictEqual(sandbox.hasLinkedGoogleIdentity(), false);
 });
 
-console.log(`\n${passed} passed, ${failures} failed`);
-process.exit(failures > 0 ? 1 : 0);
+// --- Test G: ردّ 422 المعروف (Anonymous disabled) → تجاوز سليم، ولا console.error، ولا إعادة محاولة داخل النافذة الزمنية ---
+test("Test G — 422 'Anonymous sign-ins are disabled': no console.error + marker suppresses retry in window", async () => {
+  const errors = [];
+  const harness = loadAuthJsWithMockSession({
+    initialSession: null,
+    anonymousSignInResult: { data: null, error: { status: 422, message: "Anonymous sign-ins are disabled" } },
+  });
+  harness.sandbox.console = { ...console, error: (...args) => { errors.push(args.join(" ")); } };
+
+  const user = await harness.sandbox.ensureAuthSession();
+  assert.strictEqual(user, null, "no session when Anonymous Auth is disabled");
+  assert.strictEqual(harness.sandbox.isAnonymousUser(), false);
+  assert.strictEqual(errors.length, 0, "a known 422 must NOT be logged via console.error on every page");
+  assert.ok(harness.sandbox.localStorage.getItem("afoq_guest_signin_disabled_at"),
+    "the disabled timestamp marker must be recorded");
+
+  // صفحة جديدة (sandbox جديد) والعلامة حديثة → لا محاولة شبكة إطلاقًا.
+  const harness2 = loadAuthJsWithMockSession({ initialSession: null });
+  harness2.sandbox.localStorage.setItem("afoq_guest_signin_disabled_at", String(Date.now() - 1000));
+  let signIns = 0;
+  harness2.sandbox.supabaseClient.auth.signInAnonymously = async () => { signIns++; return { data: { session: { user: { id: "anon-2", is_anonymous: true, identities: [] } } }, error: null }; };
+
+  const user2 = await harness2.sandbox.ensureAuthSession();
+  assert.strictEqual(signIns, 0, "must not re-attempt signInAnonymously within GUEST_SIGNIN_RETRY_MS");
+  assert.strictEqual(user2, null, "recent disabled marker → skipped, returns null");
+});
+
+// --- Test H: انقضاء النافذة الزمنية → تُعاد المحاولة تلقائيًا (لا بقاء محبوسًا للأبد)، والنجاح يمسح العلامة ---
+test("Test H — After GUEST_SIGNIN_RETRY_MS elapses, a new anonymous attempt is allowed again", async () => {
+  const harness = loadAuthJsWithMockSession({ initialSession: null });
+  harness.sandbox.localStorage.setItem("afoq_guest_signin_disabled_at", String(Date.now() - 25 * 60 * 60 * 1000)); // أقدم من 24h
+
+  let signIns = 0;
+  harness.sandbox.supabaseClient.auth.signInAnonymously = async () => {
+    signIns++;
+    return { data: { session: { user: { id: "anon-3", is_anonymous: true, identities: [] } } }, error: null };
+  };
+
+  const user = await harness.sandbox.ensureAuthSession();
+  assert.strictEqual(signIns, 1, "stale disabled marker must trigger a fresh attempt");
+  assert.strictEqual(user.is_anonymous, true, "and the guest session works again");
+  assert.strictEqual(harness.sandbox.localStorage.getItem("afoq_guest_signin_disabled_at"), null,
+    "successful sign-in must clear the stale disabled marker");
+});
+
+(async () => {
+  for (const { name, fn } of pendingTests) {
+    try {
+      await fn();
+      console.log(`  PASS  ${name}`);
+      passed++;
+    } catch (err) {
+      console.log(`  FAIL  ${name}`);
+      console.log(`        ${err.message}`);
+      failures++;
+    }
+  }
+  console.log(`\n${passed} passed, ${failures} failed`);
+  process.exitCode = failures > 0 ? 1 : 0;
+})();

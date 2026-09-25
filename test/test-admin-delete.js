@@ -36,6 +36,19 @@ async function testAsync(name, fn) {
 
 function flush() { return new Promise((r) => setImmediate(r)); }
 
+/* NEW-02: يُحاكي قرار المستخدم على نافذة التأكيد الجديدة (بدل mock confirm
+ * الأصلي). تأكيد = نقر "تأكيد الحذف"، إلغاء = نقر "إلغاء". */
+function acceptDialog(sandbox) {
+  const ok = sandbox.document.getElementById("admin-confirm-ok");
+  assert.ok(ok && ok._listeners && ok._listeners.click.length, "confirm OK button must exist with a click listener");
+  ok._listeners.click[0]();
+}
+function cancelDialog(sandbox) {
+  const cancel = sandbox.document.getElementById("admin-confirm-cancel");
+  assert.ok(cancel && cancel._listeners && cancel._listeners.click.length, "confirm cancel button must exist with a click listener");
+  cancel._listeners.click[0]();
+}
+
 function makeElement(tagName = "DIV") {
   const el = {
     tagName, hidden: false, disabled: false, className: "", value: "", checked: false, open: false,
@@ -151,7 +164,9 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
     const { sandbox, calls, toasts } = loadAdminJsSandbox({
       onDelete: (table, state) => { deleted.push({ table, id: state.filters.id }); return null; },
     });
-    await sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    acceptDialog(sandbox);
+    await flush();
 
     assert.deepStrictEqual(deleted, [{ table: "universities", id: "uni-abc" }]);
     assert.ok(calls.some((c) => c.op === "delete" && c.table === "universities"), "يجب أن يحدث delete على university");
@@ -164,7 +179,9 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
     const { sandbox, toasts, consoleErrors } = loadAdminJsSandbox({
       onDelete: () => ({ message: "violates RLS or foreign key" }),
     });
-    await sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    acceptDialog(sandbox);
+    await flush();
 
     assert.strictEqual(refreshed, 0, "عند الفشل يجب ألا نحدّث القائمة");
     assert.ok(toasts.some((m) => m.includes("تعذّر الحذف")), "يجب عرض رسالة فشل الحذف");
@@ -173,8 +190,9 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
 
   await testAsync("deleteRow — cancel confirmation: nothing happens", async () => {
     let refreshed = 0;
-    const { sandbox, calls, toasts } = loadAdminJsSandbox({ confirm: () => false, onDelete: () => null });
-    await sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    const { sandbox, calls, toasts } = loadAdminJsSandbox({ onDelete: () => null });
+    sandbox.deleteRow("universities", "uni-abc", () => { refreshed++; });
+    cancelDialog(sandbox);
     await flush();
 
     assert.strictEqual(refreshed, 0);
@@ -197,6 +215,8 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
     const fakeBtn = { dataset: { table: "faculties", action: "delete", id: "fac-7" }, closest: (sel) => (sel === "button[data-action]" ? fakeBtn : null) };
     bound.click({ target: fakeBtn });
     await flush();
+    acceptDialog(sandbox);
+    await flush();
     await flush();
 
     assert.ok(calls.some((c) => c.op === "delete" && c.table === "faculties"), "الحذف الفعلي يجب أن ينفَّذ عبر النقرة المفوضة");
@@ -207,9 +227,9 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
 
   await testAsync("handleAdminRowAction — delete universities passes (table,id) as before", async () => {
     const { sandbox, calls, toasts } = loadAdminJsSandbox({ onDelete: () => null });
-    const result = sandbox.handleAdminRowAction({ dataset: { table: "universities", action: "delete", id: "uni-1" } });
-    assert.ok(result && typeof result.then === "function", "delete يجب أن يُعيد الوعد لتسمح الاختبارات بالانتظار");
-    await result;
+    sandbox.handleAdminRowAction({ dataset: { table: "universities", action: "delete", id: "uni-1" } });
+    acceptDialog(sandbox);
+    await flush();
     await flush();
 
     assert.ok(calls.some((c) => c.op === "delete" && c.table === "universities"));
@@ -219,8 +239,9 @@ function loadAdminJsSandbox({ resultsByTable = {}, rpcResults = {}, onUpdate = n
 
   await testAsync("handleAdminRowAction — course_lessons delete keeps its courseId closure for refresh", async () => {
     const { sandbox, calls } = loadAdminJsSandbox({ onDelete: () => null });
-    const result = sandbox.handleAdminRowAction({ dataset: { table: "course_lessons", action: "delete", id: "l9", courseId: "c7" } });
-    await result;
+    sandbox.handleAdminRowAction({ dataset: { table: "course_lessons", action: "delete", id: "l9", courseId: "c7" } });
+    acceptDialog(sandbox);
+    await flush();
     await flush();
 
     assert.ok(calls.some((c) => c.op === "delete" && c.table === "course_lessons"), "يجب حذف الدرس من course_lessons");

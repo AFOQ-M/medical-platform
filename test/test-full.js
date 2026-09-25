@@ -18,7 +18,7 @@
  *
  * This script was authored and reviewed in an environment whose
  * outbound network is allowlisted and does NOT include
- * afoq-m.github.io, so it could not be executed there. Run it from
+ * afoq-m.pages.dev, so it could not be executed there. Run it from
  * a machine/CI job with normal internet access.
  * ------------------------------------------------------------------
  */
@@ -27,7 +27,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'https://afoq-m.github.io/medical-platform';
+const BASE = process.env.BASE_URL || 'https://afoq-m.pages.dev';
 const OUT_DIR = path.join(__dirname, 'artifacts');
 const SCREENSHOTS_DIR = path.join(OUT_DIR, 'screenshots');
 

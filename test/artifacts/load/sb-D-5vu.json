@@ -1,0 +1,25 @@
+{
+  "target": "supabase",
+  "scenario": "D",
+  "baseUrl": "https://lzmkgfxlsynaphpofblb.supabase.co",
+  "vu": 5,
+  "durationSec": 10,
+  "startedAtIso": "2026-09-25T09:01:33.265Z",
+  "totalRequests": 173,
+  "successful": 173,
+  "4xx": [],
+  "4xxCount": 0,
+  "5xxCount": 0,
+  "timeouts": 0,
+  "connectionErrors": 0,
+  "errorRate": 0,
+  "requestsPerSecond": 17.3,
+  "latencyMs": {
+    "p50": 244,
+    "p90": 485,
+    "p95": 504,
+    "p99": 710,
+    "max": 1268,
+    "mean": 294
+  }
+}

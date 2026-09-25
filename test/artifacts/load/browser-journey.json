@@ -1,0 +1,114 @@
+[
+  {
+    "journey": 1,
+    "path": "/",
+    "status": 200,
+    "domMs": 2173,
+    "title": "أفق المعرفة — الرئيسية",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/platform.html",
+    "status": 200,
+    "domMs": 91,
+    "title": "أفق المعرفة — المنصة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/courses.html",
+    "status": 200,
+    "domMs": 99,
+    "title": "الدورات — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/search.html",
+    "status": 200,
+    "domMs": 108,
+    "title": "نتائج البحث — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/forum.html",
+    "status": 200,
+    "domMs": 98,
+    "title": "ملتقى أفق — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/forum-topic.html",
+    "status": 200,
+    "domMs": 98,
+    "title": "موضوع — ملتقى أفق",
+    "pageErrors": 0
+  },
+  {
+    "journey": 1,
+    "path": "/favorites.html",
+    "status": 200,
+    "domMs": 102,
+    "title": "المفضلة — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/",
+    "status": 200,
+    "domMs": 2983,
+    "title": "أفق المعرفة — الرئيسية",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/platform.html",
+    "status": 200,
+    "domMs": 110,
+    "title": "أفق المعرفة — المنصة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/courses.html",
+    "status": 200,
+    "domMs": 70,
+    "title": "الدورات — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/search.html",
+    "status": 200,
+    "domMs": 82,
+    "title": "نتائج البحث — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/forum.html",
+    "status": 200,
+    "domMs": 75,
+    "title": "ملتقى أفق — أفق المعرفة",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/forum-topic.html",
+    "status": 200,
+    "domMs": 101,
+    "title": "موضوع — ملتقى أفق",
+    "pageErrors": 0
+  },
+  {
+    "journey": 0,
+    "path": "/favorites.html",
+    "status": 200,
+    "domMs": 101,
+    "title": "المفضلة — أفق المعرفة",
+    "pageErrors": 0
+  }
+]

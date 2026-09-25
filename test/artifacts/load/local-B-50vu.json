@@ -1,0 +1,25 @@
+{
+  "target": "local",
+  "scenario": "B",
+  "baseUrl": "http://localhost:3100",
+  "vu": 50,
+  "durationSec": 15,
+  "startedAtIso": "2026-09-25T08:54:59.114Z",
+  "totalRequests": 101469,
+  "successful": 101469,
+  "4xx": [],
+  "4xxCount": 0,
+  "5xxCount": 0,
+  "timeouts": 0,
+  "connectionErrors": 0,
+  "errorRate": 0,
+  "requestsPerSecond": 6764.6,
+  "latencyMs": {
+    "p50": 7,
+    "p90": 10,
+    "p95": 11,
+    "p99": 13,
+    "max": 46,
+    "mean": 7
+  }
+}

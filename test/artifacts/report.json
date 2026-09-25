@@ -1,0 +1,304 @@
+{
+  "homepage": {
+    "name": "Homepage",
+    "httpStatus": 200,
+    "finalUrl": "http://localhost:3100/index.html",
+    "title": "أفق المعرفة — الرئيسية",
+    "buttonCount": 2,
+    "href": "courses.html",
+    "visibleWithoutScroll": true,
+    "screenshot": "C:\\Users\\For LabTop\\Desktop\\mu\\medical-platform\\afoq-courses-mvp\\test\\artifacts\\screenshots\\01-homepage.png",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 422 ()"
+    ],
+    "pageErrors": [],
+    "failedRequests": [],
+    "httpErrors": [],
+    "knownExpected": [
+      {
+        "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+        "status": 422
+      }
+    ],
+    "navigation": {
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [],
+      "finalUrl": "http://localhost:3100/courses.html",
+      "title": "الدورات — أفق المعرفة",
+      "reached": true
+    }
+  },
+  "coursesListing": {
+    "name": "Courses Listing",
+    "finalUrl": "http://localhost:3100/courses.html",
+    "title": "الدورات — أفق المعرفة",
+    "dir": "rtl",
+    "publishedCourseCardsFound": 0,
+    "firstCourseHref": null,
+    "screenshot": "C:\\Users\\For LabTop\\Desktop\\mu\\medical-platform\\afoq-courses-mvp\\test\\artifacts\\screenshots\\02-courses-listing.png",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 422 ()"
+    ],
+    "pageErrors": [],
+    "failedRequests": [],
+    "httpErrors": [],
+    "knownExpected": [
+      {
+        "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+        "status": 422
+      }
+    ]
+  },
+  "courseDetail": {
+    "name": "Course Detail",
+    "verified": false,
+    "reason": "no published course available"
+  },
+  "invalidCourseId": {
+    "name": "Invalid Course ID",
+    "url": "http://localhost:3100/course.html?id=invalid-test-id",
+    "httpStatus": 200,
+    "finalUrl": "http://localhost:3100/course.html?id=invalid-test-id",
+    "bodyTextSample": "تخطي إلى المحتوى الرئيسي\nأفق المعرفة\nتصفّح كل الموارد\nلم يتم العثور على هذه الدورة، أو أنها غير منشورة بعد.\nأفق المعرفة\n\nمنصة تنظّم المراجع والموارد الطبية والأكاديمية بحسب الجامعة والكلية والمادة، لتسهيل الوصول إليها والاستفادة منها.\n\nالرئيسية\nتصفّح الموارد\nالدورات\nملتقى أفق\nالمفضلة\n© 2026 أفق المعرفة. جميع الحقوق محفوظة.",
+    "hasUncaughtErrors": false,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 400 ()",
+      "Failed to load resource: the server responded with a status of 422 ()"
+    ],
+    "pageErrors": [],
+    "failedRequests": [],
+    "httpErrors": [
+      {
+        "url": "https://lzmkgfxlsynaphpofblb.supabase.co/rest/v1/courses?select=id%2Ctitle%2Cshort_description%2Cdescription%2Ccover_image_url%2Cinstructor_name%2Clanguage&id=eq.invalid-test-id&status=eq.published",
+        "status": 400
+      }
+    ],
+    "knownExpected": [
+      {
+        "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+        "status": 422
+      }
+    ]
+  },
+  "staticPages": [
+    {
+      "urlPath": "index.html",
+      "url": "http://localhost:3100/index.html",
+      "needsRealId": false,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/index.html",
+      "title": "أفق المعرفة — الرئيسية",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "platform.html",
+      "url": "http://localhost:3100/platform.html",
+      "needsRealId": false,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/platform.html",
+      "title": "أفق المعرفة — المنصة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "university.html",
+      "url": "http://localhost:3100/university.html",
+      "needsRealId": true,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/university.html",
+      "title": "الكليات — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "faculty.html",
+      "url": "http://localhost:3100/faculty.html",
+      "needsRealId": true,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/faculty.html",
+      "title": "السنوات الدراسية — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "year.html",
+      "url": "http://localhost:3100/year.html",
+      "needsRealId": true,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/year.html",
+      "title": "اختيار الفصل الدراسي — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "semester.html",
+      "url": "http://localhost:3100/semester.html",
+      "needsRealId": true,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/semester.html",
+      "title": "اختيار الفصل الدراسي — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "subject.html",
+      "url": "http://localhost:3100/subject.html",
+      "needsRealId": true,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/subject.html",
+      "title": "الموارد — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "search.html",
+      "url": "http://localhost:3100/search.html",
+      "needsRealId": false,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/search.html",
+      "title": "نتائج البحث — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "favorites.html",
+      "url": "http://localhost:3100/favorites.html",
+      "needsRealId": false,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/favorites.html",
+      "title": "المفضلة — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    },
+    {
+      "urlPath": "courses.html",
+      "url": "http://localhost:3100/courses.html",
+      "needsRealId": false,
+      "httpStatus": 200,
+      "finalUrl": "http://localhost:3100/courses.html",
+      "title": "الدورات — أفق المعرفة",
+      "navError": null,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 422 ()"
+      ],
+      "pageErrors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "knownExpected": [
+        {
+          "url": "https://lzmkgfxlsynaphpofblb.supabase.co/auth/v1/signup",
+          "status": 422
+        }
+      ]
+    }
+  ],
+  "admin": {
+    "name": "Admin (read-only)",
+    "url": "http://localhost:3100/admin/index.html",
+    "authenticatedSessionAvailable": false,
+    "verdict": "NOT VERIFIED — no authenticated admin session available"
+  }
+}

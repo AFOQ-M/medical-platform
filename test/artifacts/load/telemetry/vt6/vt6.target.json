@@ -1,0 +1,121 @@
+{
+  "artifact": "afoq-load-target-telemetry",
+  "schemaVersion": 2,
+  "runId": "vt6",
+  "mode": "target",
+  "startedAtIso": "2026-09-25T12:14:05.829Z",
+  "endedAtIso": "2026-09-25T12:14:10.842Z",
+  "elapsedSec": 5,
+  "final": false,
+  "uptimeSec": 5,
+  "processCpuPct": 7.78,
+  "rssMb": 67.5,
+  "heapMb": 7.6,
+  "activeConnections": 2,
+  "requests": 5787,
+  "requestRate": 1154.4,
+  "methods": {
+    "GET": 5787
+  },
+  "statusCounts": {
+    "200": 5785
+  },
+  "activeRequestsMax": 3,
+  "prematureCloses": 0,
+  "latencyUs": {
+    "status": "OK",
+    "count": 5785,
+    "truncated": null,
+    "p50": 794,
+    "p90": 1206,
+    "p95": 1423,
+    "p99": 1876,
+    "max": 9131,
+    "mean": 877
+  },
+  "eventLoop": {
+    "status": "NOT_AVAILABLE",
+    "reason": "uv idle-time monitor (monitorEventLoopDelay) produced no valid statistics on this host; numeric sample fields retained only as raw diagnostics",
+    "p50Us": null,
+    "p95Us": null,
+    "p99Us": null,
+    "maxUs": null,
+    "meanUs": null
+  },
+  "samples": [
+    {
+      "tSec": 1,
+      "activeRequests": 0,
+      "completed": 0,
+      "requestsTotal": 0,
+      "activeConnections": null,
+      "processCpuPct": 0,
+      "rssMb": 50.4,
+      "heapMb": 5.5,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 15958015,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 2,
+      "activeRequests": 0,
+      "completed": 0,
+      "requestsTotal": 0,
+      "activeConnections": 0,
+      "processCpuPct": 0,
+      "rssMb": 50.4,
+      "heapMb": 5.5,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 16752639,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 3,
+      "activeRequests": 2,
+      "completed": 1796,
+      "requestsTotal": 1798,
+      "activeConnections": 0,
+      "processCpuPct": 53.1,
+      "rssMb": 62.5,
+      "heapMb": 7.7,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 16752639,
+      "prematureCloses": 0
+    },
+    {
+      "tSec": 4,
+      "activeRequests": 2,
+      "completed": 3830,
+      "requestsTotal": 3832,
+      "activeConnections": 2,
+      "processCpuPct": 50,
+      "rssMb": 65.5,
+      "heapMb": 8.4,
+      "eventLoopP95Us": 0,
+      "eventLoopMaxUs": 16752639,
+      "prematureCloses": 0
+    }
+  ],
+  "meta": {
+    "nodeVersion": "v24.19.0",
+    "platform": "win32/x64",
+    "cpus": 12,
+    "samplerMs": 1000,
+    "snapshotMs": 5000,
+    "eventLoopNote": "monitorEventLoopDelay unreliable on this host (see eventLoop.status); raw sample fields kept as diagnostics",
+    "classifications": {
+      "requests": "DIRECT",
+      "requestRate": "DERIVED",
+      "methods": "DIRECT",
+      "statusCounts": "DIRECT",
+      "latencyUs": "DIRECT (exact microseconds; NOT_AVAILABLE if truncated)",
+      "activeRequestsMax": "DIRECT",
+      "prematureCloses": "DIRECT",
+      "activeConnections": "DIRECT (server-side open sockets)",
+      "processCpuPct": "DIRECT",
+      "rssMb": "DIRECT",
+      "heapMb": "DIRECT",
+      "eventLoop": "NOT_AVAILABLE"
+    }
+  }
+}

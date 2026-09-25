@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-09-25T13:39:51.394Z",
+  "base": "http://localhost:3100",
+  "items": [
+    {
+      "id": "D-RT-01",
+      "status": "VERIFIED",
+      "note": "guest click: trigger=true, aria-controls=true, #auth-overlay visible after click=true, pageerrors=0"
+    },
+    {
+      "id": "D-RT-02",
+      "status": "PARTIAL",
+      "note": "no published course in DB → success-path icon rendering not verifiable; safe state: body=\"تخطي إلى المحتوى الرئيسي أفق المعرفة تصفّح كل الموارد لم يتم العثور على هذه الدورة، أو أنها غير منشورة بعد. أفق المعرفة منصة تنظّم المراجع \", pageerrors=0 (none)"
+    },
+    {
+      "id": "D-RT-03",
+      "status": "VERIFIED",
+      "note": "chips render(1), remove works(0 left), aria-labels=[\"إزالة فلتر النوع\"], pageerrors=0"
+    },
+    {
+      "id": "D-RT-04",
+      "status": "VERIFIED",
+      "note": "svg count=8, aria-hidden=8/8, focusable=false=8/8, rendered-visible=8/8, focusable-attrs-missing=[], svgs-in-buttons-without-focusable=false=0, pageerrors=0"
+    },
+    {
+      "id": "D-RT-05",
+      "status": "VERIFIED",
+      "note": "dir/lang per page: [{\"p\":\"index.html\",\"dir\":\"rtl\",\"lang\":\"ar\"},{\"p\":\"platform.html\",\"dir\":\"rtl\",\"lang\":\"ar\"},{\"p\":\"search.html\",\"dir\":\"rtl\",\"lang\":\"ar\"},{\"p\":\"forum.html\",\"dir\":\"rtl\",\"lang\":\"ar\"},{\"p\":\"courses.html\",\"dir\":\"rtl\",\"lang\":\"ar\"},{\"p\":\"year.html\",\"dir\":\"rtl\",\"lang\":\"ar\"}], screenshots saved to test/artifacts/runtime-deferred/"
+    },
+    {
+      "id": "D-RT-06",
+      "status": "VERIFIED",
+      "note": "btn visible=true, dialog-count=2, dialog-msgs=[\"هل تريد حذف كل المفضلة من هذا المتصفح؟\",\"هل تريد حذف كل المفضلة من هذا المتصفح, cancel-keeps=true, accept-clears=true"
+    },
+    {
+      "id": "D-RT-07",
+      "status": "VERIFIED",
+      "note": "forum=5 links, forum-topic=5, same set=true, focusable+svg+rel=true"
+    },
+    {
+      "id": "D-RT-08",
+      "status": "VERIFIED",
+      "note": "role=status, aria-live=polite, aria-atomic=true, text=\"\", pageerrors=0"
+    },
+    {
+      "id": "D-RT-09",
+      "status": "VERIFIED",
+      "note": "safe states ok=true; real-id success path NOT-VERIFIED (no published year rows in DB): [{\"label\":\"no-param\",\"title\":\"السنة الدراسية\",\"crumbCount\":1,\"pageErrors\":0},{\"label\":\"id-compat\",\"title\":\"السنة الدراسية\",\"crumbCount\":1,\"pageErrors\":0}]"
+    },
+    {
+      "id": "D-RT-10",
+      "status": "NOT-VERIFIED",
+      "note": "requires an authenticated Admin session (dashboard renders pending forum reports). No admin credentials available in this environment; login gate verified earlier via test-full.js (authenticatedSessionAvailable=false). Will not fabricate."
+    },
+    {
+      "id": "D-RT-11",
+      "status": "NOT-VERIFIED",
+      "note": "requires an authenticated Admin session (--warning / --warning-bg / --warning-border contrast on pending rows). No admin credentials available; visual/contrast judgement must be done by a human with access."
+    }
+  ]
+}
