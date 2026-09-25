@@ -53,6 +53,10 @@ function extractInlineScript(html) {
   const start = html.indexOf(">", opens[0]) + 1;
   const end = html.indexOf("</script>", start);
   let code = html.slice(start, end);
+  // السكربت المضمّن يُغلَّف الآن داخل document.addEventListener("DOMContentLoaded", …)
+  // (لأن السكربتات الأخرى defer). نفك الغلاف لنختبر منطق loadSubjectPage مباشرة.
+  code = code.replace(/^\s*document\.addEventListener\("DOMContentLoaded", function \(\) \{\s*/, "");
+  code = code.replace(/\n\s*\}\);\s*$/, "");
   // ننزع الاستدعاء التلقائي في الأسفل لنستدعي loadSubjectPage بأنفسنا
   code = code.replace(/\n\s*loadSubjectPage\(\);\s*$/, "\n");
   return code;
