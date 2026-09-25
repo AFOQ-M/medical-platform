@@ -12,16 +12,77 @@ const RESOURCE_TYPE_LABELS = {
   notes: "ملاحظات",
 };
 
-// رموز بصرية سريعة لكل نوع مورد (Phase 3.1) — تُستخدم في البطاقات وتبويبات الفلترة
+// رموز بصرية لكل نوع مورد (رموز SVG stroke بيانات مسار — بديل الإيموجي؛
+// تُعرض عبر buildStrokeIcon/resourceTypeIcon في buildResourceCard
+// والتبويبات ونتائج البحث) — تُستخدم في البطاقات وتبويبات الفلترة.
 const RESOURCE_TYPE_ICONS = {
-  book: "📘",
-  lecture: "🎥",
-  slides: "🖥️",
-  summary: "📝",
-  questions: "❓",
-  past_exam: "🗂️",
-  notes: "🗒️",
+  book: [
+    { d: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20" },
+    { d: "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2z" },
+  ],
+  lecture: [
+    { d: "m22 8-6 4 6 4V8Z" },
+    { d: "M2 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z" },
+  ],
+  slides: [
+    { d: "M2 3h20" },
+    { d: "M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" },
+    { d: "m7 21 5-5 5 5" },
+  ],
+  summary: [
+    { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" },
+    { d: "M14 2v6h6" },
+    { d: "M16 13H8" },
+    { d: "M16 17H8" },
+  ],
+  questions: [
+    { tag: "circle", attrs: { cx: "12", cy: "12", r: "10" } },
+    { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" },
+    { tag: "circle", attrs: { cx: "12", cy: "17", r: "1" } },
+  ],
+  past_exam: [
+    { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" },
+    { d: "M14 2v6h6" },
+    { d: "m9 15 2 2 4-4" },
+  ],
+  notes: [
+    { d: "M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z" },
+    { d: "M15 3v6h6" },
+  ],
 };
+
+// يبني أيقونة SVG stroke من بيانات {d} أو {tag, attrs} — بديل الأيقونات
+// النصية (إيموجي) حفاظًا على الاتساق والتحكم عبر التوكنات ورموز النقر.
+function buildStrokeIcon(items, className) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", className);
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  items.forEach((el) => {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", el.d ? "path" : el.tag);
+    if (el.d) {
+      node.setAttribute("d", el.d);
+    } else {
+      Object.keys(el.attrs).forEach((k) => node.setAttribute(k, el.attrs[k]));
+    }
+    svg.appendChild(node);
+  });
+  return svg;
+}
+
+function resourceTypeIcon(type) {
+  return buildStrokeIcon(RESOURCE_TYPE_ICONS[type] || RESOURCE_TYPE_ICONS.book, "resource-type-svg");
+}
+
+function strokeFlagIcon() {
+  return buildStrokeIcon([{ d: "M5 3v18" }, { d: "M5 6h11l-2 4 2 4H5" }], "icon-inline");
+}
 
 // ترتيب ثابت لعرض الأنواع (تبويبات صفحة المادة، إلخ) بدل الاعتماد على ترتيب قاعدة البيانات
 const RESOURCE_TYPE_ORDER = ["lecture", "slides", "book", "summary", "notes", "questions", "past_exam"];
@@ -225,7 +286,7 @@ function buildResourceCard(resource) {
   const iconSpan = document.createElement("span");
   iconSpan.className = "resource-type-icon";
   iconSpan.setAttribute("aria-hidden", "true");
-  iconSpan.textContent = RESOURCE_TYPE_ICONS[resource.type] || "📄";
+  iconSpan.appendChild(resourceTypeIcon(resource.type));
   title.appendChild(iconSpan);
   title.appendChild(document.createTextNode(resource.title));
   card.appendChild(title);
@@ -249,7 +310,8 @@ function buildResourceCard(resource) {
   if (resource.verified) {
     const verifiedTag = document.createElement("span");
     verifiedTag.className = "tag tag-verified";
-    verifiedTag.textContent = "✓ موثّق";
+    if (typeof authSvgIcon === "function") verifiedTag.appendChild(authSvgIcon("check", "tag-icon"));
+    verifiedTag.appendChild(document.createTextNode("موثّق"));
     meta.appendChild(verifiedTag);
   }
 
@@ -283,7 +345,8 @@ function buildResourceCard(resource) {
   const reportBtn = document.createElement("button");
   reportBtn.className = "report-btn";
   reportBtn.type = "button";
-  reportBtn.textContent = "⚠️ إبلاغ عن مشكلة";
+  reportBtn.appendChild(strokeFlagIcon());
+  reportBtn.appendChild(document.createTextNode(" إبلاغ عن مشكلة"));
   reportBtn.addEventListener("click", () => openReportModal(resource.id, resource.title));
   actions.appendChild(reportBtn);
 
@@ -320,24 +383,42 @@ function renderState(container, message) {
   container.appendChild(div);
 }
 
-/** يبني مسار التنقّل (Breadcrumb) من قائمة عقد {label, href} */
+/** يبني مسار التنقّل (Breadcrumb) من قائمة عقد {label, href}
+ *  RTL-native: يبقي ترتيب DOM = الترتيب البصري، مع طيّ (collapse) للعقد
+ *  الوسطى في السلاسل الطويلة (أكثر من 4) إلى نقاط حذف "…" على الشاشات
+ *  الضيقة عبر CSS فقط — بلا أي تغيير في الروابط أو وجهاتها. */
 function renderBreadcrumb(container, crumbs) {
   container.innerHTML = "";
+  container.setAttribute("aria-label", "مسار التنقّل");
+  const total = crumbs.length;
+  const collapsible = total > 4;
   crumbs.forEach((crumb, i) => {
+    const isLast = i === total - 1;
+    const isMid = collapsible && !isLast && i > 0;
     if (i > 0) {
       const sep = document.createElement("span");
-      sep.className = "sep";
+      sep.className = isMid ? "sep mid-sep" : "sep";
       sep.textContent = "/";
       container.appendChild(sep);
     }
-    if (crumb.href) {
+    if (isMid && i === total - 2) {
+      const ell = document.createElement("span");
+      ell.className = "bc-ellipsis";
+      ell.setAttribute("aria-hidden", "true");
+      ell.textContent = "…";
+      container.appendChild(ell);
+    }
+    if (!isLast && crumb.href) {
       const a = document.createElement("a");
       a.href = crumb.href;
+      if (isMid) a.classList.add("mid");
       a.textContent = crumb.label;
       container.appendChild(a);
     } else {
       const span = document.createElement("span");
       span.className = "current";
+      if (isMid) span.classList.add("mid");
+      if (isLast) span.setAttribute("aria-current", "page");
       span.textContent = crumb.label;
       container.appendChild(span);
     }
@@ -362,18 +443,20 @@ function openReportModal(resourceId, resourceTitle) {
   document.getElementById("report-resource-name").textContent = resourceTitle;
   document.getElementById("report-reason").value = "broken_link";
   document.getElementById("report-note").value = "";
-  overlay.hidden = false;
+  openDialogOverlay(overlay);
 }
 
 function closeReportModal() {
   const overlay = document.getElementById("report-modal");
-  if (overlay) overlay.hidden = true;
+  closeDialogOverlay(overlay);
   currentReportResourceId = null;
 }
 
 function wireReportModal() {
   const overlay = document.getElementById("report-modal");
-  if (!overlay) return;
+  if (!overlay || overlay.dataset._wired) return;
+  overlay.dataset._wired = "1";
+  wireDialogOverlay(overlay);
 
   document.getElementById("report-cancel-btn").addEventListener("click", closeReportModal);
   overlay.addEventListener("click", (e) => {
@@ -388,7 +471,7 @@ function wireReportModal() {
     const note = document.getElementById("report-note").value.trim();
     const submitBtn = document.getElementById("report-submit-btn");
     submitBtn.disabled = true;
-    submitBtn.textContent = "جارٍ الإرسال...";
+    submitBtn.textContent = "جارٍ الإرسال…";
 
     // P0-4: الإدراج المباشر على reports لم يعد متاحًا للعميل (تم حذف
     // سياسة public_insert_reports). كل بلاغ يمر الآن عبر الدالة
@@ -414,15 +497,150 @@ function wireReportModal() {
     }
 
     closeReportModal();
-    showToast("تم إرسال البلاغ، شكرًا لمساعدتك 🙏");
+    showToast("تم إرسال البلاغ، شكرًا لمساعدتك");
   });
 }
 
 let toastTimer = null;
+
+// --------------------------------------------------
+// نافذة حوار مشتركة (modal dialog) — G-02
+// فتح / إغلاق / فخ التركيز / Escape
+// --------------------------------------------------
+const _openDialogs = new Map();
+
+function _dialogFocusables(overlay) {
+  return Array.from(overlay.querySelectorAll(
+    'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+  )).filter(el => !el.closest("[hidden]") && el.offsetParent !== null);
+}
+
+function wireDialogOverlay(overlay) {
+  if (!overlay || overlay.dataset._dialogWired) return;
+  overlay.dataset._dialogWired = "1";
+  overlay.addEventListener("keydown", (e) => {
+    if (overlay.hidden) return;
+    if (e.key === "Escape") { closeDialogOverlay(overlay); return; }
+    if (e.key === "Tab") {
+      const items = _dialogFocusables(overlay);
+      if (!items.length) { e.preventDefault(); return; }
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first || document.activeElement === overlay) {
+          e.preventDefault(); last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    }
+  });
+}
+
+function openDialogOverlay(overlay) {
+  if (!overlay) return;
+  _openDialogs.set(overlay, document.activeElement);
+  overlay.hidden = false;
+  const first = _dialogFocusables(overlay)[0];
+  if (first) first.focus();
+}
+
+function closeDialogOverlay(overlay) {
+  if (!overlay) return;
+  overlay.hidden = true;
+  const opener = _openDialogs.get(overlay);
+  _openDialogs.delete(overlay);
+  if (opener && document.contains(opener)) opener.focus();
+}
+
+document.addEventListener("focusin", (e) => {
+  _openDialogs.forEach((_opener, overlay) => {
+    if (!overlay.hidden && !overlay.contains(e.target)) {
+      const first = _dialogFocusables(overlay)[0];
+      if (first) first.focus();
+    }
+  });
+});
+
+// --------------------------------------------------
+// تبويبات عامة مشتركة (tablist) — G-01
+// إضافة role/aria/keyboard لشريط التبويبات
+// --------------------------------------------------
+function initTablist(tabsEl, panelEl, activate) {
+  if (!tabsEl || tabsEl.dataset._tablistWired) {
+    if (tabsEl && panelEl) {
+      const active = tabsEl.querySelector(".type-tab-btn.active");
+      if (active) { panelEl.setAttribute("role", "tabpanel"); panelEl.setAttribute("aria-labelledby", active.id); }
+    }
+    return;
+  }
+  tabsEl.dataset._tablistWired = "1";
+  const btns = Array.from(tabsEl.querySelectorAll(".type-tab-btn"));
+  const isRTL = (document.documentElement.getAttribute("dir") || "").toLowerCase() === "rtl";
+
+  btns.forEach((b, i) => {
+    if (!b.id) b.id = "tab-" + (b.dataset.semester || b.dataset.type || i);
+  });
+
+  function syncState(activeBtn) {
+    btns.forEach((b) => {
+      const isActive = b === activeBtn;
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", isActive ? "true" : "false");
+      b.setAttribute("tabindex", isActive ? "0" : "-1");
+      b.classList.toggle("active", isActive);
+    });
+    if (panelEl) {
+      panelEl.setAttribute("role", "tabpanel");
+      if (activeBtn && activeBtn.id) panelEl.setAttribute("aria-labelledby", activeBtn.id);
+    }
+  }
+
+  tabsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".type-tab-btn");
+    if (!btn) return;
+    syncState(btn);
+    activate(btn);
+  });
+
+  tabsEl.addEventListener("keydown", (e) => {
+    const current = document.activeElement && document.activeElement.closest(".type-tab-btn");
+    if (!current || !tabsEl.contains(current)) return;
+    const idx = btns.indexOf(current);
+    let nextIdx = idx;
+    if (e.key === "Home") { nextIdx = 0; }
+    else if (e.key === "End") { nextIdx = btns.length - 1; }
+    else if (e.key === (isRTL ? "ArrowLeft" : "ArrowRight")) { nextIdx = (idx + 1) % btns.length; }
+    else if (e.key === (isRTL ? "ArrowRight" : "ArrowLeft")) { nextIdx = (idx - 1 + btns.length) % btns.length; }
+    else return;
+    e.preventDefault();
+    btns[nextIdx].focus();
+    syncState(btns[nextIdx]);
+    activate(btns[nextIdx]);
+  });
+
+  const currentActive = btns.find(b => b.classList.contains("active")) || btns[0];
+  if (currentActive) syncState(currentActive);
+}
+
 function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
-  toast.textContent = message;
+  toast.innerHTML = "";
+  const text = document.createElement("span");
+  text.textContent = message;
+  toast.appendChild(text);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.setAttribute("aria-label", "إغلاق");
+  close.appendChild(buildStrokeIcon([{ d: "m6 6 12 12" }, { d: "m18 6-12 12" }], "toast-close-icon"));
+  close.addEventListener("click", () => {
+    toast.hidden = true;
+    clearTimeout(toastTimer);
+  });
+  toast.appendChild(close);
   toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
@@ -445,7 +663,7 @@ function buildGlobalSearchOverlay() {
     <div class="modal-box global-search-box">
       <form id="global-search-form">
         <input type="search" id="global-search-input" class="search-input"
-               placeholder="ابحث عن مادة أو محاضرة أو كتاب أو جامعة أو كلية..." autocomplete="off">
+               placeholder="ابحث عن مادة أو محاضرة أو كتاب أو جامعة أو كلية…" autocomplete="off">
       </form>
       <div id="global-search-results" class="global-search-results"></div>
     </div>
@@ -455,6 +673,10 @@ function buildGlobalSearchOverlay() {
   const input = overlay.querySelector("#global-search-input");
   const resultsEl = overlay.querySelector("#global-search-results");
   const form = overlay.querySelector("#global-search-form");
+
+  // NEW-01: البحث الشامل طبقة عائمة كسواها — فخ تركيز/إغلاق/استعادة متطابق
+  // لدالة گزارش المودال (report modal) في نفس الملف. idempotent داخليًا.
+  wireDialogOverlay(overlay);
 
   overlay.addEventListener("click", (e) => { if (e.target === overlay) closeGlobalSearchOverlay(); });
   document.addEventListener("keydown", (e) => {
@@ -474,7 +696,7 @@ function buildGlobalSearchOverlay() {
       resultsEl.innerHTML = `<div class="state-msg">اكتب حرفين على الأقل، مثل اسم المادة أو الجامعة</div>`;
       return;
     }
-    resultsEl.innerHTML = `<div class="state-msg">جارٍ البحث...</div>`;
+    resultsEl.innerHTML = `<div class="state-msg">جارٍ البحث…</div>`;
     debounceTimer = setTimeout(() => runGlobalSearchSuggestions(q), 250);
   });
 }
@@ -512,7 +734,11 @@ async function runGlobalSearchSuggestions(query) {
   const viewAllBtn = document.createElement("button");
   viewAllBtn.type = "button";
   viewAllBtn.className = "global-search-viewall";
-  viewAllBtn.textContent = `عرض كل النتائج لـ «${query}» ←`;
+  viewAllBtn.textContent = `عرض كل النتائج لـ «${query}»`;
+  const viewAllArrow = document.createElement("span");
+  viewAllArrow.setAttribute("aria-hidden", "true");
+  viewAllArrow.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="m15 18-6-6 6-6"/></svg>';
+  viewAllBtn.appendChild(viewAllArrow);
   viewAllBtn.addEventListener("click", () => goToFullSearch(query));
   resultsEl.appendChild(viewAllBtn);
 
@@ -532,7 +758,7 @@ async function runGlobalSearchSuggestions(query) {
     const iconSpan = document.createElement("span");
     iconSpan.className = "resource-type-icon";
     iconSpan.setAttribute("aria-hidden", "true");
-    iconSpan.textContent = RESOURCE_TYPE_ICONS[r.type] || "📄";
+    iconSpan.appendChild(resourceTypeIcon(r.type));
     item.appendChild(iconSpan);
 
     const textWrap = document.createElement("span");
@@ -560,6 +786,7 @@ function goToFullSearch(query) {
 function openGlobalSearchOverlay() {
   const overlay = document.getElementById("global-search-overlay");
   if (!overlay) return;
+  _openDialogs.set(overlay, document.activeElement);
   overlay.hidden = false;
   const input = document.getElementById("global-search-input");
   input.value = "";
@@ -570,7 +797,12 @@ function openGlobalSearchOverlay() {
 
 function closeGlobalSearchOverlay() {
   const overlay = document.getElementById("global-search-overlay");
-  if (overlay) overlay.hidden = true;
+  if (!overlay) return;
+  overlay.hidden = true;
+  const opener = _openDialogs.get(overlay);
+  _openDialogs.delete(overlay);
+  if (opener && document && typeof document.contains === "function" && document.contains(opener)
+    && typeof opener.focus === "function") opener.focus();
 }
 
 function initGlobalSearch() {

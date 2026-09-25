@@ -15,6 +15,7 @@
   --primary-dark: #0A3A47;
   --secondary: #1F7A8C;
   --accent: #E9A426;
+  --accent-focus: #B45309; /* حلقة التركيز — يحقق 3:1 UI على كل الأسطح (K.1: 5.02:1 على الأبيض) */
   --inverse: #0F2A33;
   --line: #E2E8F0;
   --line-strong: #CBD5E1;
@@ -23,15 +24,20 @@
   --danger-border: #FECACA;
   --success-bg: #E4F5EA;
   --success-border: #BFE6CC;
+  --success-text: #166534;
+  --success: #147D45; /* نص/أيقونات النجاح العام — 4.58:1 على --success-bg (K.1) */
   --neutral-bg: #F1F1F1;
-  --focus: var(--accent);
+  --warning: #B45309; /* قيد المراجعة/بلاغ معلّق — 4.51:1 على --warning-bg (K.1) */
+  --warning-bg: #FEF3C7;
+  --warning-border: #FDE68A;
+  --focus: var(--accent-focus);
 
   /* ألوان أنواع الموارد — شارات فاتحة + نص/حدود بدرجة داكنة لضمان تباين واضح */
   --type-book: #5B21B6;
   --type-book-bg: #EDE9FE;
   --type-summary: #0F766E;
   --type-summary-bg: #CCFBF1;
-  --type-questions: #2E9E5B;
+  --type-questions: #147D45;
   --type-questions-bg: #E4F5EA;
   --type-lecture: #0E7490;
   --type-lecture-bg: #E0F2F7;
@@ -42,15 +48,111 @@
   --type-past_exam: #9D174D;
   --type-past_exam-bg: #FCE7F3;
 
-  --radius: 14px;
+  --radius: var(--radius-lg);
   --radius-sm: 8px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-full: 999px;
+
+  /* الحدود — مرجعية دلالية للاستخدام في المكوّنات */
+  --border-hair: 1px solid var(--line);
+  --border-strong: 1px solid var(--line-strong);
+  --border-accent: 2px solid var(--primary);
+
   --shadow: 0 2px 10px rgba(18, 38, 42, 0.06);
   --shadow-hover: 0 8px 24px rgba(18, 38, 42, 0.12);
+
+  /* الحاوية العامة — حد أقصى موحّد */
+  --container-max: 1120px;
+
+  /* الحركة — V: micro 120–150ms / state 180–220ms، transform+opacity فقط */
+  --dur-micro: 150ms;
+  --dur-std: 220ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ============================================
+     طبقات العرض (Z-index scale — G-17)
+     قيم مطابقة حرفيًا للاستخدامات الحالية — لا تغيير في سلوك الـ stacking
+     ============================================ */
+  --z-base: 0;      /* الطبقة الأساسية — الزخارف الخلفية خلف المحتوى */
+  --z-content: 1;   /* المحتوى فوق الزخارف (hero / horizon) */
+  --z-header: 50;   /* الترويسة اللاصقة (.site-header) */
+  --z-floating: 90; /* عنصر عائم منخفض (.back-to-top) */
+  --z-overlay: 100; /* طبقة overlay المشتركة (modal / sidebar / search) */
+  --z-sidebar: 101; /* لوحة الحساب الجانبية فوق الـ overlay مباشرة */
+  --z-toast: 200;   /* إشعارات الـ toast فوق الطبقات التطبيقية */
+  --z-top: 1000;    /* أعلى طبقة — .skip-link عند التركيز */
+
+  /* ============================================
+     نقاط التحويل (Breakpoint scale — G-18)
+     قيم مطابقة لـ @media الحالية حرفيًا — مرجع دلالي فقط، لا تُستخدم داخل @media
+     ============================================ */
+  --bp-hand: 480px;
+  --bp-phablet: 560px;
+  --bp-tablet: 640px;
+  --bp-laptop: 720px;
+  --bp-desk: 960px;
+
+  /* ============================================
+     Phase 1 — Design Tokens (Spacing + Typography)
+     إضافة تأسيسية فقط — لا استخدام حالي، تمهيدًا لمراحل لاحقة
+     ============================================ */
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Font families (نفس القيم الحالية المستخدَمة فعليًا — بلا تغيير) */
+  --font-display: 'Cairo', sans-serif;
+  --font-body: 'Tajawal', sans-serif;
+
+  /* Typography scale — (font-size / line-height / font-weight) لكل دور */
+  --text-display-size: clamp(1.6rem, 1.1rem + 2vw, 2.2rem);
+  --text-display-lh: 1.25;
+  --text-display-weight: 800;
+
+  --text-h2-size: 1.25rem;
+  --text-h2-lh: 1.3;
+  --text-h2-weight: 800;
+
+  --text-h3-size: 1.05rem;
+  --text-h3-lh: 1.4;
+  --text-h3-weight: 700;
+
+  --text-body-size: 1rem;
+  --text-body-lh: 1.65;
+  --text-body-weight: 400;
+
+  --text-body-strong-weight: 700;
+
+  --text-meta-size: 0.85rem;
+  --text-meta-lh: 1.5;
+  --text-meta-weight: 400;
+
+  --text-label-size: 0.9rem;
+  --text-label-lh: 1.4;
+  --text-label-weight: 700;
+
+  --text-data-size: 0.9rem;
+  --text-data-weight: 500;
+
+  --text-longform-size: 1rem;
+  --text-longform-lh: 1.8;
 }
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* مع الهيدر اللاصق: أهداف المراسي تظهر أسفل الهيدر لا مخفية تحته */
+  scroll-padding-top: 96px;
+}
 
 body {
   margin: 0;
@@ -94,8 +196,8 @@ img { max-width: 100%; display: block; }
   font-size: .9rem;
   padding: 12px 20px;
   border-end-end-radius: var(--radius-sm);
-  z-index: 1000;
-  transition: transform .15s;
+  z-index: var(--z-top);
+  transition: transform var(--dur-micro);
 }
 
 .skip-link:focus {
@@ -110,7 +212,7 @@ img { max-width: 100%; display: block; }
   inset-inline-start: 20px;
   width: 44px;
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--primary);
   color: #fff;
   display: inline-flex;
@@ -119,8 +221,8 @@ img { max-width: 100%; display: block; }
   font-size: 1.2rem;
   text-decoration: none;
   box-shadow: var(--shadow-hover);
-  z-index: 90;
-  transition: background .15s;
+  z-index: var(--z-floating);
+  transition: background var(--dur-micro);
 }
 
 .back-to-top:hover,
@@ -137,11 +239,11 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-header);
 }
 
 .site-header .header-inner {
-  max-width: 1100px;
+  max-width: var(--container-max);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -157,6 +259,7 @@ img { max-width: 100%; display: block; }
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
 }
 
 .brand .brand-mark {
@@ -190,7 +293,7 @@ img { max-width: 100%; display: block; }
   color: #fff;
   width: 44px;
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 1.05rem;
   line-height: 1;
   cursor: pointer;
@@ -198,7 +301,12 @@ img { max-width: 100%; display: block; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background .15s;
+  transition: background var(--dur-micro), color var(--dur-micro);
+}
+.icon-btn .icon {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 .icon-btn:hover { background: rgba(255, 255, 255, .28); }
 
@@ -237,7 +345,7 @@ img { max-width: 100%; display: block; }
   position: fixed;
   inset: 0;
   background: rgba(18, 38, 42, .5);
-  z-index: 100;
+  z-index: var(--z-overlay);
 }
 .account-sidebar-overlay[hidden] { display: none; }
 
@@ -250,7 +358,7 @@ img { max-width: 100%; display: block; }
   max-width: 88vw;
   background: var(--surface);
   box-shadow: var(--shadow-hover);
-  z-index: 101;
+  z-index: var(--z-sidebar);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -334,7 +442,9 @@ img { max-width: 100%; display: block; }
 
 .account-sidebar-link-disabled { color: var(--ink-soft); cursor: default; }
 
-.account-sidebar-icon { font-size: 1.15rem; flex-shrink: 0; }
+.account-sidebar-icon { flex-shrink: 0; display: inline-flex; }
+.account-sidebar-icon svg { width: 18px; height: 18px; display: block; }
+.account-sidebar-avatar-placeholder { width: 22px; height: 22px; color: var(--ink-soft); display: block; }
 
 .account-sidebar-footer {
   margin-top: auto;
@@ -350,7 +460,7 @@ img { max-width: 100%; display: block; }
 
 main {
   flex: 1;
-  max-width: 1100px;
+  max-width: var(--container-max);
   width: 100%;
   margin: 0 auto;
   padding: 28px 20px 60px;
@@ -366,14 +476,15 @@ main {
   font-size: .88rem;
   color: var(--ink-soft);
   margin-bottom: 22px;
+  min-height: 34px;
 }
 
 .breadcrumb a {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
   border: 1px solid var(--line);
-  transition: background .15s, color .15s;
+  transition: background var(--dur-micro), color var(--dur-micro);
 }
 
 .breadcrumb a:hover { background: var(--primary); color: #fff; }
@@ -384,6 +495,26 @@ main {
   padding: 4px 10px;
   color: var(--primary-dark);
   font-weight: 700;
+}
+
+/* طيّ (collapse) العقد الوسطى للسلاسل الطويلة على الشاشات الضيقة:
+   تُخفى العقد/الفاصلات الوسطى، ويظهر مؤشر "…" ناقل بصريًا إلى الجزء
+   الأخير من المسار. في DOM يبقى كل شيء كما هو — إخفاء CSS فقط. */
+.breadcrumb .bc-ellipsis {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .breadcrumb .mid,
+  .breadcrumb .mid-sep {
+    display: none;
+  }
+  .breadcrumb .bc-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 4px;
+    color: var(--ink-soft);
+  }
 }
 
 /* -------------------- صندوق البحث -------------------- */
@@ -471,6 +602,7 @@ main {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: var(--z-base);
   background:
     radial-gradient(480px 320px at 88% -10%, rgba(201, 165, 103, .16), transparent 70%),
     radial-gradient(420px 300px at -10% 110%, rgba(255, 255, 255, .05), transparent 70%);
@@ -478,7 +610,7 @@ main {
 
 .home-hero-inner {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
   display: grid;
   grid-template-columns: 1fr;
   gap: 28px;
@@ -559,7 +691,7 @@ main {
   color: #fff;
   font-weight: 700;
   font-size: .9rem;
-  transition: background .15s, border-color .15s;
+  transition: background var(--dur-micro), border-color var(--dur-micro);
 }
 
 .home-hero-secondary:hover,
@@ -568,12 +700,12 @@ main {
   border-color: rgba(255, 255, 255, .5);
 }
 
-.home-hero-secondary span { transition: transform .15s; }
+.home-hero-secondary span { transition: transform var(--dur-micro); }
 .home-hero-secondary:hover span { transform: translateX(-3px); }
 
 .home-hero-panel {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow-hover);
@@ -603,7 +735,7 @@ main {
   font-weight: 700;
   font-size: .92rem;
   border-top: 1px solid var(--line);
-  transition: background .15s;
+  transition: background var(--dur-micro);
 }
 
 .home-hero-panel .home-quick-link:first-of-type { border-top: none; }
@@ -615,7 +747,7 @@ main {
 
 .home-quick-arrow {
   color: var(--primary);
-  transition: transform .15s;
+  transition: transform var(--dur-micro);
   flex-shrink: 0;
 }
 
@@ -667,7 +799,7 @@ main {
   font-weight: 700;
   font-size: .95rem;
   cursor: pointer;
-  transition: transform .1s, box-shadow .15s, background .15s;
+  transition: transform var(--dur-micro), box-shadow var(--dur-micro), background var(--dur-micro);
 }
 
 .btn-primary { background: var(--primary); color: #fff; }
@@ -690,6 +822,16 @@ main {
 .btn-danger:hover { filter: brightness(1.1); }
 
 .btn-sm { padding: 8px 14px; font-size: .82rem; min-height: 44px; }
+
+/* UX-02: حالة معطّل واضحة بصريًا لأزرار النماذج أثناء الإرسال (وبقية
+   أزرار الإجراءات المحمية من الإرسال المزدوج) — عرض فقط، بلا منطق. */
+.btn:disabled,
+.btn[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
 
 /* -------------------- تدرّج إجراءات لوحة التحكم (UI-6) --------------------
    هدف هذا القسم فقط: تمييز بصري بين إجراء محايد (تعديل/عرض)، إجراء يُغيّر
@@ -739,7 +881,7 @@ main {
   border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
-  transition: box-shadow .18s, transform .18s;
+  transition: box-shadow var(--dur-std), transform var(--dur-std);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -805,7 +947,7 @@ a.card:hover, a.card:focus-visible {
   gap: 12px;
   position: relative;
   border-inline-start: 6px solid var(--type-notes);
-  transition: box-shadow .18s, transform .18s;
+  transition: box-shadow var(--dur-std), transform var(--dur-std);
 }
 
 .resource-card:hover,
@@ -840,6 +982,7 @@ a.card:hover, a.card:focus-visible {
   object-fit: cover;
   border-radius: var(--radius);
   margin-bottom: 16px;
+  aspect-ratio: 16 / 9;
 }
 
 .resource-title {
@@ -859,6 +1002,27 @@ a.card:hover, a.card:focus-visible {
 .resource-type-icon {
   flex-shrink: 0;
   line-height: 1.45;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* أيقونات مورد SVG stroke (بديل الأيقونات النصية/الإيموجي) */
+.resource-type-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex-shrink: 0;
+}
+.type-tab-btn .resource-type-svg {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: -0.15em;
+  margin-inline-end: 6px;
+}
+.global-search-item .resource-type-svg {
+  width: 16px;
+  height: 16px;
 }
 
 .favorite-btn {
@@ -878,7 +1042,7 @@ a.card:hover, a.card:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color .15s, transform .1s, background .15s;
+  transition: color var(--dur-micro), transform var(--dur-micro), background var(--dur-micro);
 }
 .favorite-btn:hover { transform: scale(1.15); color: var(--accent); background: var(--muted-bg); }
 .favorite-btn.active { color: var(--accent); }
@@ -915,7 +1079,7 @@ a.card:hover, a.card:focus-visible {
 
 .tag-verified {
   background: var(--success-bg);
-  color: var(--type-questions);
+  color: var(--success-text);
   border: 1px solid var(--success-border);
 }
 
@@ -940,6 +1104,104 @@ a.card:hover, a.card:focus-visible {
   text-decoration: underline;
 }
 .report-btn:hover { color: var(--danger); }
+
+/* -------------------- صفوف المادة الكثيفة (Subject dense rows) -------------------- */
+/* الوجهة الحرجة (Q): على ديسكتوب تُصبح بطاقة المورد صفًّا مضغوطًا من
+   سطر واحد: [أيقونة النوع] العنوان · الوسوم [فتح][♥][إبلاغ]، وتحتها في
+   شريط 640-959 سطرا سطرين. تحت 640 تعود البطاقات العمودية للتكبير
+   باللمس (recomposition بلا JS). أيقونة النوع وشريط اللون جانبي كما هما. */
+
+.resource-rows .resource-card {
+  transition: box-shadow var(--dur-std), border-color var(--dur-std);
+}
+.resource-rows .resource-card:hover,
+.resource-rows .resource-card:focus-within {
+  transform: none;
+  box-shadow: var(--shadow);
+  border-color: var(--line-strong);
+}
+.resource-rows .resource-title { padding-inline-end: 0; font-size: 1rem; }
+.resource-rows .favorite-btn { position: static; min-width: 40px; min-height: 40px; }
+.resource-rows .resource-actions { border-top: none; padding-top: 0; margin-top: 0; justify-content: flex-end; }
+.resource-rows .report-btn { padding: 6px 6px; font-size: .8rem; }
+
+@media (min-width: 640px) {
+  .resource-rows { display: flex; flex-direction: column; gap: 8px; }
+}
+
+@media (min-width: 960px) {
+  .resource-rows .resource-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "title meta actions fav";
+    align-items: center;
+    column-gap: 16px;
+    padding: 10px 18px;
+  }
+  .resource-rows .resource-title { grid-area: title; }
+  .resource-rows .favorite-btn { grid-area: fav; }
+  .resource-rows .resource-meta { grid-area: meta; }
+  .resource-rows .resource-actions { grid-area: actions; }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .resource-rows .resource-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title fav"
+      "meta actions";
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 12px;
+    padding: 12px 16px;
+  }
+  .resource-rows .resource-title { grid-area: title; }
+  .resource-rows .favorite-btn { grid-area: fav; }
+  .resource-rows .resource-meta { grid-area: meta; }
+  .resource-rows .resource-actions { grid-area: actions; }
+}
+
+/* -------------------- سطور دروس الدورة المضغوطة (Z.11) -------------------- */
+/* نفس منطق الصفوف الكثيفة؛ نص الدرس المضمّن (نوع text) يبقى داخل بدنه
+   بلا فتح خارجي. سطري الدعم semantic بلا تغيير في DOM من قِبل JS. */
+
+.lesson-rows .resource-card {
+  transition: box-shadow var(--dur-std), border-color var(--dur-std);
+}
+.lesson-rows .resource-card:hover,
+.lesson-rows .resource-card:focus-within {
+  transform: none;
+  box-shadow: var(--shadow);
+  border-color: var(--line-strong);
+}
+
+@media (min-width: 960px) {
+  .lesson-rows { display: flex; flex-direction: column; gap: 8px; }
+  .lesson-rows .resource-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title meta"
+      "body actions";
+    align-items: center;
+    column-gap: 16px;
+    padding: 12px 18px;
+    box-shadow: none;
+  }
+  .lesson-rows .resource-title { grid-area: title; padding-inline-end: 0; }
+  .lesson-rows .resource-meta { grid-area: meta; justify-content: flex-end; }
+  .lesson-rows .lesson-text-content { grid-area: body; margin: 0; }
+  .lesson-rows .resource-actions { grid-area: actions; border-top: none; padding-top: 0; margin-top: 0; justify-content: flex-end; }
+}
+
+/* أيقونة سطر داخلية (SVG stroke) لتوكن عوائم مثل "مغلق" و"إبلاغ" */
+.icon-inline {
+  width: 16px;
+  height: 16px;
+  vertical-align: -0.2em;
+  margin-inline-end: 4px;
+}
 
 /* -------------------- شريط أدوات صفحة المادة (تبويبات النوع + بحث داخلي) -------------------- */
 
@@ -975,7 +1237,7 @@ a.card:hover, a.card:focus-visible {
   font-weight: 700;
   font-size: .82rem;
   color: var(--ink-soft);
-  transition: background .15s, color .15s, border-color .15s;
+  transition: background var(--dur-micro), color var(--dur-micro), border-color var(--dur-micro);
 }
 
 .type-tab-btn:hover { border-color: var(--line-strong); }
@@ -991,7 +1253,8 @@ a.card:hover, a.card:focus-visible {
   border-radius: 999px;
   border: 2px solid var(--line);
   font-family: 'Tajawal', sans-serif;
-  font-size: .86rem;
+  font-size: 1rem;
+  min-height: 44px;
   background: var(--muted-bg);
   color: var(--ink);
   flex: 1 1 220px;
@@ -1033,7 +1296,7 @@ a.card:hover, a.card:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 100;
+  z-index: var(--z-overlay);
 }
 
 .modal-overlay[hidden] { display: none; }
@@ -1073,6 +1336,17 @@ a.card:hover, a.card:focus-visible {
 }
 
 .field textarea { resize: vertical; min-height: 70px; }
+
+.field .field-error {
+  display: block;
+  color: #d32f2f;
+  font-size: .8rem;
+  font-weight: 600;
+  margin-top: 5px;
+}
+.field select.invalid, .field input.invalid, .field textarea.invalid {
+  border-color: #d32f2f;
+}
 
 .modal-actions {
   display: flex;
@@ -1182,13 +1456,17 @@ a.card:hover, a.card:focus-visible {
 
 .header-nav .nav-link {
   padding: 6px 14px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   background: rgba(255, 255, 255, .12);
   color: #fff;
   font-size: .85rem;
   font-weight: 700;
   white-space: nowrap;
-  transition: background .15s;
+  transition: background var(--dur-micro);
 }
 
 .header-nav .nav-link:hover,
@@ -1207,7 +1485,7 @@ a.card:hover, a.card:focus-visible {
 }
 
 .footer-inner {
-  max-width: 1100px;
+  max-width: var(--container-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -1251,6 +1529,11 @@ a.card:hover, a.card:focus-visible {
   color: var(--secondary);
   text-decoration: underline;
   text-underline-offset: 3px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .footer-links a:hover,
@@ -1275,7 +1558,7 @@ a.card:hover, a.card:focus-visible {
   color: var(--ink-soft);
   font-size: 1.1rem;
   text-decoration: none;
-  transition: border-color .15s, color .15s, background .15s;
+  transition: border-color var(--dur-micro), color var(--dur-micro), background var(--dur-micro);
 }
 
 .social-link:hover,
@@ -1357,6 +1640,23 @@ a.card:hover, a.card:focus-visible {
 }
 .admin-tab-btn.active:hover { color: #fff; }
 
+/* G-13: شارة عدد البلاغات المعلّقة على تبويب "البلاغات" */
+.tab-badge {
+  display: inline-block;
+  margin-inline-start: 6px;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  vertical-align: middle;
+}
+.admin-tab-btn.active .tab-badge { background: rgba(255,255,255,.92); color: var(--danger); }
+
 .admin-panel { display: none; }
 .admin-panel.active { display: block; }
 
@@ -1397,7 +1697,7 @@ a.card:hover, a.card:focus-visible {
   font-size: 1rem;
   line-height: 1;
   color: var(--primary);
-  transition: transform .15s ease;
+  transition: transform var(--dur-micro) var(--ease-out);
 }
 
 .admin-form-toggle[open] > summary::before { content: "−"; }
@@ -1411,6 +1711,182 @@ a.card:hover, a.card:focus-visible {
 @media (max-width: 640px) {
   .admin-form-toggle > summary { padding: 10px 12px; }
   .admin-form-toggle > .admin-form-toggle-body { padding: 12px; }
+}
+
+/* ============================================================
+   G-14 — نافذة السحب (Drawer) لنماذج "المورد" و"الدورة"
+   بدل أكورديون <details> الطويل على الشاشات الضيقة.
+   Simple entities (جامعة/كلية/سنة/مادة/درس) تبقى <details> مطويّة
+   (F-08 يحفظ year-form-toggle و lesson-form-toggle كـ <details>).
+   ============================================================ */
+.admin-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(18, 38, 42, .45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-micro) var(--ease-out), visibility var(--dur-micro) var(--ease-out);
+}
+.admin-drawer-overlay.open { opacity: 1; visibility: visible; }
+
+.admin-drawer-panel {
+  width: min(560px, 92vw);
+  height: 100%;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line);
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform var(--dur-std) var(--ease-out);
+}
+.admin-drawer-overlay:not(.open) .admin-drawer-panel { transform: translateX(100%); }
+.admin-drawer-overlay:not(.open) .admin-drawer-panel[dir] { transform: translateX(100%); }
+
+.admin-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.admin-drawer-head h3 { margin: 0; font-size: 1.05rem; }
+
+.admin-drawer-close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-drawer-close:hover { background: var(--muted-bg); color: var(--ink); }
+.admin-drawer-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.admin-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  overscroll-behavior: contain;
+}
+
+/* شريط الأزرار الملتصق أسفل النافذة — يبقى ظاهرًا أثناء التمرير */
+.admin-drawer-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 -4px 12px rgba(18, 38, 42, .06);
+}
+[dir="rtl"] .admin-drawer-panel { transform: translateX(-100%); }
+[dir="rtl"] .admin-drawer-overlay:not(.open) .admin-drawer-panel { transform: translateX(-100%); }
+
+
+/* ============================================================
+ * G-14 — سحب النماذج الطويلة (Drawer) بدل الأكورديون الطويل
+ * تُستخدم للنموذجين الطويلين (المورد والدورة) فقط؛ الكيانات البسيطة
+ * (جامعة/كلية/سنة/مادة/درس) تحتفظ بخشّ <details> القابل للطيّ.
+ * النافذة منزلقة من جهة اليمين (RTL) مع حاجز ذي خلفية، فخّ تركيز،
+ * وإغلاق بـ Escape/النقر على الحاجز، وشريط أزرار ملتصق أسفلها.
+ * ملاحظة: كود التشغيل في admin/admin.js (لا يعتمد على app.js)
+ * لأنه يشتغل داخل sandbox يسترجع admin.js وحده في الاختبارات.
+ * ============================================================ */
+.admin-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 42, .55);
+  z-index: var(--z-overlay);
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-micro) var(--ease-out), visibility var(--dur-micro) var(--ease-out);
+}
+.admin-drawer-overlay[open], .admin-drawer-overlay.open { opacity: 1; visibility: visible; }
+
+.admin-drawer {
+  width: min(560px, 92vw);
+  height: 100%;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line);
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+}
+[dir="rtl"] .admin-drawer { transform: translateX(-100%); }
+[dir="rtl"] .admin-drawer-overlay[open] .admin-drawer,
+[dir="rtl"] .admin-drawer-overlay.open .admin-drawer { transform: translateX(0); }
+.admin-drawer-overlay[open] .admin-drawer,
+.admin-drawer-overlay.open .admin-drawer { transform: translateX(0); }
+
+.admin-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.admin-drawer-header h3 { margin: 0; font-size: 1.05rem; }
+
+.admin-drawer-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-micro), color var(--dur-micro);
+}
+.admin-drawer-close:hover { background: var(--muted-bg); color: var(--ink); }
+
+.admin-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+}
+
+.admin-drawer-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 -4px 12px rgba(18, 38, 42, .06);
+  -webkit-box-shadow: 0 -4px 12px rgba(18, 38, 42, .06);
+}
+
+@media (max-width: 640px) {
+  .admin-drawer { width: 100%; }
+  .admin-drawer-header { padding: 12px 14px; }
+  .admin-drawer-body { padding: 12px; }
+  .admin-drawer-actions { padding: 10px 12px; }
 }
 
 .table-wrap { overflow-x: auto; }
@@ -1441,7 +1917,7 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   font-size: .76rem;
   font-weight: 700;
 }
-.status-badge.published { background: var(--success-bg); color: var(--type-questions); }
+.status-badge.published { background: var(--success-bg); color: var(--success-text); }
 .status-badge.hidden { background: var(--neutral-bg); color: var(--ink-soft); }
 .status-badge.reported { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
 /* Phase 5 P1 — Courses MVP: حالة "مسودة" الإضافية لجداول الدورات/الدروس.
@@ -1463,14 +1939,47 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   transform: translateX(-50%);
   background: var(--inverse);
   color: #fff;
-  padding: 12px 22px;
+  padding: 10px 12px 10px 22px;
   border-radius: 999px;
   font-size: .9rem;
   box-shadow: var(--shadow-hover);
-  z-index: 200;
+  z-index: var(--z-toast);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .toast[hidden] { display: none; }
+
+/* إغلاق يدوي للـ toast (role=status + aria-label — زرّ حقيقي لا div) */
+.toast-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, .75);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-full);
+  transition: background var(--dur-micro), color var(--dur-micro);
+}
+.toast-close:hover { color: #fff; background: rgba(255, 255, 255, .18); }
+.toast-close-icon { width: 16px; height: 16px; }
+
+/* منع تكبير مزدوج بالنقر على الهيدر/الأزرار + إزالة اللمعة الافتراضية */
+button, a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* عزل تمرير النوافذ العائمة داخل القماش دون تمرير الخلفية */
+.modal-overlay { overscroll-behavior: contain; }
+
+/* توازن سطور العناوين (منع الأرامل) */
+h1, h2 { text-wrap: balance; }
 
 .year-badge {
   font-family: 'Cairo', sans-serif;
@@ -1507,19 +2016,43 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   color: var(--ink);
   font-family: 'Tajawal', sans-serif;
   font-weight: 700;
-  font-size: .82rem;
+  font-size: 1rem;
   min-width: 130px;
   flex: 1 1 130px;
   box-shadow: var(--shadow);
   cursor: pointer;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color var(--dur-micro), box-shadow var(--dur-micro);
 }
 
 .search-filters select:hover { border-color: var(--accent); }
 
 .search-filters select:focus-visible {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-hover);
+  border-color: var(--primary);
+}
+
+.filter-clear-btn {
+  margin-inline-start: auto;
+  padding: 8px 14px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, .15);
+  color: #fff;
+  font-family: 'Tajawal', sans-serif;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: background var(--dur-micro), color var(--dur-micro);
+}
+.filter-clear-btn:hover { background: rgba(255, 255, 255, .28); }
+
+.results-count {
+  font-size: .88rem;
+  color: var(--ink-soft);
+  margin: -8px 0 14px;
 }
 
 /* -------------------- لوحة المعلومات (Dashboard) -------------------- */
@@ -1547,6 +2080,31 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .88rem;
 }
+
+/* G-12: إجراء عاجل — صفوف القائمة في داشبورد الإدارة (بنفس نمط dashboard-recent-list li) */
+.urgent-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.urgent-queue .state-msg { font-size: .88rem; }
+.admin-action-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: .88rem;
+}
+/* G-19: var(--warning) يُستخدم فقط لحالة بلاغ معلّق فعليًا (forum_reports.status = pending) */
+.admin-action-row.pending {
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+}
+.queue-type { font-weight: 700; flex: 0 0 auto; }
+.queue-reason { flex: 0 0 auto; }
+.queue-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-status-chip {
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  padding: 2px 6px; border-radius: var(--radius-sm);
+  font-size: .78rem; font-weight: 700; white-space: nowrap;
+}
+.queue-more { justify-content: center; border-style: dashed; }
 
 /* -------------------- المستخدمون والصلاحيات -------------------- */
 
@@ -1652,12 +2210,13 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: var(--z-base);
   background: radial-gradient(560px 360px at 100% 0%, rgba(255, 255, 255, .05), transparent 65%);
 }
 
 .landing-hero-inner {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
   display: grid;
   grid-template-columns: 1fr;
   gap: 36px;
@@ -1728,7 +2287,7 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   font-weight: 700;
   font-size: .9rem;
   border-bottom: 1px solid rgba(255, 255, 255, .3);
-  transition: color .15s, border-color .15s;
+  transition: color var(--dur-micro), border-color var(--dur-micro);
 }
 
 .landing-secondary-link:hover,
@@ -1737,14 +2296,14 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   border-color: #fff;
 }
 
-.landing-secondary-link span { display: inline-block; transition: transform .15s; }
+.landing-secondary-link span { display: inline-block; transition: transform var(--dur-micro); }
 .landing-secondary-link:hover span { transform: translateY(3px); }
 
 /* -------------------- رسم "الأفق": حلقات متقاربة فوق خط الأفق -------------------- */
 
 .landing-horizon {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
   height: 220px;
   border-radius: var(--radius-sm);
 }
@@ -1984,7 +2543,7 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   color: var(--primary-dark);
   font-weight: 700;
   font-size: .95rem;
-  transition: color .15s, padding-inline-start .15s;
+  transition: color var(--dur-micro), padding-inline-start var(--dur-micro);
 }
 
 .landing-flow-step:first-of-type { border-top: 1px solid var(--line); }
@@ -2186,6 +2745,23 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
+  /* حجز مساحة التخطيط قبل اكتمال جلب الأقسام async (تثبيت CLS):
+     القيم تُطابق الارتفاع النهائي الفعلي للشبكة عند محتواها الحالي
+     (5 أقسام) حسب نقاط تحوّل الأعمدة التي يصنعها auto-fill. */
+  min-height: 882px;
+}
+
+@media (min-width: 341px) {
+  .forum-categories-grid { min-height: 817px; }
+}
+@media (min-width: 456px) {
+  .forum-categories-grid { min-height: 549px; }
+}
+@media (min-width: 672px) {
+  .forum-categories-grid { min-height: 361px; }
+}
+@media (min-width: 1104px) {
+  .forum-categories-grid { min-height: 194px; }
 }
 
 .forum-category-card { text-align: center; }
@@ -2214,7 +2790,9 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  color: var(--ink-faint);
+  /* G-13: --ink-faint (2.56:1) مخصص لنص كبير/عريض فقط — تبديله إلى
+     --ink-soft (7.45:1 على --bg) لأن هذا نص عادي 13.6px يلزمه AA ≥4.5:1. */
+  color: var(--ink-soft);
   font-size: .85rem;
   margin-top: 10px;
 }
@@ -2305,3 +2883,63 @@ a.landing-flow-step-final:focus-visible { color: var(--primary); }
   .forum-toolbar .btn { width: 100%; }
   .forum-item-actions .btn { flex: 1 1 auto; }
 }
+
+/* -------------------- Stage 3 (G-05/G-06/G-07) -------------------- */
+
+/* G-05: أيقونة نوع الدرس في course.html */
+.lesson-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--muted-bg);
+  color: var(--primary);
+  margin-inline-end: 10px;
+}
+.lesson-rows .resource-title { display: flex; align-items: center; }
+
+/* G-06: رقاقات الفلاتر النشطة في search.html */
+.active-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex: 1 1 100%;
+  margin-top: 4px;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 700;
+}
+.filter-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, .25);
+  color: inherit;
+  font-size: .7rem;
+  cursor: pointer;
+}
+.filter-chip-remove:hover { background: rgba(255, 255, 255, .4); }
+
+/* G-07: محاذاة أيقونة التحقق (check) مع النصوص المجاورة */
+.tag-icon { width: 14px; height: 14px; vertical-align: -2px; margin-inline-end: 3px; }
+.account-sidebar-status-check { display: inline-flex; vertical-align: -2px; margin-inline-start: 2px; }
+.mfa-status-check { vertical-align: -3px; margin-inline-end: 4px; }
+
+/* G-04: شريط أدوات المفضلة (حذف الكل) — يحاذي الزر مع بداية السطر (يمين في RTL) */
+.favorites-toolbar { display: flex; justify-content: flex-start; margin: 16px 0; }

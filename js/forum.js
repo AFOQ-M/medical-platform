@@ -16,12 +16,60 @@ const FORUM_TOPICS_PAGE_SIZE = 20;
 const FORUM_REPLIES_PAGE_SIZE = 20;
 
 const FORUM_CATEGORY_ICONS = {
-  "subjects-study": "📚",
-  "exams-review": "📝",
-  "questions": "💡",
-  "experiences-tips": "🤝",
-  "announcements": "📢",
+  "subjects-study": [
+    { d: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" },
+    { d: "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" },
+  ],
+  "exams-review": [
+    { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" },
+    { d: "M14 2v6h6" },
+    { d: "m9 15 2 2 4-4" },
+  ],
+  "questions": [
+    { tag: "circle", attrs: { cx: "12", cy: "12", r: "10" } },
+    { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" },
+    { tag: "circle", attrs: { cx: "12", cy: "17", r: "1" } },
+  ],
+  "experiences-tips": [
+    { d: "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" },
+    { d: "M9 18h6" },
+    { d: "M10 22h4" },
+  ],
+  "announcements": [
+    { d: "m3 11 18-5v12L3 14v-3z" },
+    { d: "M11.6 16.8a3 3 0 1 1-5.8-1.6" },
+  ],
 };
+
+// شارة/فهرس قسم + أيقونة داخلية SVG stroke لسطور المواضيع والموضوع.
+// الشكل الاحتياطي فقاعة حوار عامة للمعرفات غير المعروفة.
+function forumCategoryIcon(slug) {
+  const items = FORUM_CATEGORY_ICONS[slug] || [
+    { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" },
+  ];
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon-inline forum-category-svg");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  items.forEach((el) => {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", el.d ? "path" : el.tag);
+    if (el.d) {
+      node.setAttribute("d", el.d);
+    } else {
+      Object.keys(el.attrs).forEach((k) => node.setAttribute(k, el.attrs[k]));
+    }
+    svg.appendChild(node);
+  });
+  return svg;
+}
 
 const FORUM_REPORT_REASON_LABELS = {
   offensive: "ألفاظ بذيئة أو إساءة",
@@ -49,6 +97,43 @@ function forumEl(tag, className, text) {
   if (className) el.className = className;
   if (text !== undefined) el.textContent = text;
   return el;
+}
+
+// أيقونة SVG stroke داخلية بدل إيموجي التوكن — عرض فقط (iconography)
+function forumStrokeIcon(pathD, extraElements) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon-inline");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", pathD);
+  svg.appendChild(path);
+  (extraElements || []).forEach((item) => {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", item.tag);
+    Object.entries(item.attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    svg.appendChild(el);
+  });
+  return svg;
+}
+
+function forumLockIcon() {
+  return forumStrokeIcon("M7 10V7a5 5 0 0 1 10 0v3", [
+    { tag: "rect", attrs: { x: "5", y: "10", width: "14", height: "10", rx: "2" } },
+  ]);
+}
+
+function forumFlagIcon() {
+  return forumStrokeIcon("M5 3v18", [
+    { tag: "path", attrs: { d: "M5 6h11l-2 4 2 4H5" } },
+  ]);
 }
 
 // ------------------------------------------------------------
@@ -156,7 +241,8 @@ async function loadForumCategories() {
       document.getElementById("forum-topics-heading").scrollIntoView({ behavior: "smooth", block: "start" });
     });
 
-    const icon = forumEl("div", "card-icon", FORUM_CATEGORY_ICONS[cat.slug] || "💬");
+    const icon = forumEl("div", "card-icon");
+    icon.appendChild(forumCategoryIcon(cat.slug));
     a.appendChild(icon);
     a.appendChild(forumEl("h3", null, cat.name));
     if (cat.description) a.appendChild(forumEl("div", "card-sub", cat.description));
@@ -181,7 +267,7 @@ async function loadForumTopics(reset) {
 
   if (reset) {
     forumTopicsOffset = 0;
-    list.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
+    list.innerHTML = `<div class="state-msg">جارٍ التحميل…</div>`;
   }
 
   let query = supabaseClient
@@ -226,10 +312,17 @@ function buildForumTopicCard(topic) {
 
   const head = forumEl("div", "forum-topic-card-head");
   if (topic.forum_categories) {
-    const tag = forumEl("span", "tag", `${FORUM_CATEGORY_ICONS[topic.forum_categories.slug] || "💬"} ${topic.forum_categories.name}`);
+    const tag = forumEl("span", "tag");
+    tag.appendChild(forumCategoryIcon(topic.forum_categories.slug));
+    tag.appendChild(document.createTextNode(" " + topic.forum_categories.name));
     head.appendChild(tag);
   }
-  if (topic.is_locked) head.appendChild(forumEl("span", "tag forum-locked-tag", "مغلق 🔒"));
+  if (topic.is_locked) {
+    const lockedTag = forumEl("span", "tag forum-locked-tag");
+    lockedTag.appendChild(forumLockIcon());
+    lockedTag.appendChild(document.createTextNode(" مغلق"));
+    head.appendChild(lockedTag);
+  }
   a.appendChild(head);
 
   a.appendChild(forumEl("h3", null, topic.title));
@@ -278,7 +371,7 @@ async function submitForumNewTopic(e) {
 
   const submitBtn = document.getElementById("forum-new-topic-submit-btn");
   submitBtn.disabled = true;
-  submitBtn.textContent = "جارٍ النشر...";
+  submitBtn.textContent = "جارٍ النشر…";
 
   const authorName = bestDisplayName(currentAuthUser);
 
@@ -333,6 +426,7 @@ async function initForumTopicPage() {
   document.getElementById("forum-report-modal").addEventListener("click", (e) => {
     if (e.target.id === "forum-report-modal") closeForumReportModal();
   });
+  wireDialogOverlay(document.getElementById("forum-report-modal"));
   document.getElementById("forum-report-form").addEventListener("submit", submitForumReport);
   document.getElementById("forum-replies-load-more-btn").addEventListener("click", () => loadForumReplies(false));
   document.getElementById("forum-reply-form").addEventListener("submit", submitForumReply);
@@ -385,9 +479,17 @@ function renderForumTopicDetail(topic) {
 
   const head = forumEl("div", "forum-topic-card-head");
   if (topic.forum_categories) {
-    head.appendChild(forumEl("span", "tag", `${FORUM_CATEGORY_ICONS[topic.forum_categories.slug] || "💬"} ${topic.forum_categories.name}`));
+    const tag = forumEl("span", "tag");
+    tag.appendChild(forumCategoryIcon(topic.forum_categories.slug));
+    tag.appendChild(document.createTextNode(" " + topic.forum_categories.name));
+    head.appendChild(tag);
   }
-  if (topic.is_locked) head.appendChild(forumEl("span", "tag forum-locked-tag", "مغلق 🔒"));
+  if (topic.is_locked) {
+    const lockedTag = forumEl("span", "tag forum-locked-tag");
+    lockedTag.appendChild(forumLockIcon());
+    lockedTag.appendChild(document.createTextNode(" مغلق"));
+    head.appendChild(lockedTag);
+  }
   box.appendChild(head);
 
   box.appendChild(forumEl("h1", "forum-topic-title", topic.title));
@@ -422,7 +524,8 @@ function renderForumTopicDetail(topic) {
   const reportBtn = document.createElement("button");
   reportBtn.type = "button";
   reportBtn.className = "btn btn-outline btn-sm";
-  reportBtn.textContent = "🚩 إبلاغ";
+  reportBtn.appendChild(forumFlagIcon());
+  reportBtn.appendChild(document.createTextNode(" إبلاغ"));
   reportBtn.addEventListener("click", () => openForumReportModal("topic", topic.id));
   actions.appendChild(reportBtn);
 
@@ -498,7 +601,7 @@ async function loadForumReplies(reset) {
 
   if (reset) {
     forumRepliesOffset = 0;
-    list.innerHTML = `<div class="state-msg">جارٍ تحميل الردود...</div>`;
+    list.innerHTML = `<div class="state-msg">جارٍ تحميل الردود…</div>`;
   }
 
   const { data, error } = await supabaseClient
@@ -563,7 +666,8 @@ function buildForumReplyCard(reply) {
   const reportBtn = document.createElement("button");
   reportBtn.type = "button";
   reportBtn.className = "btn btn-outline btn-sm";
-  reportBtn.textContent = "🚩 إبلاغ";
+  reportBtn.appendChild(forumFlagIcon());
+  reportBtn.appendChild(document.createTextNode(" إبلاغ"));
   reportBtn.addEventListener("click", () => openForumReportModal("reply", reply.id));
   actions.appendChild(reportBtn);
 
@@ -636,7 +740,7 @@ function setupForumReplyForm(topic) {
     submitBtn.textContent = "سجّل الدخول للرد";
   } else {
     textarea.disabled = false;
-    textarea.placeholder = "اكتب ردك هنا...";
+    textarea.placeholder = "اكتب ردك هنا…";
     submitBtn.textContent = "إضافة رد";
   }
 }
@@ -658,7 +762,7 @@ async function submitForumReply(e) {
 
   const submitBtn = document.getElementById("forum-reply-submit-btn");
   submitBtn.disabled = true;
-  submitBtn.textContent = "جارٍ الإرسال...";
+  submitBtn.textContent = "جارٍ الإرسال…";
 
   const { error } = await supabaseClient.from("forum_replies").insert({
     topic_id: forumCurrentTopicId,
@@ -690,11 +794,11 @@ function openForumReportModal(targetType, targetId) {
   forumReportTargetType = targetType;
   forumReportTargetId = targetId;
   document.getElementById("forum-report-form").reset();
-  document.getElementById("forum-report-modal").hidden = false;
+  openDialogOverlay(document.getElementById("forum-report-modal"));
 }
 
 function closeForumReportModal() {
-  document.getElementById("forum-report-modal").hidden = true;
+  closeDialogOverlay(document.getElementById("forum-report-modal"));
   forumReportTargetType = null;
   forumReportTargetId = null;
 }
@@ -717,7 +821,7 @@ async function submitForumReport(e) {
 
   const submitBtn = document.getElementById("forum-report-submit-btn");
   submitBtn.disabled = true;
-  submitBtn.textContent = "جارٍ الإرسال...";
+  submitBtn.textContent = "جارٍ الإرسال…";
 
   const { error } = await supabaseClient.from("forum_reports").insert(payload);
 

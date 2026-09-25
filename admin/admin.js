@@ -380,12 +380,10 @@ function applyPermissionVisibility() {
     if (visible && !firstVisible) firstVisible = btn;
   });
   // إن كان التبويب النشط حاليًا مخفيًا، بدّل لأول تبويب ظاهر
+  // (عبر switchAdminTab لتبقى الحالة البصرية = aria-selected = tabindex = إظهار اللوحة)
   const activeBtn = document.querySelector(".admin-tab-btn.active");
   if ((!activeBtn || activeBtn.hidden) && firstVisible) {
-    document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
-    firstVisible.classList.add("active");
-    document.getElementById(`panel-${firstVisible.dataset.tab}`).classList.add("active");
+    switchAdminTab(firstVisible.dataset.tab);
   }
 
   // إظهار/إخفاء نماذج الإضافة حسب صلاحية create العامة (يُعاد ضبطها بدقة أكبر بعد كل تحميل جدول)
@@ -505,13 +503,20 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 // لا إجبار على enrollment عند تسجيل الدخول في هذه المرحلة.
 
 let mfaEnrollPendingFactorId = null;
+let mfaEnrollTriggerEl = null; // A11Y-03: عنصر التركيز قبل فتح النافذة، ليُستعاد التركيز إليه عند الإغلاق
 
 function openMfaEnrollOverlay() {
+  if (document.activeElement && document.activeElement.id !== "mfa-enroll-overlay") {
+    mfaEnrollTriggerEl = document.activeElement;
+  }
   document.getElementById("mfa-enroll-overlay").hidden = false;
   document.getElementById("mfa-enroll-step-start").hidden = false;
   document.getElementById("mfa-enroll-step-verify").hidden = true;
   document.getElementById("mfa-enroll-step-success").hidden = true;
   document.getElementById("mfa-enroll-error").style.display = "none";
+  // A11Y-03: انقل التركيز داخل النافذة إلى أول عنصر تفاعلي ظاهر (تأكيديًا زر البدء)
+  const firstControl = document.querySelector('#mfa-enroll-overlay [autofocus], #mfa-enroll-overlay button:not([hidden])');
+  if (firstControl && typeof firstControl.focus === "function") firstControl.focus();
 }
 
 async function closeMfaEnrollOverlay() {
@@ -540,6 +545,11 @@ async function closeMfaEnrollOverlay() {
   document.getElementById("mfa-enroll-secret").textContent = "";
   document.getElementById("mfa-enroll-code").value = "";
   mfaEnrollPendingFactorId = null;
+  // A11Y-03: استعادة التركيز إلى العنصر الذي فتح النافذة (إن كان ما يزال ظاهرًا)
+  if (mfaEnrollTriggerEl && typeof mfaEnrollTriggerEl.focus === "function" && !mfaEnrollTriggerEl.hidden) {
+    mfaEnrollTriggerEl.focus();
+  }
+  mfaEnrollTriggerEl = null;
 }
 
 document.getElementById("mfa-enroll-btn").addEventListener("click", () => {
@@ -548,6 +558,16 @@ document.getElementById("mfa-enroll-btn").addEventListener("click", () => {
 
 document.getElementById("mfa-enroll-overlay").addEventListener("click", async (e) => {
   if (e.target.id === "mfa-enroll-overlay") await closeMfaEnrollOverlay();
+});
+
+// A11Y-03: إغلاق النافذة بمفتاح Escape مع إعادة التركيز لنفس مسار الإغلاق العادي
+// (مُرفق على الـoverlay نفسه — التركيز يكون داخلها أثناء فتحها بفضل إدارة
+// التركيز في openMfaEnrollOverlay، كما تتحقق الاستعادة في closeMfaEnrollOverlay)
+document.getElementById("mfa-enroll-overlay").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    e.preventDefault();
+    closeMfaEnrollOverlay();
+  }
 });
 
 document.getElementById("mfa-enroll-cancel-btn").addEventListener("click", async () => {
@@ -690,10 +710,17 @@ async function disableMfa() {
   const errorEl = document.getElementById("mfa-disable-error");
   errorEl.style.display = "none";
 
-  const confirmed = confirm(
-    "تعطيل التحقق بخطوتين سيزيل وسيلة التحقق الحالية ويعيد الحساب لتسجيل الدخول بدون التحقق بخطوتين. هل تريد المتابعة؟"
-  );
-  if (!confirmed) return; // إلغاء المستخدم — لا شيء يتغيّر، لا أي طلب شبكة.
+  // NEW-02: بديل window.confirm — نافذة تأكيد داخل الصفحة؛ علىConfirm يُنفَّذ
+  // فقط عند قبول المستخدم (زر "تأكيد الحذف")، والإلغاء/الخلفية/Escape = لا شيء.
+  showDestructiveConfirm({
+    title: "تعطيل التحقق بخطوتين",
+    message: "تعطيل التحقق بخطوتين سيزيل وسيلة التحقق الحالية ويعيد الحساب لتسجيل الدخول بدون التحقق بخطوتين. هل تريد المتابعة؟",
+    onConfirm: () => performDisableMfa(),
+  });
+}
+
+async function performDisableMfa() {
+  const errorEl = document.getElementById("mfa-disable-error");
 
   // نقرأ الـfactor الحالي من الخادم مباشرة عند التنفيذ (وليس factor ID
   // ثابت أو currentMfaState مخزَّن مسبقًا) — نفس مبدأ حارس enrollment أعلاه.
@@ -760,16 +787,68 @@ document.getElementById("mfa-disable-btn").addEventListener("click", async () =>
 });
 
 // -------------------- التبويبات --------------------
+// UX-01 + A11Y-01: التنقّل عبر التبويبات من لوحة المفاتيح بنموذج التفعيل
+// اليدوي (Manual Activation): الأسهم (وHome/End) تنقّل التركيز فقط عبر
+// roving tabindex دون فتح اللوحة، والتبديل الفعلي يحدث بالنقر أو Enter/Space
+// على التبويب المُرَكَّز عليه. الحالة الاتساقية بين التمييز البصري (class active)
+// و aria-selected و tabindex وإظهار اللوحة تُدار عبر دالة مركزية واحدة.
+// اتجاه الأسهم يتبع "الترتيب المنطقي" لاتجاه القراءة: في واجهة RTL هذه
+// (read from right to left على بنية flex الناتجة) السهم لليسار هو "التالي"
+// والسهم لليمين هو "السابق" — وليس مجرد عكس أزرار.
+
+let currentAdminTab = "dashboard";
+
+function getVisibleTabBtns() {
+  return Array.from(document.querySelectorAll(".admin-tab-btn")).filter((b) => !b.hidden);
+}
+
+function switchAdminTab(tabName) {
+  const btn = document.querySelector(`.admin-tab-btn[data-tab="${tabName}"]`);
+  if (!btn || btn.hidden) return false;
+  currentAdminTab = tabName;
+  document.querySelectorAll(".admin-tab-btn").forEach((b) => {
+    const isActive = b.dataset.tab === tabName;
+    b.classList.toggle("active", isActive);
+    b.setAttribute("aria-selected", isActive ? "true" : "false");
+    b.tabIndex = isActive ? 0 : -1;
+  });
+  document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
+  const panel = document.getElementById(`panel-${tabName}`);
+  if (panel) panel.classList.add("active");
+  return true;
+}
+
+// Manual Activation: تحريك التركيز بين التبويبات لا يغيّر aria-selected ولا
+// tabindex (يبقى 0 على التبويب المحدد فعليًا) ولا يفتح اللوحة — فقط ينقل
+// التركيز إلى التبويب التالي (focus() يعمل على tabindex=-1 أيضًا).
+function moveTabFocus(btn) {
+  btn.focus();
+}
 
 document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     if (btn.hidden) return;
-    document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
-    if (btn.dataset.tab === "dashboard") loadDashboard();
-    if (btn.dataset.tab === "users") loadUsersPanel();
+    const switched = switchAdminTab(btn.dataset.tab);
+    if (switched) {
+      // نعيد سلوك التحديث عند النقر على اللوحتَين الحييتَين (كما كان أصلًا)
+      if (btn.dataset.tab === "dashboard") loadDashboard();
+      if (btn.dataset.tab === "users") loadUsersPanel();
+    }
+  });
+  btn.addEventListener("keydown", (e) => {
+    if (btn.hidden) return;
+    const tabs = getVisibleTabBtns();
+    const idx = tabs.indexOf(btn);
+    if (idx === -1) return;
+    const rtl = (getComputedStyle(document.body).direction || "ltr") === "rtl";
+    let nextIdx = null;
+    if (e.key === "ArrowRight") nextIdx = rtl ? idx - 1 : idx + 1;
+    else if (e.key === "ArrowLeft") nextIdx = rtl ? idx + 1 : idx - 1;
+    else if (e.key === "Home") nextIdx = 0;
+    else if (e.key === "End") nextIdx = tabs.length - 1;
+    if (nextIdx === null) return; // Enter / Space: التفعيل عبر النقر الأصلي على الزر
+    e.preventDefault();
+    moveTabFocus(tabs[(nextIdx + tabs.length) % tabs.length]);
   });
 });
 
@@ -785,7 +864,6 @@ async function loadAllData() {
   await loadResources();
   await loadCourses();
   loadReports();
-  loadForumReports();
   if (currentProfile.role === "super_admin") loadUsersPanel();
 }
 
@@ -795,6 +873,12 @@ async function loadAllData() {
 
 async function loadDashboard() {
   const grid = document.getElementById("dashboard-stats");
+  if (grid && typeof grid.setAttribute === "function") {
+    // A11Y-04: aria-busy أثناء التحميل — قارئات الشاشة تحجم الإعلانات حتى نزع
+    // الخاصية، فتُعلن البطاقات النهائية مرة واحدة بدل "جارٍ التحميل..." ثم
+    // الإحصائيات (ولا تكرار بلا داعٍ).
+    grid.setAttribute("aria-busy", "true");
+  }
   grid.innerHTML = `<div class="state-msg">جارٍ التحميل...</div>`;
 
   // F-06: عدّ كل جدول بمعالجة أخطاء معزولة — فشل أي استعلام يُسجَّل
@@ -834,6 +918,7 @@ async function loadDashboard() {
   ];
   if (currentProfile.role === "super_admin") stats.push(["الإداريون", admins]);
 
+  if (grid && typeof grid.removeAttribute === "function") grid.removeAttribute("aria-busy");
   grid.innerHTML = "";
   stats.forEach(([label, value]) => {
     const card = document.createElement("div");
@@ -860,6 +945,153 @@ async function loadDashboard() {
   });
   if (!recentResources || !recentResources.length) {
     recentEl.innerHTML = `<li>لا توجد موارد بعد</li>`;
+  }
+
+  // إجراء عاجل: بلاغات معلّقة (منتدى) وآخر بلاغات (موارد) — من المصادر الحالية فقط
+  loadUrgentQueue();
+}
+
+// ============================================================
+// إجراء عاجل — G-12: بلاغات معلّقة وآخر بلاغات الموارد على الداشبورد
+// من المصادر الحالية فقط (forum_reports + reports)، لا backend جديد.
+// G-19: `.admin-action-row.pending` يستخدم var(--warning) لحالة
+// البلاغ المعلّق فعليًا (forum_reports.status = 'pending').
+// ============================================================
+
+async function loadUrgentQueue() {
+  const queueEl = document.getElementById("urgent-queue");
+  queueEl.innerHTML = "";
+
+  // G-12 Permission gating: لا نعرض أي بيانات reports إذا لم تكن الصلاحية متوفرة.
+  // لا نعتمد على إخفاء CSS — البيانات لا تُجلب أبدًا.
+  if (!hasAnyPerm("reports")) {
+    queueEl.innerHTML = `<li class="state-msg">ليس لديك صلاحية عرض التقارير.</li>`;
+    return;
+  }
+
+  queueEl.innerHTML = `<li class="state-msg">جارٍ التحميل...</li>`;
+
+  const FORUM_REASON_LABELS = {
+    offensive: "ألفاظ بذيئة أو إساءة", harassment: "تنمر أو مضايقة",
+    inappropriate: "محتوى غير مناسب", misinformation: "معلومات مضللة أو مزعجة", other: "أخرى",
+  };
+  const REPORT_REASON_LABELS = {
+    broken_link: "الرابط لا يعمل", wrong_file: "ملف غير صحيح", copyright: "حقوق نشر", other: "أخرى",
+  };
+
+  // استعلامان مستقلان لا يُسقطان بعضهما (F-06 pattern): بلاغات منتدى معلّقة + بلاغات موارد
+  const forumPromise = supabaseClient
+    .from("forum_reports")
+    .select("id, reason, details, status, created_at, topic_id, reply_id, forum_topics(id, title, author_name, is_hidden), forum_replies(id, content, author_name, is_hidden, topic_id)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const reportsPromise = supabaseClient
+    .from("reports")
+    .select("id, reason, note, created_at, resource_id, resources(id, title, status, subjects(years(university_id, faculty_id)))")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const [forumResult, reportsResult] = await Promise.allSettled([forumPromise, reportsPromise]);
+
+  let pendingForumReports = [];
+  let recentReports = [];
+
+  if (forumResult.status === "fulfilled" && !forumResult.value.error) {
+    pendingForumReports = forumResult.value.data || [];
+  } else {
+    console.error("loadUrgentQueue: تعذّر تحميل بلاغات المنتدى", forumResult.reason || forumResult.value?.error);
+  }
+
+  if (reportsResult.status === "fulfilled" && !reportsResult.value.error) {
+    recentReports = reportsResult.value.data || [];
+  } else {
+    console.error("loadUrgentQueue: تعذّر تحميل بلاغات الموارد", reportsResult.reason || reportsResult.value?.error);
+  }
+
+  const queue = [];
+
+  pendingForumReports.forEach((r) => {
+    const isTopic = !!r.topic_id;
+    const target = isTopic ? r.forum_topics : r.forum_replies;
+    const targetLabel = isTopic ? "موضوع" : "رد";
+    const targetText = isTopic ? (target?.title || "(موضوع محذوف)") : (target?.content || "(رد محذوف)");
+    queue.push({
+      date: r.created_at,
+      isPending: true,
+      type: `بلاغ منتدى — ${targetLabel}`,
+      title: targetText.length > 60 ? targetText.slice(0, 60) + "…" : targetText,
+      reason: FORUM_REASON_LABELS[r.reason] || r.reason,
+      tab: "reports",
+    });
+  });
+
+  recentReports.forEach((r) => {
+    queue.push({
+      date: r.created_at,
+      isPending: false,
+      type: "بلاغ مورد",
+      title: r.resources?.title || "(مورد محذوف)",
+      reason: REPORT_REASON_LABELS[r.reason] || r.reason,
+      tab: "reports",
+    });
+  });
+
+  // ترتيب مشترك حسب التاريخ (الأحدث أولًا)
+  queue.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const visibleItems = queue.slice(0, 8);
+  queueEl.innerHTML = "";
+
+  if (!visibleItems.length) {
+    queueEl.innerHTML = `<li class="state-msg">لا توجد إجراءات عاجلة حاليًا.</li>`;
+    return;
+  }
+
+  visibleItems.forEach((item) => {
+    const li = document.createElement("li");
+    li.className = "admin-action-row" + (item.isPending ? " pending" : "");
+
+    const typeSpan = document.createElement("span");
+    typeSpan.className = "queue-type";
+    typeSpan.textContent = item.type;
+
+    const reasonSpan = document.createElement("span");
+    reasonSpan.className = "queue-reason";
+    reasonSpan.textContent = item.reason;
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "queue-title";
+    titleSpan.textContent = item.title;
+
+    const actionBtn = document.createElement("button");
+    actionBtn.type = "button";
+    actionBtn.className = "btn btn-outline btn-sm";
+    actionBtn.textContent = "عرض التفاصيل";
+    actionBtn.addEventListener("click", () => switchAdminTab(item.tab));
+
+    if (item.isPending) {
+      const statusChip = document.createElement("span");
+      statusChip.className = "queue-status-chip";
+      statusChip.textContent = "قيد المراجعة";
+      li.append(typeSpan, statusChip, reasonSpan, titleSpan, actionBtn);
+    } else {
+      li.append(typeSpan, reasonSpan, titleSpan, actionBtn);
+    }
+    queueEl.appendChild(li);
+  });
+
+  if (queue.length > visibleItems.length) {
+    const moreLi = document.createElement("li");
+    moreLi.className = "admin-action-row queue-more";
+    const moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "btn btn-sm btn-outline";
+    moreBtn.textContent = "عرض جميع التقارير";
+    moreBtn.addEventListener("click", () => switchAdminTab("reports"));
+    moreLi.appendChild(moreBtn);
+    queueEl.appendChild(moreLi);
   }
 }
 
@@ -905,8 +1137,32 @@ async function loadUniversities() {
   });
 }
 
-document.getElementById("uni-form").addEventListener("submit", async (e) => {
+// UX-02: وضع إرسال آمن على نماذج الإضافة/التعديل — حارس ضد الإرسال المزدوج
+// (double submit) مع إظهار حالة تحميل واضحة على زر الإرسال ("جارٍ الحفظ...").
+// يغنّف معالج الحفظ الحالي فقط (يُستدعى قبله) ولا يغيّر أي منطق حفظ/تحقق/payload.
+async function runFormMutation(form, handler) {
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    if (!btn.dataset.loadingText) btn.dataset.loadingText = btn.textContent;
+    btn.textContent = "جارٍ الحفظ...";
+  }
+  try {
+    await handler();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      // لا نستعيد النص إن غيّره resetForm إلى نصه الصحيح بعد النجاح
+      if (btn.textContent === "جارٍ الحفظ...") btn.textContent = btn.dataset.loadingText;
+      delete btn.dataset.loadingText;
+    }
+  }
+}
+
+document.getElementById("uni-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("uni-edit-id").value;
   const payload = {
     name: document.getElementById("uni-name").value.trim(),
@@ -922,17 +1178,116 @@ document.getElementById("uni-form").addEventListener("submit", async (e) => {
   resetUniForm();
   showToast(id ? "تم تعديل الجامعة" : "تمت إضافة الجامعة");
   loadUniversities();
+  });
 });
 
 // F-08: عند التعديل، اطوِ النموذج open ودخوله للعرض — النماذج أصبحت مطوية
 // افتراضيًا داخل <details class="admin-form-toggle"> لتفادي ظهورها مفتوحة
 // دائمًا فوق الجدول على الشاشات الضيقة.
-function openAdminAddForm(detailsId) {
-  const details = document.getElementById(detailsId);
-  if (!details) return;
-  details.open = true;
-  if (typeof details.scrollIntoView === "function") details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+// G-14: عمليات سحب النماذج الطويلة (Drawer) — تُستخدم للنموذجين الطويلين
+// (المورد والدورة). كل منطقها داخل admin.js لتعمل داخل sandbox الاختبارات
+// الذي يسترجع admin.js وحده دون app.js. النماذج البسيطة (جامعة/كلية/سنة/
+// مادة/درس) بقيت داخل <details class="admin-form-toggle">.
+function getAdminDrawer(id) {
+  return document.getElementById(id);
 }
+
+function adminDrawerFocusables(drawerId) {
+  const overlay = getAdminDrawer(drawerId);
+  if (!overlay || typeof overlay.querySelectorAll !== "function") return [];
+  return Array.from(overlay.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+    'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter((el) => el && typeof el.getAttribute === "function" ? el.getAttribute("type") !== "hidden" : true);
+}
+
+function trapAdminDrawerFocus(drawerId, event) {
+  const focusables = adminDrawerFocusables(drawerId);
+  if (focusables.length < 1) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = typeof document.activeElement === "object" && document.activeElement ? document.activeElement : null;
+  if (event.shiftKey) {
+    if (!active || active === first || active === document.body) {
+      event.preventDefault();
+      if (typeof last.focus === "function") last.focus();
+    }
+  } else if (!active || active === last) {
+    event.preventDefault();
+    if (typeof first.focus === "function") first.focus();
+  }
+}
+
+function keydownAdminDrawer(event) {
+  const overlay = event.currentTarget;
+  if (!overlay || !overlay.dataset) return;
+  const drawerId = overlay.dataset.drawerId || overlay.id;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeAdminDrawer(drawerId);
+  } else if (event.key === "Tab") {
+    trapAdminDrawerFocus(drawerId, event);
+  }
+}
+
+function openAdminDrawer(drawerId) {
+  const overlay = getAdminDrawer(drawerId);
+  if (!overlay || typeof overlay.addEventListener !== "function") return;
+  const drawer = overlay.querySelector("aside.admin-drawer");
+  overlay.setAttribute("aria-hidden", "false");
+  if (typeof overlay.classList === "object" && overlay.classList) overlay.classList.add("open");
+  overlay.hidden = false;
+  overlay.open = true;
+  if (overlay.dataset) overlay.dataset.drawerId = drawerId;
+  overlay.addEventListener("keydown", keydownAdminDrawer);
+  const focusTarget = drawer && typeof drawer.querySelector === "function"
+    ? drawer.querySelector("button, input, select, textarea, a[href]")
+    : null;
+  if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+}
+
+function closeAdminDrawer(drawerId) {
+  const overlay = getAdminDrawer(drawerId);
+  if (!overlay) return;
+  if (overlay.classList && typeof overlay.classList.remove === "function") overlay.classList.remove("open");
+  overlay.hidden = true;
+  overlay.open = false;
+  if (overlay.dataset) overlay.dataset.drawerId = "";
+  const trigger = document.querySelector('[data-drawer-open="' + drawerId + '"]');
+  if (trigger && typeof trigger.focus === "function") trigger.focus();
+}
+
+function openAdminAddForm(detailsId) {
+  const el = document.getElementById(detailsId);
+  if (!el) return;
+  // G-14: إذا كان المحفّز يستهدف نافذة منزلقة، افتح الـ drawer بدل details.
+  if (el.dataset && el.dataset.drawerOpen) {
+    openAdminDrawer(el.dataset.drawerOpen);
+    return;
+  }
+  el.open = true;
+  if (typeof el.scrollIntoView === "function") el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// G-14: ربط محفّزات فتح النماذج الطويلة وأزرار/خلفية الإغلاق ونماذجها.
+// آمن ضمن sandbox الاختبارات لأن querySelectorAll تعود [] افتراضيًا.
+(function wireAdminDrawers() {
+  document.querySelectorAll("[data-drawer-open]").forEach((trigger) => {
+    if (typeof trigger.addEventListener !== "function") return;
+    trigger.addEventListener("click", () => {
+      if (!trigger.dataset) return;
+      openAdminDrawer(trigger.dataset.drawerOpen);
+    });
+  });
+  document.querySelectorAll("[data-drawer-close]").forEach((closer) => {
+    if (typeof closer.addEventListener !== "function") return;
+    closer.addEventListener("click", () => {
+      if (!closer.dataset) return;
+      closeAdminDrawer(closer.dataset.drawerClose);
+    });
+  });
+})();
+
 
 function editUniversity(id) {
   // الأمان: id فقط يصل عبر onclick (UUID، لا يحتاج ترميز ولا يمكنه كسر
@@ -1023,8 +1378,9 @@ function refreshFacFormUniversityOptions() {
   populateSelect("fac-university", allowed, (u) => u.name);
 }
 
-document.getElementById("fac-form").addEventListener("submit", async (e) => {
+document.getElementById("fac-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("fac-edit-id").value;
   const payload = {
     university_id: document.getElementById("fac-university").value,
@@ -1042,6 +1398,7 @@ document.getElementById("fac-form").addEventListener("submit", async (e) => {
   resetFacForm();
   showToast(id ? "تم تعديل الكلية" : "تمت إضافة الكلية");
   loadFaculties();
+  });
 });
 
 function editFaculty(facultyId) {
@@ -1252,8 +1609,9 @@ async function loadYears() {
   });
 }
 
-document.getElementById("year-form").addEventListener("submit", async (e) => {
+document.getElementById("year-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("year-edit-id").value;
   const facultyId = document.getElementById("year-faculty").value;
   if (!facultyId) { showToast("اختر الكلية أولاً"); return; }
@@ -1272,6 +1630,7 @@ document.getElementById("year-form").addEventListener("submit", async (e) => {
   resetYearForm();
   showToast(id ? "تم تعديل السنة" : "تمت إضافة السنة");
   loadYears();
+  });
 });
 
 function editYear(id, universityId, facultyId, yearNumber, isActive) {
@@ -1309,11 +1668,34 @@ async function toggleYearActive(yearId, currentlyActive) {
 // المواد
 // ============================================================
 
+// NEW-06: بديل السقف الصامت عند الجلب الكبير — جلب كامل عبر range() بدفعات
+// (100 صف) حتى يتوقف أو يكتمل، دون أي UI ترقيم جديد. الفلاتر (بحث/نوع/حالة)
+// تبقى محلية على cache المجمَّعة. كل استدعاء يبني استعلام select/order نفسه
+// مع range(fromRow, toRow) — الترتيب يبقى محفوظًا عبر الضم المتسلسل.
+const ADMIN_TABLE_CHUNK_SIZE = 100;
+async function loadAdminTableChunked(buildQuery) {
+  let all = [];
+  let firstError = null;
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await buildQuery(offset, offset + ADMIN_TABLE_CHUNK_SIZE - 1);
+    if (error) { firstError = error; break; }
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < ADMIN_TABLE_CHUNK_SIZE) break;
+    offset += ADMIN_TABLE_CHUNK_SIZE;
+  }
+  return { data: all, error: firstError };
+}
+
 async function loadSubjects() {
-  const { data, error } = await supabaseClient
-    .from("subjects")
-    .select("id, name, code, semester, year_id, is_active, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
-    .order("name");
+  const { data, error } = await loadAdminTableChunked((fromRow, toRow) =>
+    supabaseClient
+      .from("subjects")
+      .select("id, name, code, semester, year_id, is_active, years(year_number, university_id, faculty_id, universities(name), faculties(name))")
+      .order("name")
+      .range(fromRow, toRow)
+  );
   const tbody = document.querySelector("#subj-table tbody");
   if (error) { tbody.innerHTML = `<tr><td colspan="4">تعذّر التحميل</td></tr>`; return; }
 
@@ -1350,8 +1732,9 @@ async function loadSubjects() {
   });
 }
 
-document.getElementById("subj-form").addEventListener("submit", async (e) => {
+document.getElementById("subj-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("subj-edit-id").value;
   const yearId = document.getElementById("subj-year").value;
   if (!yearId) { showToast("اختر السنة الدراسية أولاً"); return; }
@@ -1379,6 +1762,7 @@ document.getElementById("subj-form").addEventListener("submit", async (e) => {
   resetSubjForm();
   showToast(id ? "تم تعديل المادة" : "تمت إضافة المادة");
   loadSubjects();
+  });
 });
 
 function editSubject(id) {
@@ -1429,23 +1813,19 @@ async function toggleSubjectActive(subjectId, currentlyActive) {
 // ============================================================
 
 async function loadResources() {
-  const { data, error } = await supabaseClient
-    .from("resources")
-    .select(`
+  const { data, error } = await loadAdminTableChunked((fromRow, toRow) =>
+    supabaseClient
+      .from("resources")
+      .select(`
       id, title, type, language, file_url, storage_provider, source_type, status, keywords, subject_id, verified, view_count,
       subjects(
         id, name, year_id,
         years(id, university_id, faculty_id, year_number, universities(name), faculties(name))
       )
     `)
-    .order("created_at", { ascending: false })
-    // P1-2: explicit fetch cap for the Admin Dashboard resources query.
-    // 1000 matches the project's current Data API "Max rows" default, which was
-    // already the implicit ceiling on this query (no .limit()/.range() was set
-    // before). Making it explicit avoids relying on an invisible platform
-    // setting and the silent, unsignaled truncation that setting causes if
-    // exceeded. This does not change current behavior; see phase4_p1_2 notes.
-    .limit(1000);
+      .order("created_at", { ascending: false })
+      .range(fromRow, toRow)
+  );
   if (error) {
     document.querySelector("#res-table tbody").innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`;
     return;
@@ -1486,7 +1866,7 @@ function renderResourcesTable() {
     const statusClass = r.status === "published" ? "published" : r.status === "hidden" ? "hidden" : "reported";
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="العنوان">${escHtml(r.title)}${r.verified ? ' <span class="tag tag-verified" style="padding:2px 8px; font-size:.7rem;">✓ موثّق</span>' : ""}</td>
+      <td data-label="العنوان">${escHtml(r.title)}${r.verified ? ' <span class="tag tag-verified" style="padding:2px 8px; font-size:.7rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-inline-end:3px" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>موثّق</span>' : ""}</td>
       <td data-label="الموقع الأكاديمي">${location}</td>
       <td data-label="النوع">${escHtml(RESOURCE_TYPE_LABELS_ADMIN[r.type] || r.type)}</td>
       <td data-label="الحالة"><span class="status-badge ${statusClass}">${r.status === "published" ? "منشور" : r.status === "hidden" ? "مخفي" : "مُبلَّغ عنه"}</span></td>
@@ -1562,8 +1942,72 @@ function parseGoogleDriveUrl(rawUrl) {
   return { isFolder: false, fileId: null };
 }
 
-document.getElementById("res-form").addEventListener("submit", async (e) => {
+// NEW-03 — التحقق الخفيف من حقول النماذج (client-side فقط؛ لا شبكة عند الخطأ).
+// الحفظ الفعلي الحالي عند البيانات الصحيحة يبقى كما هو بلا أي اعتراض.
+function isAcceptableResourceFormUrl(raw) {
+  if (isValidResourceUrl(raw)) return true;
+  return /^\/[^\s]*$/.test(raw || "");
+}
+function setNewFieldError(inputEl, message) {
+  if (!inputEl || typeof inputEl.id !== "string") return;
+  const errId = inputEl.id + "-error";
+  let errEl = document.getElementById(errId);
+  if (message) {
+    if (!errEl && typeof document.createElement === "function") {
+      errEl = document.createElement("small");
+      errEl.id = errId;
+      errEl.className = "field-error";
+      const parent = (typeof inputEl.closest === "function" && inputEl.closest(".field"))
+        || inputEl.parentElement || null;
+      if (parent && typeof parent.appendChild === "function") parent.appendChild(errEl);
+    }
+  }
+  if (errEl) { errEl.textContent = message || ""; errEl.hidden = !message; }
+  if (typeof inputEl.setCustomValidity === "function") inputEl.setCustomValidity(message || "");
+  if (typeof inputEl.setAttribute === "function") {
+    if (message) { inputEl.setAttribute("aria-invalid", "true"); inputEl.setAttribute("aria-describedby", errId); }
+    else if (typeof inputEl.removeAttribute === "function") { inputEl.removeAttribute("aria-invalid"); inputEl.removeAttribute("aria-describedby"); }
+  }
+}
+function validateResourceForm() {
+  const title = document.getElementById("res-title");
+  const titleOk = Boolean(title && String(title.value || "").trim().length > 0);
+  setNewFieldError(title, titleOk ? "" : "أدخل عنوان المورد");
+  const srcTypeEl = document.getElementById("res-source-type");
+  const sourceType = srcTypeEl ? String(srcTypeEl.value || "") : "";
+  const fileUrlEl = document.getElementById("res-file-url");
+  const rawUrlVal = fileUrlEl ? String(fileUrlEl.value || "").trim() : "";
+  const urlOk = sourceType === "link" || (rawUrlVal.length > 0 && isAcceptableResourceFormUrl(rawUrlVal));
+  setNewFieldError(fileUrlEl, urlOk ? "" : "أدخل رابط الملف (http(s):// أو مسار نسبي يبدأ بـ /)");
+  return titleOk && urlOk;
+}
+function validateCourseForm() {
+  const title = document.getElementById("course-title");
+  const titleOk = Boolean(title && String(title.value || "").trim().length > 0);
+  setNewFieldError(title, titleOk ? "" : "أدخل عنوان الدورة");
+  return titleOk;
+}
+["res-title", "res-file-url"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (el && typeof el.addEventListener === "function") {
+    el.addEventListener("blur", validateResourceForm);
+    el.addEventListener("input", validateResourceForm);
+  }
+});
+const resSrcSel = document.getElementById("res-source-type");
+if (resSrcSel && typeof resSrcSel.addEventListener === "function") {
+  resSrcSel.addEventListener("change", validateResourceForm);
+}
+const courseTitleEl = document.getElementById("course-title");
+if (courseTitleEl && typeof courseTitleEl.addEventListener === "function") {
+  courseTitleEl.addEventListener("blur", validateCourseForm);
+  courseTitleEl.addEventListener("input", validateCourseForm);
+}
+
+document.getElementById("res-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  if (!validateResourceForm()) return; // NEW-03: يُمنع الإرسال عند خطأ ولا يُرسل شبكة
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("res-edit-id").value;
   const subjectId = document.getElementById("res-subject").value;
   if (!subjectId) { showToast("اختر المادة أولاً"); return; }
@@ -1603,8 +2047,10 @@ document.getElementById("res-form").addEventListener("submit", async (e) => {
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
   logActivity(id ? "resource_updated" : "resource_created", "resource", data?.id, payload.title);
   resetResForm();
-  showToast(id ? "تم تعديل المورد" : "تمت إضافة المورد");
-  loadResources();
+   showToast(id ? "تم تعديل المورد" : "تمت إضافة المورد");
+  closeAdminDrawer("res-form-drawer");
+   loadResources();
+  });
 });
 
 function editResource(resourceId) {
@@ -1636,6 +2082,7 @@ function editResource(resourceId) {
 }
 
 function resetResForm() {
+  closeAdminDrawer("res-form-drawer");
   document.getElementById("res-form").reset();
   document.getElementById("res-edit-id").value = "";
   populateFacultySelect("res-faculty", currentSelectValue("res-university"), null);
@@ -1648,64 +2095,223 @@ function resetResForm() {
 document.getElementById("res-cancel-btn").addEventListener("click", resetResForm);
 
 // ============================================================
-// التقارير
+// التقارير — قائمة موحّدة (G-13 / Z.17)
 // ============================================================
+// تجمع هذه الشاشة بلاغات الموارد (reports) وبلاغات المنتدى
+// (forum_reports) في Queue واحدة لوساطة موحَّدة. لا تتغير أي دلالة
+// عمل (workflow) — نفس الإجراءات، نفس الجداول، نفس الصلاحيات — فقط
+// العرض/القائمة أصبح واحدًا على تبويب واحد.
+
+const FORUM_REPORT_REASON_LABELS_ADMIN = {
+  offensive: "ألفاظ بذيئة أو إساءة",
+  harassment: "تنمر أو مضايقة",
+  inappropriate: "محتوى غير مناسب",
+  misinformation: "معلومات مضللة أو مزعجة",
+  other: "أخرى",
+};
+const FORUM_REPORT_STATUS_LABELS_ADMIN = { pending: "قيد المراجعة", reviewed: "تمت المراجعة", dismissed: "مرفوض" };
 
 async function loadReports() {
-  const { data, error } = await supabaseClient
-    .from("reports")
-    .select("id, reason, note, created_at, resource_id, resources(id, title, status, subjects(years(university_id, faculty_id)))")
-    .order("created_at", { ascending: false });
   const tbody = document.querySelector("#reports-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="5">تعذّر التحميل</td></tr>`; return; }
+  const updateBadge = (count) => {
+    const badge = document.getElementById("reports-tab-badge");
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.hidden = false; }
+    else { badge.textContent = ""; badge.hidden = true; }
+  };
 
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="5">لا توجد بلاغات حاليًا (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
+  tbody.innerHTML = `<tr><td colspan="7">جارٍ التحميل...</td></tr>`;
+
+  // استعلامان مستقلان لا يُسقط أحدهما الآخر (F-06 pattern) — فشل أي
+  // استعلام يُسجَّل للمطوِّر فقط ولا يمنع عرض المحتوى الآخر.
+  const [reportsResult, forumResult] = await Promise.allSettled([
+    supabaseClient
+      .from("reports")
+      .select("id, reason, note, created_at, resource_id, resources(id, title, status, subjects(years(university_id, faculty_id)))")
+      .order("created_at", { ascending: false }),
+    supabaseClient
+      .from("forum_reports")
+      .select(`
+        id, reason, details, status, created_at,
+        topic_id, reply_id,
+        forum_topics(id, title, author_name, is_hidden),
+        forum_replies(id, content, author_name, is_hidden, topic_id)
+      `)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const resourceReasonLabels = { broken_link: "الرابط لا يعمل", wrong_file: "ملف غير صحيح", copyright: "حقوق نشر", other: "أخرى" };
+  const rows = [];
+  let pendingCount = 0;
+
+  // بلاغات الموارد — تُدمج في القائمة الموحدة بنفس بنية الأعمدة.
+  if (reportsResult.status === "fulfilled" && !reportsResult.value.error) {
+    (reportsResult.value.data || []).forEach((r) => {
+      const resTitle = r.resources?.title || "(مورد محذوف)";
+      const isHidden = r.resources?.status === "hidden";
+      const uniId = r.resources?.subjects?.years?.university_id;
+      const facId = r.resources?.subjects?.years?.faculty_id;
+      rows.push({
+        kind: "report",
+        id: r.id,
+        source: "مورد",
+        content: resTitle,
+        details: r.note || "—",
+        reason: resourceReasonLabels[r.reason] || r.reason,
+        statusLabel: "—",
+        date: r.created_at,
+        resource: r.resources,
+        isHidden,
+        canResolve: hasPerm("reports", uniId, facId, "delete"),
+        canToggle: hasPerm("resources", uniId, facId, "edit"),
+      });
+    });
+  } else {
+    console.error("loadReports: تعذّر تحميل بلاغات الموارد", reportsResult.reason || reportsResult.value?.error);
+  }
+
+  // بلاغات المنتدى — نفس الدمج، مع الحالة المعلّقة/المُراجَعة/المرفوضة.
+  if (forumResult.status === "fulfilled" && !forumResult.value.error) {
+    const canModerate = hasAnyPerm("reports") && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "edit"));
+    (forumResult.value.data || []).forEach((r) => {
+      const isTopic = !!r.topic_id;
+      const target = isTopic ? r.forum_topics : r.forum_replies;
+      const content = isTopic ? (target?.title || "(موضوع محذوف)") : (target?.content || "(رد محذوف)");
+      if (r.status === "pending") pendingCount++;
+      rows.push({
+        kind: "forum",
+        id: r.id,
+        source: isTopic ? "موضوع" : "رد",
+        content,
+        details: r.details ? `ملاحظة: ${r.details}` : "—",
+        reason: FORUM_REPORT_REASON_LABELS_ADMIN[r.reason] || r.reason,
+        statusLabel: FORUM_REPORT_STATUS_LABELS_ADMIN[r.status] || r.status,
+        date: r.created_at,
+        isTopic,
+        target,
+        isHidden: target?.is_hidden === true,
+        canModerate,
+      });
+    });
+  } else {
+    console.error("loadReports: تعذّر تحميل بلاغات المنتدى", forumResult.reason || forumResult.value?.error);
+  }
+
+  updateBadge(pendingCount);
+
+  // ترتيب مشترك حسب التاريخ (الأحدث أولًا) ثم الحالة (المعلّقة أولًا).
+  rows.sort((a, b) => {
+    const aPending = a.kind === "forum" && a.statusLabel === FORUM_REPORT_STATUS_LABELS_ADMIN.pending ? 0 : 1;
+    const bPending = b.kind === "forum" && b.statusLabel === FORUM_REPORT_STATUS_LABELS_ADMIN.pending ? 0 : 1;
+    if (aPending !== bPending) return aPending - bPending;
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7">لا توجد بلاغات حاليًا (أو لا تملك صلاحية عرضها)</td></tr>`;
+    return;
+  }
   tbody.innerHTML = "";
-  const reasonLabels = { broken_link: "الرابط لا يعمل", wrong_file: "ملف غير صحيح", copyright: "حقوق نشر", other: "أخرى" };
-  data.forEach((r) => {
-    const resTitle = r.resources?.title || "(مورد محذوف)";
-    const isHidden = r.resources?.status === "hidden";
-    const uniId = r.resources?.subjects?.years?.university_id;
-    const facId = r.resources?.subjects?.years?.faculty_id;
-    const canResolve = hasPerm("reports", uniId, facId, "delete");
-    const canToggle = hasPerm("resources", uniId, facId, "edit");
 
-    // كل القيم أدناه (عنوان المورد، السبب، ملاحظة المُبلِّغ) قادمة من
-    // قاعدة البيانات/من المستخدم ويجب التعامل معها كنص غير موثوق دائمًا؛
-    // لذلك تُبنى كل خلية عبر DOM + textContent وليس عبر innerHTML.
+  // كل القيم أدناه (عنوان المورد/الموضوع، الرد، السبب، ملاحظة المُبلِّغ)
+  // قادمة من قاعدة البيانات/من المستخدم ويجب التعامل معها كنص غير موثوق
+  // دائمًا؛ لذلك تُبنى كل خلية عبر DOM + textContent وليس عبر innerHTML.
+  rows.forEach((row) => {
     const tr = document.createElement("tr");
 
-    const tdResource = document.createElement("td");
-    tdResource.setAttribute("data-label", "المورد");
-    tdResource.textContent = resTitle;
-    tr.appendChild(tdResource);
+    const tdSource = document.createElement("td");
+    tdSource.setAttribute("data-label", "المصدر");
+    tdSource.textContent = row.source;
+    tr.appendChild(tdSource);
+
+    const tdContent = document.createElement("td");
+    tdContent.setAttribute("data-label", "المحتوى المُبلَّغ عنه");
+    tdContent.textContent = row.content.length > 80 ? row.content.slice(0, 80) + "…" : row.content;
+    tr.appendChild(tdContent);
+
+    const tdDetails = document.createElement("td");
+    tdDetails.setAttribute("data-label", "التفاصيل");
+    tdDetails.textContent = row.details.length > 80 ? row.details.slice(0, 80) + "…" : row.details;
+    tr.appendChild(tdDetails);
 
     const tdReason = document.createElement("td");
     tdReason.setAttribute("data-label", "السبب");
-    tdReason.textContent = reasonLabels[r.reason] || r.reason;
+    tdReason.textContent = row.reason;
     tr.appendChild(tdReason);
 
-    const tdNote = document.createElement("td");
-    tdNote.setAttribute("data-label", "ملاحظة");
-    tdNote.textContent = r.note || "—";
-    tr.appendChild(tdNote);
+    const tdStatus = document.createElement("td");
+    tdStatus.setAttribute("data-label", "الحالة");
+    tdStatus.textContent = row.statusLabel;
+    tr.appendChild(tdStatus);
 
     const tdDate = document.createElement("td");
     tdDate.setAttribute("data-label", "التاريخ");
-    tdDate.textContent = new Date(r.created_at).toLocaleDateString("ar-EG");
+    tdDate.textContent = new Date(row.date).toLocaleDateString("ar-EG");
     tr.appendChild(tdDate);
 
     const tdActions = document.createElement("td");
-    tdActions.innerHTML = `
-      <div class="row-actions">
-        ${r.resources && canToggle ? `<button class="btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}" data-action="toggle-resource-hidden" data-table="reports" data-id="${r.resources.id}" data-hidden="${isHidden}">${isHidden ? "إظهار المورد" : "إخفاء المورد"}</button>` : ""}
-        ${canResolve ? `<button class="btn btn-danger btn-sm" data-action="delete" data-table="reports" data-id="${r.id}">حذف البلاغ</button>` : ""}
-      </div>
-    `;
+    const actionsWrap = document.createElement("div");
+    actionsWrap.className = "row-actions";
+
+    if (row.kind === "report") {
+      if (row.resource && row.canToggle) {
+        const hideBtn = document.createElement("button");
+        hideBtn.type = "button";
+        hideBtn.className = `btn btn-sm ${row.isHidden ? "btn-state-on" : "btn-state-off"}`;
+        hideBtn.textContent = row.isHidden ? "إظهار المورد" : "إخفاء المورد";
+        hideBtn.dataset.action = "toggle-resource-hidden";
+        hideBtn.dataset.table = "reports";
+        hideBtn.dataset.id = row.resource.id;
+        hideBtn.dataset.hidden = row.isHidden;
+        actionsWrap.appendChild(hideBtn);
+      }
+      if (row.canResolve) {
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn btn-danger btn-sm";
+        delBtn.textContent = "حذف البلاغ";
+        delBtn.dataset.action = "delete";
+        delBtn.dataset.table = "reports";
+        delBtn.dataset.id = row.id;
+        actionsWrap.appendChild(delBtn);
+      }
+    } else if (row.kind === "forum" && row.canModerate && row.target) {
+      const hideBtn = document.createElement("button");
+      hideBtn.type = "button";
+      hideBtn.className = `btn btn-sm ${row.isHidden ? "btn-state-on" : "btn-state-off"}`;
+      hideBtn.textContent = row.isHidden ? (row.isTopic ? "إظهار الموضوع" : "إظهار الرد") : (row.isTopic ? "إخفاء الموضوع" : "إخفاء الرد");
+      hideBtn.addEventListener("click", () => toggleForumTargetHidden(row.isTopic ? "topic" : "reply", row.target.id, row.isHidden, loadReports));
+      actionsWrap.appendChild(hideBtn);
+
+      const dismissBtn = document.createElement("button");
+      dismissBtn.type = "button";
+      dismissBtn.className = "btn btn-sm btn-outline";
+      dismissBtn.textContent = "رفض البلاغ";
+      dismissBtn.disabled = row.statusLabel !== FORUM_REPORT_STATUS_LABELS_ADMIN.pending;
+      dismissBtn.addEventListener("click", () => updateForumReportStatus(row.id, "dismissed", loadReports));
+      actionsWrap.appendChild(dismissBtn);
+
+      const reviewBtn = document.createElement("button");
+      reviewBtn.type = "button";
+      reviewBtn.className = "btn btn-sm btn-primary";
+      reviewBtn.textContent = "تحديد كمُراجَع";
+      reviewBtn.disabled = row.statusLabel !== FORUM_REPORT_STATUS_LABELS_ADMIN.pending;
+      reviewBtn.addEventListener("click", () => updateForumReportStatus(row.id, "reviewed", loadReports));
+      actionsWrap.appendChild(reviewBtn);
+    }
+
+    if (actionsWrap.children.length) tdActions.appendChild(actionsWrap);
     tr.appendChild(tdActions);
 
     tbody.appendChild(tr);
   });
+}
+
+// توافق خلفي: بعض الاستدعاءات القديمة (refreshFn في إجراءات المنتدى،
+// loadAllData قبل هذا الدمج) كانت تشير إلى loadForumReports — تُترك
+// ككيل لـ loadReports حتى تبقى كل الاستدعاءات تعمل مع القائمة الموحدة.
+async function loadForumReports() {
+  return loadReports();
 }
 
 async function toggleResourceHidden(resourceId, currentlyHidden, refreshFn) {
@@ -1718,120 +2324,6 @@ async function toggleResourceHidden(resourceId, currentlyHidden, refreshFn) {
   showToast(currentlyHidden ? "تم إظهار المورد" : "تم إخفاء المورد");
   refreshFn();
   loadResources();
-}
-
-// ============================================================
-// بلاغات المنتدى (ملتقى أفق) — Phase 7
-// نفس أسلوب loadReports() أعلاه تمامًا: DOM + textContent لأي بيانات
-// قادمة من المستخدم (اسم الكاتب، عنوان الموضوع، محتوى الرد، ملاحظة
-// المُبلِّغ)، RLS (admin_read_all_forum_reports وما يرافقها في
-// phase7_forum_admin_moderation.sql) هي الحَكَم الفعلي لمن يرى هذا
-// الجدول أصلًا — hasAnyPerm/hasPerm هنا للواجهة فقط.
-// ============================================================
-
-const FORUM_REPORT_REASON_LABELS_ADMIN = {
-  offensive: "ألفاظ بذيئة أو إساءة",
-  harassment: "تنمر أو مضايقة",
-  inappropriate: "محتوى غير مناسب",
-  misinformation: "معلومات مضللة أو مزعجة",
-  other: "أخرى",
-};
-const FORUM_REPORT_STATUS_LABELS_ADMIN = { pending: "قيد المراجعة", reviewed: "تمت المراجعة", dismissed: "مرفوض" };
-
-async function loadForumReports() {
-  const { data, error } = await supabaseClient
-    .from("forum_reports")
-    .select(`
-      id, reason, details, status, created_at,
-      topic_id, reply_id,
-      forum_topics(id, title, author_name, is_hidden),
-      forum_replies(id, content, author_name, is_hidden, topic_id)
-    `)
-    .order("created_at", { ascending: false });
-
-  const tbody = document.querySelector("#forum-reports-table tbody");
-  if (error) { tbody.innerHTML = `<tr><td colspan="8">تعذّر التحميل</td></tr>`; console.error(error); return; }
-
-  if (!data.length) { tbody.innerHTML = `<tr><td colspan="8">لا توجد بلاغات منتدى حاليًا (أو لا تملك صلاحية عرضها)</td></tr>`; return; }
-  tbody.innerHTML = "";
-
-  const canModerate = hasAnyPerm("reports") && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "edit"));
-
-  data.forEach((r) => {
-    const isTopic = !!r.topic_id;
-    const target = isTopic ? r.forum_topics : r.forum_replies;
-    const targetLabel = isTopic ? "موضوع" : "رد";
-    const targetText = isTopic ? (target?.title || "(موضوع محذوف)") : (target?.content || "(رد محذوف)");
-    const authorName = target?.author_name || "—";
-    const isHidden = target?.is_hidden === true;
-
-    const tr = document.createElement("tr");
-
-    const tdType = document.createElement("td");
-    tdType.setAttribute("data-label", "النوع");
-    tdType.textContent = targetLabel;
-    tr.appendChild(tdType);
-
-    const tdContent = document.createElement("td");
-    tdContent.setAttribute("data-label", "المحتوى المُبلَّغ عنه");
-    tdContent.textContent = targetText.length > 80 ? targetText.slice(0, 80) + "…" : targetText;
-    tr.appendChild(tdContent);
-
-    const tdAuthor = document.createElement("td");
-    tdAuthor.setAttribute("data-label", "الكاتب");
-    tdAuthor.textContent = authorName;
-    tr.appendChild(tdAuthor);
-
-    const tdReporter = document.createElement("td");
-    tdReporter.setAttribute("data-label", "المُبلِّغ");
-    tdReporter.textContent = r.details ? `ملاحظة: ${r.details}` : "—";
-    tr.appendChild(tdReporter);
-
-    const tdReason = document.createElement("td");
-    tdReason.setAttribute("data-label", "السبب");
-    tdReason.textContent = FORUM_REPORT_REASON_LABELS_ADMIN[r.reason] || r.reason;
-    tr.appendChild(tdReason);
-
-    const tdStatus = document.createElement("td");
-    tdStatus.setAttribute("data-label", "الحالة");
-    tdStatus.textContent = FORUM_REPORT_STATUS_LABELS_ADMIN[r.status] || r.status;
-    tr.appendChild(tdStatus);
-
-    const tdDate = document.createElement("td");
-    tdDate.setAttribute("data-label", "التاريخ");
-    tdDate.textContent = new Date(r.created_at).toLocaleDateString("ar-EG");
-    tr.appendChild(tdDate);
-
-    const tdActions = document.createElement("td");
-    if (canModerate && target) {
-      const hideBtn = document.createElement("button");
-      hideBtn.className = `btn btn-sm ${isHidden ? "btn-state-on" : "btn-state-off"}`;
-      hideBtn.textContent = isHidden ? (isTopic ? "إظهار الموضوع" : "إظهار الرد") : (isTopic ? "إخفاء الموضوع" : "إخفاء الرد");
-      hideBtn.addEventListener("click", () => toggleForumTargetHidden(isTopic ? "topic" : "reply", target.id, isHidden, loadForumReports));
-
-      const dismissBtn = document.createElement("button");
-      dismissBtn.className = "btn btn-sm btn-outline";
-      dismissBtn.textContent = "رفض البلاغ";
-      dismissBtn.disabled = r.status !== "pending";
-      dismissBtn.addEventListener("click", () => updateForumReportStatus(r.id, "dismissed", loadForumReports));
-
-      const reviewBtn = document.createElement("button");
-      reviewBtn.className = "btn btn-sm btn-primary";
-      reviewBtn.textContent = "تحديد كمُراجَع";
-      reviewBtn.disabled = r.status !== "pending";
-      reviewBtn.addEventListener("click", () => updateForumReportStatus(r.id, "reviewed", loadForumReports));
-
-      const actionsWrap = document.createElement("div");
-      actionsWrap.className = "row-actions";
-      actionsWrap.appendChild(hideBtn);
-      actionsWrap.appendChild(reviewBtn);
-      actionsWrap.appendChild(dismissBtn);
-      tdActions.appendChild(actionsWrap);
-    }
-    tr.appendChild(tdActions);
-
-    tbody.appendChild(tr);
-  });
 }
 
 async function toggleForumTargetHidden(targetType, targetId, currentlyHidden, refreshFn) {
@@ -1934,8 +2426,10 @@ async function loadCourses() {
   });
 }
 
-document.getElementById("course-form").addEventListener("submit", async (e) => {
+document.getElementById("course-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  if (!validateCourseForm()) return; // NEW-03: يُمنع الإرسال عند خطأ ولا يُرسل شبكة
+  runFormMutation(e.currentTarget, async () => {
   const id = document.getElementById("course-edit-id").value;
   const coverUrl = document.getElementById("course-cover-url").value.trim();
   if (coverUrl && !isValidResourceUrl(coverUrl)) {
@@ -1960,8 +2454,10 @@ document.getElementById("course-form").addEventListener("submit", async (e) => {
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
   logActivity(id ? "course_updated" : "course_created", "course", data?.id, payload.title);
   resetCourseForm();
+  closeAdminDrawer("course-form-drawer");
   showToast(id ? "تم تعديل الدورة" : "تمت إضافة الدورة");
   loadCourses();
+  });
 });
 
 function editCourse(id) {
@@ -1983,6 +2479,10 @@ function editCourse(id) {
 }
 
 function resetCourseForm() {
+  resetCourseFormImpl();
+  closeAdminDrawer("course-form-drawer");
+}
+function resetCourseFormImpl() {
   document.getElementById("course-form").reset();
   document.getElementById("course-edit-id").value = "";
   document.getElementById("course-status").value = "draft";
@@ -2057,8 +2557,9 @@ function updateLessonContentFieldVisibility() {
 }
 document.getElementById("lesson-content-type").addEventListener("change", updateLessonContentFieldVisibility);
 
-document.getElementById("lesson-form").addEventListener("submit", async (e) => {
+document.getElementById("lesson-form").addEventListener("submit", (e) => {
   e.preventDefault();
+  runFormMutation(e.currentTarget, async () => {
   const courseId = document.getElementById("lesson-course-select").value;
   if (!courseId) { showToast("اختر دورة أولاً"); return; }
   const id = document.getElementById("lesson-edit-id").value;
@@ -2097,6 +2598,7 @@ document.getElementById("lesson-form").addEventListener("submit", async (e) => {
   resetLessonForm();
   showToast(id ? "تم تعديل الدرس" : "تمت إضافة الدرس");
   loadCourseLessons(courseId);
+  });
 });
 
 function editLesson(id) {
@@ -2414,6 +2916,113 @@ function labeledWrap(label, el) {
 // أدوات مساعدة
 // ============================================================
 
+// NEW-02 — تأكيد الإجراءات المدمرة (Destructive Confirm)
+// بديل window.confirm المدمج بنافذة تأكيد داخل الصفحة (inline) بنفس
+// نمط الـmodal الموجود (role="dialog" aria-modal="true" aria-labelledby)،
+// تُبنى بالكامل عبر DOM APIs و textContent (لا innerHTML لأي بيانات صح،
+// ولا سلسلة confirm block للنصوص) — لا يغيّر أي استعلام Supabase ولا
+// ترتيب العمليات: التأكيد واجهة فقط. تعمل في المتصفح وفي sandbox
+// الاختبارات (لا تعتمد على document.body ولا على querySelector).
+let _destructiveConfirmCallback = null;
+let _destructiveConfirmOpener = null;
+
+function showDestructiveConfirm({ title, message, onConfirm }) {
+  const overlay = _buildDestructiveConfirmOverlay();
+
+  const titleEl = document.getElementById("admin-confirm-title");
+  if (titleEl) titleEl.textContent = title || "تأكيد";
+  const msgEl = document.getElementById("admin-confirm-message");
+  if (msgEl) msgEl.textContent = message || "";
+
+  _destructiveConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
+  _destructiveConfirmOpener = (typeof document.activeElement === "object" && document.activeElement)
+    ? document.activeElement : null;
+
+  overlay.hidden = false;
+  const cancelBtn = document.getElementById("admin-confirm-cancel");
+  if (cancelBtn && typeof cancelBtn.focus === "function") cancelBtn.focus();
+}
+
+function _getOrCreate(id, tagName) {
+  let el = document.getElementById(id);
+  if (el) return el;
+  el = document.createElement(tagName || "DIV");
+  el.id = id;
+  return el;
+}
+
+function _buildDestructiveConfirmOverlay() {
+  let overlay = document.getElementById("admin-confirm-overlay");
+  if (overlay && overlay._built) return overlay;
+  overlay = overlay || document.createElement("div");
+  overlay.id = "admin-confirm-overlay";
+  overlay.className = "modal-overlay";
+  overlay.hidden = true;
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "admin-confirm-title");
+
+  const box = _getOrCreate("admin-confirm-box");
+  box.className = "modal-box";
+
+  const titleEl = _getOrCreate("admin-confirm-title", "H3");
+  const msgEl = _getOrCreate("admin-confirm-message", "P");
+  const actions = _getOrCreate("admin-confirm-actions");
+  actions.className = "modal-actions";
+
+  const cancelBtn = _getOrCreate("admin-confirm-cancel", "BUTTON");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn btn-outline";
+  cancelBtn.textContent = "إلغاء";
+
+  const okBtn = _getOrCreate("admin-confirm-ok", "BUTTON");
+  okBtn.type = "button";
+  okBtn.className = "btn btn-danger";
+  okBtn.textContent = "تأكيد الحذف";
+
+  // نبني الهيكل فقط عند أول استخدام (محمي بعلامة _built) — بعدها نكتفي
+  // بتحديث النصوص وإظهار النافذة. في sandbox الاختبارات قد يعيد
+  // getElementById عناصر مختلقة تلقائيًا، فالربط يُحفظ على العناصر نفسها.
+  if (!overlay._built) {
+    overlay._built = true;
+    overlay.appendChild(box);
+    box.appendChild(titleEl);
+    box.appendChild(msgEl);
+    box.appendChild(actions);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(okBtn);
+
+    okBtn.addEventListener("click", () => _confirmDestructive(true));
+    cancelBtn.addEventListener("click", () => _confirmDestructive(false));
+    overlay.addEventListener("click", (e) => { if (e && e.target === overlay) _confirmDestructive(false); });
+    overlay.addEventListener("keydown", (e) => { if (e && e.key === "Escape") _confirmDestructive(false); });
+
+    const body = typeof document.body === "object" && document.body ? document.body : null;
+    if (body && typeof body.appendChild === "function") body.appendChild(overlay);
+  }
+
+  return overlay;
+}
+
+function _confirmDestructive(confirmed) {
+  const overlay = document.getElementById("admin-confirm-overlay");
+  if (overlay) overlay.hidden = true;
+
+  const cb = _destructiveConfirmCallback;
+  _destructiveConfirmCallback = null;
+  const opener = _destructiveConfirmOpener;
+  _destructiveConfirmOpener = null;
+
+  if (opener && typeof opener.focus === "function" && typeof document.contains === "function"
+    && document.contains(opener)) opener.focus();
+
+  if (confirmed && cb) {
+    try { cb(); } catch (err) {
+      if (typeof console !== "undefined" && console.error) console.error(err);
+    }
+  }
+}
+
 // F-11: أزرار صفوف الجداول تُبنى عبر data-action/data-id (لا onclick داخل
 // سلاسل القوالب — لا حقن JS عبر القيم القادمة من قاعدة البيانات). الاستدعاء
 // يتم عبر تفويض أحداث (event delegation) على كل tbody مرة واحدة وقت التحميل.
@@ -2476,8 +3085,15 @@ document.querySelectorAll(".admin-table tbody").forEach((tbody) => {
   });
 });
 
-async function deleteRow(table, id, refreshFn) {
-  if (!confirm("هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+function deleteRow(table, id, refreshFn) {
+  showDestructiveConfirm({
+    title: "تأكيد الحذف",
+    message: "هل أنت متأكد من الحذف؟ لا يمكن التراجع عن هذا الإجراء.",
+    onConfirm: () => performDeleteRow(table, id, refreshFn),
+  });
+}
+
+async function performDeleteRow(table, id, refreshFn) {
   const { error } = await supabaseClient.from(table).delete().eq("id", id);
   if (error) { showToast("تعذّر الحذف (تحقق من صلاحياتك، أو أن هناك بيانات تابعة لهذا العنصر)"); console.error(error); return; }
   logActivity(`${table}_deleted`, table, id, null);
