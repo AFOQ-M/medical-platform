@@ -67,19 +67,35 @@
 | Danger border | `--danger-border` | `#FECACA` |
 | Success background | `--success-bg` | `#E4F5EA` |
 | Success border | `--success-border` | `#BFE6CC` |
+| Success text (شارة "موثّق/منشور") | `--success-text` | `#166534` |
+| Success (دلالة عامة) | `--success` | `#147D45` |
+| Warning background | `--warning-bg` | `#FEF3C7` |
+| Warning border | `--warning-border` | `#FDE68A` |
+| Warning (نص/حدود التحذير) | `--warning` | `#B45309` |
+| Accent focus (حلقة التركيز) | `--accent-focus` | `#B45309` |
 | Neutral background (شارات محايدة) | `--neutral-bg` | `#F1F1F1` |
-| Focus ring | `--focus` | `var(--accent)` → `#E9A426` |
+| Focus ring | `--focus` | `var(--accent-focus)` → `#B45309` |
 
-> لا يوجد Token باسم `--success` (لون نص) منفصل في الكود؛ نص حالة "منشور/موثّق" يستخدم `--type-questions` (انظر قسم أنواع الموارد). لا يوجد Token باسم `--warning` في الكود حاليًا.
+> `--success-text` (`#166534`) هو لون نص شارة "منشور/موثّق" (`.tag-verified`, `.status-badge.published`) على خلفية `--success-bg` — تباين 6.30:1 (AA)، وهو أفضل من `#147D45` (4.58:1) لنصوص الشارات؛ لذا احتفظ بـ `--success-text` نصوصًا وأُضيف `--success` (`#147D45`) كدلالة عامة. `--warning` (`#B45309`): يمر 4.51:1 على `--warning-bg` (AA) و3:1 للسياق اللوني غير النصي (UI)؛ يُستخدم للسياقات غير النصية والتحذيرية، ولا يُستخدم لنص عادي صغير دون الخلفية الصفراء. `--accent-focus` هو حلقة تركيز `:focus-visible` — يمر 3:1 (UI) لكنه ليس بديلًا عن نص 4.5:1. `--success`/`--warning` بلا `-bg`/`-border` هما دلالات عامة أُضيفتا في P1.5 (لا تُستخدمان مباشرة في الكود حاليًا إلا كمراجع مستقبلية).
 
 ### قياسات مشتركة (غير ألوان لكن جزء من الهوية)
 
 | Token | القيمة | الاستخدام |
 |---|---|---|
-| `--radius` | `14px` | نصف قطر البطاقات والعناصر الكبيرة |
-| `--radius-sm` | `8px` | نصف قطر العناصر الصغيرة (أيقونات، حقول) |
+| `--radius` | `var(--radius-lg)` → `14px` | نصف قطر البطاقات والعناصر الكبيرة |
+| `--radius-lg` | `14px` | البطاقات والحاويات الكبيرة |
+| `--radius-md` | `10px` | عناصر متوسطة |
+| `--radius-sm` | `8px` | العناصر الصغيرة (أيقونات، حقول) |
+| `--radius-full` | `999px` | الحبوب/الأزرار الدائرية (التبويبات، أزرار البحث) |
+| `--border-hair` | `rgba(18, 38, 42, .08)` | حدود شعرية رقيقة (فصل خفيف) |
+| `--border-strong` | `rgba(18, 38, 42, .16)` | حدود أوضح (فقرات، حالات) |
+| `--border-accent` | `rgba(44, 110, 124, .3)` | حدود بلمسة اللون الأساسي |
 | `--shadow` | `0 2px 10px rgba(18,38,42,.06)` | ظل افتراضي للبطاقات |
 | `--shadow-hover` | `0 8px 24px rgba(18,38,42,.12)` | ظل عند hover/تركيز |
+| `--container-max` | `1120px` | أقصى عرض حاوية المحتوى (header/main/footer) |
+| `--dur-micro` | `150ms` | انتقالات دقيقة (حالة هارف/فحص، أزرار) |
+| `--dur-std` | `220ms` | انتقالات قياسية (بطاقات، ألواح) |
+| `--ease-out` | `cubic-bezier(0.2, 0, 0, 1)` | منحنى السنة القياسي للحركة |
 
 ---
 
@@ -117,6 +133,46 @@
 
 ---
 
+## 3.5 Design Tokens Foundation (Spacing + Typography — Phase 1)
+
+> **حالة الإضافة:** هذه التوكنز غير مُستخدَمة حاليًا بأي مكان في `css/style.css` — تأسيس فقط لمرحلة تطبيق لاحقة (Phase 3/4)، القيم القديمة (font-size/padding المباشرة) لا تزال هي الفعلية بكل مكان حتى إشعار آخر. الإضافة داخل `:root` فقط، بصفر تأثير بصري على الموقع الحي.
+
+### مسافات (Spacing scale — أساس 4px)
+
+| Token | القيمة | الاستخدام المستقبلي المقترح |
+|---|---|---|
+| `--space-1` | `4px` | فروقات داخلية دقيقة (أيقونة داخل زر صغير) |
+| `--space-2` | `8px` | فراغ داخلي صغير (padding حقول/بتنات مدمجة) |
+| `--space-3` | `12px` | padding افتراضي للمكونات الصغيرة |
+| `--space-4` | `16px` | padding افتراضي للبطاقات وحقول النماذج |
+| `--space-5` | `24px` | فراغ بين الأقسام/بطاقات متجاورة |
+| `--space-6` | `32px` | فواصل أهم بين الأقسام الرئيسية |
+| `--space-7` | `48px` | فراغ كبير قبل أقسام الصفحة |
+| `--space-8` | `64px` | فراغ الحواجز الكبرى (hero / footer) |
+
+### طباعة (Typography scale — نص/ارتفاع سطر/وزن لكل دور)
+
+| الدور | Tokens | القيم |
+|---|---|---|
+| Display | `--text-display-size` / `-lh` / `-weight` | `clamp(1.6rem, 1.1rem + 2vw, 2.2rem)` / `1.25` / `800` |
+| h2 | `--text-h2-size` / `-lh` / `-weight` | `1.25rem` / `1.3` / `800` |
+| h3 | `--text-h3-size` / `-lh` / `-weight` | `1.05rem` / `1.4` / `700` |
+| Body | `--text-body-size` / `-lh` / `-weight` | `1rem` / `1.65` / `400` |
+| Body strong | `--text-body-strong-weight` | `700` |
+| Meta | `--text-meta-size` / `-lh` / `-weight` | `0.85rem` / `1.5` / `400` |
+| Label | `--text-label-size` / `-lh` / `-weight` | `0.9rem` / `1.4` / `700` |
+| Data | `--text-data-size` / `-weight` | `0.9rem` / `500` |
+| Longform | `--text-longform-size` / `-lh` | `1rem` / `1.8` |
+
+### خطوط العائلة
+
+| Token | القيمة | الدور |
+|---|---|---|
+| `--font-display` | `'Cairo', sans-serif` | العناوين (نفس القيمة الحالية المستخدَمة فعليًا) |
+| `--font-body` | `'Tajawal', sans-serif` | النص (نفس القيمة الحالية المستخدَمة فعليًا) |
+
+---
+
 ## 4. Resource Types
 
 نمط شارات أنواع الموارد: خلفية فاتحة (`-bg`) + نص/حدّ بلون داكن من نفس العائلة اللونية، لضمان تباين مقروء (مطبَّق في `.tag[data-type]`, وأيضًا لون الشريط الجانبي لبطاقة المورد `.resource-card[data-type]` ونقطة `.landing-type-dot`).
@@ -127,11 +183,11 @@
 | سلايدات (slides) | `--type-slides` | `#1F7A8C` | `--type-slides-bg` | `#E6F0F3` | نفس لون Secondary — مرتبط بالهوية |
 | كتاب (book) | `--type-book` | `#5B21B6` | `--type-book-bg` | `#EDE9FE` | بنفسجي، للمراجع الكاملة |
 | ملخص (summary) | `--type-summary` | `#0F766E` | `--type-summary-bg` | `#CCFBF1` | أخضر-تيال، للمراجعة السريعة |
-| أسئلة (questions) | `--type-questions` | `#2E9E5B` | `--type-questions-bg` | `#E4F5EA` | أخضر، نفس اللون يُستخدم أيضًا لشارة "موثّق/منشور" (`.tag-verified`, `.status-badge.published`) |
+| أسئلة (questions) | `--type-questions` | `#147D45` | `--type-questions-bg` | `#E4F5EA` | أخضر (تم تغميقه إلى `#147D45` لضمان 4.58:1 على خلفيته) — شارة "موثّق/منشور" الآن تستخدم `--success-text` المنفصل `#166534` (6.30:1) |
 | ملاحظات (notes) | `--type-notes` | `#92400E` | `--type-notes-bg` | `#FEF3C7` | عنبر دافئ، لمحتوى شخصي/غير رسمي |
 | أسئلة سابقة (past_exam) | `--type-past_exam` | `#9D174D` | `--type-past_exam-bg` | `#FCE7F3` | وردي تنبيهي، لأهمية الامتحانات السابقة |
 
-> ملاحظة: نوع "أسئلة" (questions) موجود في الكود كنوع مورد مستقل عن "أسئلة سابقة" (past_exam)، ويتشارك لونه مع دلالة "موثّق" لأنه غير مذكور في طلب تغيير الهوية الأخير فبقي على لونه الأصلي.
+> ملاحظة: نوع "أسئلة" (questions) موجود في الكود كنوع مورد مستقل عن "أسئلة سابقة" (past_exam). كان يتشارك قيمته اللونية مع دلالة "موثّق/منشور"؛ بعد هذا الإصلاح انفصلت الشّرتان إلى درجتين من نفس عائلة الأخضر: `--type-questions` `#147D45` لنوع المورد + `--success-text` `#166534` لشارة الحالة.
 
 ---
 
@@ -181,7 +237,7 @@
 
 **Badges (Tags)**
 - شكل حبة صغيرة، خلفية فاتحة من نفس عائلة لون النوع + نص/حدّ داكن من نفس العائلة (راجع قسم أنواع الموارد).
-- شارات الحالة في لوحة التحكم (`.status-badge`) تتبع نفس المنطق: `--success-bg`/`--neutral-bg`/`--danger-bg` مع نص مطابق.
+- شارات الحالة في لوحة التحكم (`.status-badge`) تتبع نفس المنطق: `--success-bg`/`--neutral-bg`/`--danger-bg` مع نص مطابق (`--success-text` لشارة منشور، `--ink-soft` للمخفي/المسودة، `--danger` للمبلَّغ عنه).
 
 **Buttons**
 - Primary: خلفية `--primary`، تغميق إلى `--primary-dark` عند hover.

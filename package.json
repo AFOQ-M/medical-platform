@@ -1,0 +1,16 @@
+{
+  "name": "afoq-courses-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "أفق المعرفة — منصة تنظيم المراجع والموارد الطبية والأكاديمية",
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "start": "node scripts/dev-server.js",
+    "test": "node scripts/run-tests.js",
+    "test:unit": "node scripts/run-tests.js",
+    "test:audit": "echo \"Playwright audits need a live target: node test/test-runtime-deferred.js (local) / node test/test-full.js (production)\""
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

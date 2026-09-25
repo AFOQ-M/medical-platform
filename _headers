@@ -1,0 +1,19 @@
+# أفق المعرفة — رؤوس أمان على Cloudflare Pages (afoq-m.pages.dev)
+# ------------------------------------------------------------------
+# ملاحظة أمان صريحة: لا CSP هنا. الصفحات تستخدم أنماطًا داخلية
+# (style="...") على نطاق واسع، وCSP صارم إما أن يرقى لكل سطر إلى
+# 'unsafe-inline' فيفقد قيمته، أو يكسر العرض (نرفض كسر التطبيق).
+# بديل أعمق: ترحيل الأنماط إلى CSS ملفي لاحقًا ثم إضافة CSP فعّال
+# (راجع AFOQ-BIG-PICKLE-FINAL-CLOSURE-REPORT.md — قسم الأمان).
+# ------------------------------------------------------------------
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+/admin/*
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
