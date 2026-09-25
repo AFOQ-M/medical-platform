@@ -1,10 +1,13 @@
 # أفق المعرفة — رؤوس أمان على Cloudflare Pages (afoq-m.pages.dev)
 # ------------------------------------------------------------------
-# ملاحظة أمان صريحة: لا CSP هنا. الصفحات تستخدم أنماطًا داخلية
-# (style="...") على نطاق واسع، وCSP صارم إما أن يرقى لكل سطر إلى
-# 'unsafe-inline' فيفقد قيمته، أو يكسر العرض (نرفض كسر التطبيق).
-# بديل أعمق: ترحيل الأنماط إلى CSS ملفي لاحقًا ثم إضافة CSP فعّال
-# (راجع AFOQ-BIG-PICKLE-FINAL-CLOSURE-REPORT.md — قسم الأمان).
+# تحديث (2026-09-25) — تنفيذ توصيات التدقيق (WEB-003/004/005 + P1 #8):
+#   - إصلاح قاعدة /admin/* (إزالة التكرار والتباين مع القاعدة العامة).
+#   - إضافة HSTS + COOP + COEP (تحققنا حيًا أن jsdelivr و Google Fonts
+#     يرسلان Cross-Origin-Resource-Policy: cross-origin — آمن مع COEP).
+#   - إضافة CSP واقعية تدريجيًا: script-src يسمح بـ 'unsafe-inline'
+#     لأن كل صفحة تحوي كتلة <script> داخلية؛ الهدف البعيد حذف inline
+#     ونقل الأنماط إلى ملفات CSS ثم تشديد CSP (راجع تقرير التدقيق).
+#   - connect-src يسمح فقط بمشروع Supabase المحدد (REST + Realtime wss).
 # ------------------------------------------------------------------
 
 /*
@@ -12,8 +15,16 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://lzmkgfxlsynaphpofblb.supabase.co wss://lzmkgfxlsynaphpofblb.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
 
 /admin/*
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://lzmkgfxlsynaphpofblb.supabase.co wss://lzmkgfxlsynaphpofblb.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
