@@ -32,12 +32,22 @@ const files = fs.readdirSync(TEST_DIR)
   .filter((f) => f.startsWith("test-") && f.endsWith(".js") && !EXCLUDED.has(f))
   .sort();
 
+// حارس الحد الأدنى (CI hygiene): إن نقص عدد ملفات الاختبار عن المتوقع
+// (حذف/إعادة تسمية صامتة) نفشل فورًا بدل تمرير مجموعة ناقصة.
+const EXPECTED_TESTS = 21;
+
 const results = [];
 let totalPassed = 0;
 let totalFailed = 0;
 
 console.log("AFOQ — canonical test runner (run-tests.js)");
-console.log(`sharding: ${files.length} unit test files selected`);
+console.log(`sharding: ${files.length} unit test files selected (expected >= ${EXPECTED_TESTS})`);
+
+if (files.length < EXPECTED_TESTS) {
+  console.error(`\nFATAL: expected at least ${EXPECTED_TESTS} unit test files, found ${files.length}.`);
+  console.error("A test file may have been deleted or renamed silently — refusing to run a partial suite.");
+  process.exit(1);
+}
 
 for (const file of files) {
   const filePath = path.join(TEST_DIR, file);

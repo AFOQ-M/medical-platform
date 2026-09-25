@@ -276,7 +276,10 @@ grant select, insert, update, delete on forum_replies to anon, authenticated;
 -- forum_reports: لا داعي لمنح anon أي صلاحية إطلاقًا (الضيوف لا يُبلّغون
 -- أصلًا حسب المتطلبات، وRLS كانت ستمنعهم على أي حال — لكن سحب الـgrant
 -- طبقة حماية إضافية أقوى من RLS وحدها، بنفس فلسفة M1/M9).
-grant select, insert on forum_reports to authenticated;
+-- UPDATE: مطلوب لسياسات مراجعة بلاغات الأدمن في phase7
+-- (admin_update_forum_reports) — بدونها تفشل مراجعة أي بلاغ بـ42501 على
+-- قاعدة حية حتى لو وُجدت السياسة.
+grant select, insert, update on forum_reports to authenticated;
 
 -- ------------------------------------------------------------
 -- 13) بيانات الأقسام الخمسة (بنية أساسية للـMVP، وليست بيانات تجريبية)

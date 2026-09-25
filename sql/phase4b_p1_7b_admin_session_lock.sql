@@ -65,7 +65,7 @@
 
 create table if not exists public.admin_session_lock (
   id boolean primary key default true,
-  user_id uuid references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
   session_token uuid,
   acquired_at timestamptz,
   last_seen_at timestamptz,
@@ -87,6 +87,39 @@ comment on table public.admin_session_lock is
 -- الصف الوحيد الذي سيوجد بهذا الجدول أبدًا — يُنشأ مرة هنا إن لم يوجد.
 insert into public.admin_session_lock (id) values (true)
 on conflict (id) do nothing;
+
+-- ------------------------------------------------------------
+-- 1b. حفظ شرط full_or_empty + حماية الصف من الحذف
+-- ------------------------------------------------------------
+-- عند حذف مستخدم auth يحمل القفل (ON DELETE SET NULL أعلاه) تصل جداول
+-- FK-update قيمةً فيها user_id=null فقط بينما بقية الأعمدة لا تزال ممتلئة —
+-- هذا سيخالف CHECK full_or_empty. هذا الـ trigger يفرّغ بقية الأعمدة ليبقى
+-- الصف "فارغًا بالكامل" (لا الحالة الجزئية المحرّمة)، كما يمنع حذف الصف
+-- نفسه عبر أي مسار (الحذف الوحيد المشروع هو عبر SET NULL فيبقى الصف).
+create or replace function public.fn_admin_lock_full_empty_guard()
+returns trigger
+language plpgsql
+as $function$
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'admin_session_lock singleton cannot be deleted' using errcode = '55006';
+  end if;
+
+  if new.user_id is null then
+    new.session_token := null;
+    new.acquired_at  := null;
+    new.last_seen_at := null;
+    new.expires_at   := null;
+  end if;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists trg_admin_lock_full_empty_guard on public.admin_session_lock;
+create trigger trg_admin_lock_full_empty_guard
+  before update or delete on public.admin_session_lock
+  for each row execute function public.fn_admin_lock_full_empty_guard();
 
 -- RLS مفعّلة أصلاً تلقائيًا عبر rls_auto_enable() event trigger
 -- الموجود في المشروع، لكن نفرضها هنا صراحة للوضوح/التوثيق ولضمان

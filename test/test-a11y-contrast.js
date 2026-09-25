@@ -20,7 +20,11 @@ const path = require("path");
 const assert = require("assert");
 
 const ROOT = path.join(__dirname, "..");
-const css = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf-8");
+// PageSpeed Step 6: كلاسات الأدمن فُصلت إلى css/admin.css — الفحص يقرأ
+// الملفين معًا (style.css للعام + admin.css للوحة التحكم) ليبقى كل
+// بوابات التباين سارية على القواعد الأدمنية أيضًا.
+const css = fs.readFileSync(path.join(ROOT, "css", "style.css"), "utf-8")
+  + "\n" + fs.readFileSync(path.join(ROOT, "css", "admin.css"), "utf-8");
 
 let failures = 0;
 let passed = 0;
@@ -127,6 +131,31 @@ test("--accent-focus حلقة التركيز العامة — تباين UI ≥ 
   assert.ok(fg, "--accent-focus معرف");
   const cr = contrast(fg, BG);
   assert.ok(cr >= 3.0, `--accent-focus(${fg}) على --bg = ${cr.toFixed(2)}:1 يجب أن ≥ 3:1 (UI)`);
+});
+
+test("PageSpeed Step 7 — --accent-ink نص/حدود على الأسطح الفاتحة ≥ 4.5:1 (AA نص عادي)", () => {
+  const fg = TOKENS["accent-ink"];
+  assert.ok(fg, "--accent-ink معرف في :root");
+  const cr = contrast(fg, BG);
+  assert.ok(cr >= 4.5, `--accent-ink(${fg}) على --bg = ${cr.toFixed(2)}:1 يجب أن ≥ 4.5:1 (كان --accent 2.05:1 فاشل)`);
+  // كل استخدامات النص/الحدود/الأيقونات بلون التمييز يجب أن تستخدم --accent-ink لا --accent
+  const textUses = [
+    ".favorite-btn:hover",
+    ".favorite-btn.active",
+    ".social-link:hover",
+    ".search-filters select:hover",
+    ".landing-about-highlight",
+    ".landing-why",
+    ".landing-why-mark",
+  ];
+  for (const sel of textUses) {
+    // بعض القواعد متعددة المحددات (مثل .social-link:hover, .social-link:focus-visible)
+    const re = new RegExp("\\" + sel + "[,\\s{]+[^}]*\\}", "g");
+    const rule = re.exec(css);
+    assert.ok(rule, `توجد قاعدة ${sel}`);
+    assert.ok(rule[0].includes("var(--accent-ink)"), `${sel} يستخدم --accent-ink لا --accent`);
+    assert.ok(!rule[0].includes("var(--accent)"), `${sel} بلا --accent`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failures} failed`);

@@ -12,6 +12,11 @@
  * 4) crossorigin="anonymous" إلزامي مع SRI.
  * 5) لا صفحات بصياغة قديمة (بدون integrity) والعدد 14 صفحة كامل.
  * ------------------------------------------------------------------
+ * ملاحظة إصلاح (TST-005): SCRIPT_RE يحمل علم /g؛ استخدامه المباشر مع
+ * exec/test يترك lastIndex مشتركًا فيفشل الفحص بالتناوب. لذلك كل
+ * exec/test تستخدم SCRIPT_SINGLE_RE (بلا /g)، والعدّ يتم عبر match
+ * (بلا حالة lastIndex).
+ * ------------------------------------------------------------------
  * التشغيل: node test/test-security-sri.js
  * ------------------------------------------------------------------
  */
@@ -46,7 +51,14 @@ function test(name, fn) {
   }
 }
 
+// /g فقط للعدّ عبر match (بلا lastIndex). كل exec/test تستخدم النسخة بلا /g.
 const SCRIPT_RE = /<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^>]*><\/script>/g;
+const SCRIPT_SINGLE_RE = /<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js[^>]*><\/script>/;
+
+function countScripts(html) {
+  const m = html.match(SCRIPT_RE);
+  return m ? m.length : 0;
+}
 
 console.log("AFOQ Security — SRI (Subresource Integrity) Tests\n");
 
@@ -58,7 +70,7 @@ test(`عدد الصفحات = ${pages.length} (كل صفحة HTML فيها سك�
   const also = fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"));
   for (const f of also) {
     const html = fs.readFileSync(path.join(ROOT, f), "utf-8");
-    const m = SCRIPT_RE.exec(html);
+    const m = SCRIPT_SINGLE_RE.exec(html);
     if (m) {
       assert.ok(pages.includes(f), f + " موجود في قائمة الفحص (2)");
     }
@@ -70,20 +82,18 @@ for (const p of pages) {
   if (p === "admin/index.html") {
     test(moduleName + " : integrity + crossorigin + pinned UMD (تحت admin/)", () => {
       const html = fs.readFileSync(path.join(ROOT, p), "utf-8");
-      const m = SCRIPT_RE.exec(html);
+      const m = SCRIPT_SINGLE_RE.exec(html);
       assert.ok(m && m[0], "سكربت supabase-js موجود");
       assertOkSri(m[0], p);
-      const rest = html.replace(m[0], "");
-      assert.ok(!SCRIPT_RE.test(rest), "لا نسخة ثانية من سكربت supabase-js");
+      assert.strictEqual(countScripts(html), 1, "لا نسخة ثانية من سكربت supabase-js");
     });
   } else {
     test(moduleName + " : integrity + crossorigin + pinned UMD", () => {
       const html = fs.readFileSync(path.join(ROOT, p), "utf-8");
-      const m = SCRIPT_RE.exec(html);
+      const m = SCRIPT_SINGLE_RE.exec(html);
       assert.ok(m && m[0], "سكربت supabase-js موجود");
       assertOkSri(m[0], p);
-      const rest = html.replace(m[0], "");
-      assert.ok(!SCRIPT_RE.test(rest), "لا نسخة ثانية من سكربت supabase-js");
+      assert.strictEqual(countScripts(html), 1, "لا نسخة ثانية من سكربت supabase-js");
     });
   }
 }
@@ -97,7 +107,7 @@ function assertOkSri(tag, page) {
 test("لا بقايا من الصياغة بدون integrity في أي صفحة", () => {
   for (const p of pages) {
     const html = fs.readFileSync(path.join(ROOT, p), "utf-8");
-    const m = SCRIPT_RE.exec(html);
+    const m = SCRIPT_SINGLE_RE.exec(html);
     if (m) {
       assert.ok(m[0].includes("integrity="), p + " يملك integrity (لا نسخة قديمة)");
     }
