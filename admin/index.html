@@ -7,9 +7,19 @@
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional"></noscript>
+<!-- Preload خطوط الواجهة (ملفات woff2 الفعلية) — تصل قبل أول رسم فيختفي
+     تبديل الخط (font swap) وCLS الناتج عنه. الروابط مطابقة لما يطلبه
+     Chrome/Safari من CSS2 API (Firefox يحصل على تقسيمات مختلفة — تُهدر
+     الـ preloads هناك بلا ضرر، والخطوط تصل عبر CSS كالمعتاد). -->
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cairo/v31/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscRiyS8p4_RA.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cairo/v31/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscQyyS8p4_RHH1.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iura6YBj_oCad4k1nzGBC5xLhLE.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iura6YBj_oCad4k1nzSBC5xLhLFw4Q.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iurf6YBj_oCad4k1l4qkHrRpiZtK6GwN9w.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iurf6YBj_oCad4k1l4qkHrFpiZtK6Gw.woff2">
 <style>
 /* ============================================================
    أفق المعرفة — CSS الحرج (Critical CSS) — PageSpeed Step 4
@@ -182,7 +192,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   direction: rtl;
   line-height: 1.6;
   min-height: 100vh;
@@ -191,7 +201,7 @@ body {
 }
 
 h1, h2, h3, h4, .display {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   color: var(--primary-dark);
   margin: 0 0 .4em;
@@ -215,7 +225,7 @@ img { max-width: 100%; display: block; }
   transform: translateY(-150%);
   background: var(--primary-dark);
   color: #fff;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .9rem;
   padding: 12px 20px;
@@ -250,7 +260,7 @@ img { max-width: 100%; display: block; }
 }
 
 .brand {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   font-size: 1.25rem;
   color: #fff;
@@ -431,7 +441,7 @@ main {
   padding: 14px 18px;
   border: 2px solid var(--line);
   border-radius: 999px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-size: 1rem;
   background: var(--muted-bg);
   color: var(--ink);
@@ -592,7 +602,7 @@ main {
 
 .home-hero-panel-title {
   color: var(--ink-soft);
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .8rem;
   margin: 0 0 6px;
@@ -643,7 +653,7 @@ main {
   padding: 13px 22px;
   border-radius: 999px;
   border: none;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .95rem;
   cursor: pointer;
@@ -734,7 +744,7 @@ main {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   color: var(--primary-dark);
   font-size: 1.05rem;
@@ -952,6 +962,68 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* AFOQ — Font metric overrides (PageSpeed CLS fix): عائلات احتياطية
+   تُعرض بمقاييس الخط الأصلي حتى لا يتزحزح التخطيط عند تبديل الخط. */
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 130.3%;
+  descent-override: 57.1%;
+  line-gap-override: 0%;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 130.3%;
+  descent-override: 57.1%;
+  line-gap-override: 0%;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 130.3%;
+  descent-override: 57.1%;
+  line-gap-override: 0%;
+  font-weight: 800;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 64.3%;
+  descent-override: 35.7%;
+  line-gap-override: 20%;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 64.3%;
+  descent-override: 35.7%;
+  line-gap-override: 20%;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 64.3%;
+  descent-override: 35.7%;
+  line-gap-override: 20%;
+  font-weight: 700;
+}
 </style>
 <link rel="stylesheet" href="../css/style.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="../css/style.css"></noscript>
@@ -964,7 +1036,7 @@ main {
 <header class="site-header">
   <div class="header-inner">
     <a href="../index.html" class="brand">
-      <img src="../images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo">
+      <img src="../images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo" fetchpriority="high">
       أفق المعرفة
     </a>
     <nav class="header-nav" id="admin-user-info"></nav>
