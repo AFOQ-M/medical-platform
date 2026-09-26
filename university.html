@@ -16,9 +16,19 @@
 <link rel="icon" type="image/png" href="images/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=optional"></noscript>
+<!-- Preload خطوط الواجهة (ملفات woff2 الفعلية) — تصل قبل أول رسم فيختفي
+     تبديل الخط (font swap) وCLS الناتج عنه. الروابط مطابقة لما يطلبه
+     Chrome/Safari من CSS2 API (Firefox يحصل على تقسيمات مختلفة — تُهدر
+     الـ preloads هناك بلا ضرر، والخطوط تصل عبر CSS كالمعتاد). -->
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cairo/v31/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscRiyS8p4_RA.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cairo/v31/SLXVc1nY6HkvangtZmpQdkhzfH5lkSscQyyS8p4_RHH1.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iura6YBj_oCad4k1nzGBC5xLhLE.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iura6YBj_oCad4k1nzSBC5xLhLFw4Q.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iurf6YBj_oCad4k1l4qkHrRpiZtK6GwN9w.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/tajawal/v12/Iurf6YBj_oCad4k1l4qkHrFpiZtK6Gw.woff2">
 <style>
 /* ============================================================
    أفق المعرفة — CSS الحرج (Critical CSS) — PageSpeed Step 4
@@ -191,7 +201,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   direction: rtl;
   line-height: 1.6;
   min-height: 100vh;
@@ -200,7 +210,7 @@ body {
 }
 
 h1, h2, h3, h4, .display {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   color: var(--primary-dark);
   margin: 0 0 .4em;
@@ -224,7 +234,7 @@ img { max-width: 100%; display: block; }
   transform: translateY(-150%);
   background: var(--primary-dark);
   color: #fff;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .9rem;
   padding: 12px 20px;
@@ -259,7 +269,7 @@ img { max-width: 100%; display: block; }
 }
 
 .brand {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   font-size: 1.25rem;
   color: #fff;
@@ -281,6 +291,18 @@ img { max-width: 100%; display: block; }
   font-weight: 800;
   font-size: 1rem;
   flex-shrink: 0;
+}
+
+/* شعار أفق داخل الهيدر: أبعاد ثابتة (40×40) حتى لا يتمدد الهيدر عند
+   تحميل الصورة (319×319 أصلًا) — يمنع CLS. مطابق لقاعدة style.css. */
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  object-fit: contain;
+  flex-shrink: 0;
+  padding: 2px;
 }
 
 .header-nav {
@@ -440,7 +462,7 @@ main {
   padding: 14px 18px;
   border: 2px solid var(--line);
   border-radius: 999px;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-size: 1rem;
   background: var(--muted-bg);
   color: var(--ink);
@@ -601,7 +623,7 @@ main {
 
 .home-hero-panel-title {
   color: var(--ink-soft);
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .8rem;
   margin: 0 0 6px;
@@ -652,7 +674,7 @@ main {
   padding: 13px 22px;
   border-radius: 999px;
   border: none;
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Tajawal fallback', sans-serif;
   font-weight: 700;
   font-size: .95rem;
   cursor: pointer;
@@ -743,7 +765,7 @@ main {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Cairo', 'Cairo fallback', sans-serif;
   font-weight: 800;
   color: var(--primary-dark);
   font-size: 1.05rem;
@@ -942,6 +964,101 @@ main {
 .landing-secondary-link span { display: inline-block; transition: transform var(--dur-micro); }
 .landing-secondary-link:hover span { transform: translateY(3px); }
 
+/* -------------------- رسم "الأفق": حلقات متقاربة فوق خط الأفق -------------------- */
+/* (منسوخة من style.css — ضرورية حتى يتطابق العرض الأولي مع العرض النهائي
+   فلا يحدث CLS عند تطبيق style.css لاحقًا) */
+
+.landing-horizon {
+  position: relative;
+  z-index: var(--z-content);
+  height: 220px;
+  border-radius: var(--radius-sm);
+}
+
+.landing-horizon-rings {
+  position: absolute;
+  inset-inline-start: 50%;
+  top: 38%;
+  width: 0;
+  height: 0;
+}
+
+.landing-horizon-rings .ring {
+  position: absolute;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(201, 165, 103, .38);
+}
+
+.ring-1 { width: 260px; height: 260px; }
+.ring-2 { width: 195px; height: 195px; border-color: rgba(201, 165, 103, .5); }
+.ring-3 { width: 132px; height: 132px; border-color: rgba(201, 165, 103, .65); }
+.ring-4 { width: 74px; height: 74px; border-color: rgba(201, 165, 103, .85); }
+
+.landing-horizon-core {
+  position: absolute;
+  top: 0; left: 0;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 10px rgba(201, 165, 103, .18), 0 0 40px 6px rgba(201, 165, 103, .35);
+}
+
+.landing-horizon-line {
+  position: absolute;
+  inset-inline: 4%;
+  top: 66%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 165, 103, .55) 18%, rgba(201, 165, 103, .55) 82%, transparent);
+}
+
+.landing-horizon-label {
+  position: absolute;
+  font-size: .74rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, .72);
+  white-space: nowrap;
+}
+
+.landing-horizon-label-outer { top: 4%; inset-inline-end: 6%; }
+.landing-horizon-label-inner { top: 40%; inset-inline-start: 50%; transform: translate(-50%, 26px); color: rgba(255,255,255,.92); }
+
+.landing-horizon--simple .ring-1,
+.landing-horizon--simple .ring-2,
+.landing-horizon--simple .landing-horizon-label { display: none; }
+
+/* -------------------- استجابة صفحة الهبوط (من قسم Responsive في style.css) -------------------- */
+
+@media (min-width: 900px) {
+  .landing-hero { padding: 64px 56px; }
+  .landing-hero-inner { grid-template-columns: 1.2fr .8fr; gap: 48px; }
+  .landing-hero-title { max-width: 13ch; }
+  .landing-about-row { flex-direction: row; gap: 32px; }
+  .landing-about-row h3 { flex: 0 0 220px; margin: 0; }
+  .landing-about-row-body { flex: 1; min-width: 0; }
+  .landing-provides-grid { grid-template-columns: 1.3fr .9fr; }
+  .landing-flow-step { padding: 18px 4px; }
+  .landing-cta-band .landing-hero-inner { grid-template-columns: 1fr; }
+  .landing-impact-flow { flex-direction: row; align-items: stretch; }
+  .landing-impact-step { flex: 1; flex-direction: column; text-align: center; gap: 8px; }
+  .landing-impact-arrow { transform: none; }
+}
+
+@media (max-width: 560px) {
+  .landing-hero { padding: 30px 16px; margin-bottom: 48px; }
+  .landing-horizon { height: 150px; }
+  .ring-1, .ring-2 { display: none; }
+  .landing-horizon-label-outer { display: none; }
+  .landing-section { margin-bottom: 56px; }
+  .landing-cta-row { flex-direction: column; align-items: stretch; }
+  .landing-cta-btn { width: 100%; }
+  .landing-secondary-link { justify-content: center; }
+  .landing-why { padding-inline-start: 18px; }
+}
+
 /* -------------------- استجابة حرجة (من قسم Responsive في style.css) -------------------- */
 
 @media (min-width: 720px) {
@@ -961,6 +1078,77 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* ============================================================
+   AFOQ — Font metric overrides (PageSpeed CLS fix)
+   ------------------------------------------------------------
+   عائلات احتياطية تُعرض بمقاييس الخط الأصلي (ascent/descent/lineGap)
+   حتى لا يتزحزح التخطيط عند تبديل الخط (font swap). تُستخدم أثناء
+   تحميل Cairo/Tajawal ثم يُستبدل بها الخط الأصلي بلا إزاحة.
+   size-adjust معايرة تجريبيًا (نسب عرض فعلية لعناصر الصفحة):
+   - Cairo: 103% (لموازنة عرض النص ووحدة ch — يمنع إعادة الالتفاف)
+   - Tajawal 400: 100% (Tajawal أعرض قليلًا من البديل — لا خطر)
+   - Tajawal 500/700: 101%
+   ============================================================ */
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 103%;
+  ascent-override: 126.5%;
+  descent-override: 55.4%;
+  line-gap-override: 0%;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 103%;
+  ascent-override: 126.5%;
+  descent-override: 55.4%;
+  line-gap-override: 0%;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "Cairo fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 103%;
+  ascent-override: 126.5%;
+  descent-override: 55.4%;
+  line-gap-override: 0%;
+  font-weight: 800;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 100%;
+  ascent-override: 64.3%;
+  descent-override: 35.7%;
+  line-gap-override: 20%;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 101%;
+  ascent-override: 63.7%;
+  descent-override: 35.3%;
+  line-gap-override: 19.8%;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Tajawal fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Cantarell"), local("Ubuntu"), local("Noto Sans");
+  size-adjust: 101%;
+  ascent-override: 63.7%;
+  descent-override: 35.3%;
+  line-gap-override: 19.8%;
+  font-weight: 700;
+}
 </style>
 <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="css/style.css"></noscript>
@@ -972,7 +1160,7 @@ main {
 <header class="site-header">
   <div class="header-inner">
     <a href="index.html" class="brand">
-      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo">
+      <img src="images/afoq-branding-final.webp" alt="شعار أفق المعرفة" class="brand-logo" fetchpriority="high">
       أفق المعرفة
     </a>
     <div class="header-actions">

@@ -1,0 +1,322 @@
+[
+  {
+    "crawler": "GPTBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "GPTBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "OAI-SearchBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "OAI-SearchBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "ChatGPT-User",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "ChatGPT-User",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "ClaudeBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "ClaudeBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Claude-Web",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Claude-Web",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "anthropic-ai",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "anthropic-ai",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Google-Extended",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Google-Extended",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "PerplexityBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "PerplexityBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "CCBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "CCBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Applebot-Extended",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Applebot-Extended",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Bytespider",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Bytespider",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Amazonbot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Amazonbot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "cohere-ai",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "cohere-ai",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "meta-externalagent",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "meta-externalagent",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "Diffbot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "Diffbot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "YouBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "YouBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "omgili",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "omgili",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "DuckAssistBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "DuckAssistBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "DataForSeoBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "DataForSeoBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  },
+  {
+    "crawler": "DotBot",
+    "action": "allow",
+    "path": "/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "weekly",
+    "priority": 0.8
+  },
+  {
+    "crawler": "DotBot",
+    "action": "block",
+    "path": "/admin/",
+    "last_modified": "2026-09-26",
+    "change_frequency": "yearly",
+    "priority": 0.1
+  }
+]

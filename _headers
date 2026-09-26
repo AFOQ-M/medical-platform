@@ -28,3 +28,10 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://lzmkgfxlsynaphpofblb.supabase.co wss://lzmkgfxlsynaphpofblb.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+# ملفات الذكاء الاصطناعي — ضمان Content-Type صحيح (لا SPA fallback)
+/ai-catalog.json
+  Content-Type: application/json; charset=utf-8
+
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
