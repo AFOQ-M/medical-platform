@@ -1533,6 +1533,63 @@ main {
             <tbody><tr><td colspan="7">جارٍ التحميل...</td></tr></tbody>
           </table>
         </div>
+
+        <!-- الوساطة — تحذيرات وحظر المستخدمين (Phase 4 — M16) -->
+        <div id="moderation-section" hidden>
+          <hr style="border:none; border-top:1px solid var(--line-strong); margin:22px 0;">
+          <h3>الوساطة — التحذيرات والحظر</h3>
+          <p class="hint" style="color: var(--ink-soft); margin-bottom:14px;">
+            إدارة تحذيرات وحظر المستخدمين. القراءة تتطلب صلاحية <code>reports/view</code> والكتابة تتطلب
+            <code>reports/edit</code> — تُفرض فعليًا عبر RLS في قاعدة البيانات (الواجهة ليست حدًّا أمنيًّا).
+          </p>
+          <div class="search-filters" style="margin-bottom:14px; margin-top:0;">
+            <input type="search" id="mod-search-input" class="subject-search-input" style="max-width:none;" placeholder="🔍 ابحث بمعرّف المستخدم (UUID) — أو بالبريد الإلكتروني للمشرف العام" aria-label="بحث عن مستخدم لإدارة التحذيرات والحظر">
+            <button type="button" class="btn btn-primary" id="mod-search-btn">بحث</button>
+          </div>
+          <div id="mod-user-panel" class="mod-user-panel">
+            <div class="state-msg" id="mod-user-empty">ابحث عن مستخدم بمعرّفه (UUID) لعرض سجل التحذيرات والحظر وإدارتها.</div>
+          </div>
+        </div>
+
+        <!-- M-07 — الفحص الآلي للمحتوى (Group B — M17) -->
+        <div id="m07-section" hidden>
+          <hr style="border:none; border-top:1px solid var(--line-strong); margin:22px 0;">
+          <h3>الفحص الآلي للمحتوى</h3>
+          <p class="hint" style="color: var(--ink-soft); margin-bottom:14px;">
+            حالات المحتوى المُعلَّم (FLAGGED) من الفحص الآلي. القراءة تتطلب <code>reports/view</code>
+            والكتابة تتطلب <code>reports/edit</code> — تُفرض فعليًا عبر RLS ودوال SECURITY DEFINER
+            في قاعدة البيانات (الواجهة ليست حدًّا أمنيًّا). لا يوجد مزوّد فحص مُهيّأ بعد، لذا
+            المحتوى الجديد يُحجز (قيد الفحص) حتى يكتمل الفحص.
+          </p>
+          <div class="search-filters" style="margin-bottom:14px; margin-top:0;">
+            <button type="button" class="btn btn-primary" id="m07-backlog-btn">معالجة قائمة الانتظار</button>
+            <span class="hint" style="color: var(--ink-soft); font-size:.82rem;">
+              يعيد فحص المحتوى المحجوز بلا نتيجة فحص (حتى 50 عنصرًا) — النتائج NORMAL تُنشر،
+              وFLAGGED تُحوَّل لحالة مراجعة، والفاشلة تبقى محجوزة.
+            </span>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table" id="m07-cases-table">
+              <thead><tr><th>النوع</th><th>المحتوى</th><th>المؤلف</th><th>الحالة</th><th></th></tr></thead>
+              <tbody><tr><td colspan="5">جارٍ التحميل...</td></tr></tbody>
+            </table>
+          </div>
+
+          <div id="m07-recipients" style="margin-top:18px;">
+            <h4 style="margin-bottom:8px;">مستلمو إشعارات الفحص</h4>
+            <p class="hint" style="color: var(--ink-soft); margin-bottom:10px;">
+              مسار بيانات فقط — لا يوجد مزوّد بريد إلكتروني بعد (التسليم غير مُتحقَّق منه).
+              الإدارة متاحة للمشرف العام فقط.
+            </p>
+            <div class="search-filters" style="margin-bottom:10px; margin-top:0;" id="m07-recipient-form">
+              <input type="search" id="m07-recipient-input" class="subject-search-input" style="max-width:none;" placeholder="معرّف المستخدم (UUID)" aria-label="معرّف مستخدم لإضافته كمستلم إشعارات الفحص">
+              <button type="button" class="btn btn-primary" id="m07-recipient-add-btn">إضافة مستلم</button>
+            </div>
+            <div id="m07-recipients-list" class="mod-user-panel">
+              <div class="state-msg">جارٍ التحميل...</div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 

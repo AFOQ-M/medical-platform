@@ -520,3 +520,90 @@ table.admin-table tbody tr:hover { background: var(--muted-bg); }
   .perm-entity-label { min-width: 0; }
   .user-perm-header { flex-direction: column; align-items: flex-start; }
 }
+
+/* -------------------- الوساطة — تحذيرات وحظر (Phase 4 — M16) --------------------
+   قسم الوساطة داخل تبويب البلاغات. لا ألوان جديدة — نفس متغيرات الهوية
+   الحالية (danger/success/neutral/muted/ink-soft/line-strong). */
+
+.mod-author-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: .8rem;
+  color: var(--ink-soft);
+}
+
+.mod-user-panel { margin-top: 4px; }
+
+.mod-user-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mod-user-identity { font-size: .95rem; }
+.mod-user-identity code {
+  background: var(--muted-bg);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: .82rem;
+}
+
+.mod-user-status { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.mod-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.mod-status-badge.active-temp { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.mod-status-badge.active-perm { background: var(--danger); color: #fff; }
+.mod-status-badge.none { background: var(--success-bg); color: var(--success-text); }
+.mod-status-badge.active { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.mod-status-badge.expired { background: var(--neutral-bg); color: var(--ink-soft); }
+.mod-status-badge.revoked { background: var(--neutral-bg); color: var(--ink-soft); border: 1px dashed var(--line-strong); }
+.mod-status-badge.scheduled { background: var(--muted-bg); color: var(--ink-soft); }
+
+.mod-warning-count { font-size: .82rem; color: var(--ink-soft); }
+
+.mod-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.mod-form {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--muted-bg);
+}
+.mod-form label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; }
+.mod-form textarea {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+}
+.mod-form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.mod-form-field { flex: 1; min-width: 180px; }
+.mod-form-field input, .mod-form-field select {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+}
+.mod-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }

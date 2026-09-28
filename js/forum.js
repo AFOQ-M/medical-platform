@@ -272,8 +272,10 @@ async function loadForumTopics(reset) {
 
   let query = supabaseClient
     .from("forum_topics")
-    .select("id, title, content, author_name, created_at, is_locked, category_id, forum_categories(name, slug)")
-    .eq("is_hidden", false)
+    .select("id, title, content, author_name, created_at, is_locked, is_hidden, category_id, content_version, forum_categories(name, slug)")
+    // M-07: المؤلف يرى مواضيعه المحجوزة (قيد الفحص الآلي) — بقية المواضيع
+    // المخفية تبقى غير مرئية للجميع (RLS + هذا الفلتر).
+    .or(`is_hidden.eq.false,author_id.eq.${currentAuthUser ? currentAuthUser.id : "00000000-0000-0000-0000-000000000000"}`)
     .order("created_at", { ascending: false })
     .range(forumTopicsOffset, forumTopicsOffset + FORUM_TOPICS_PAGE_SIZE - 1);
 
@@ -322,6 +324,10 @@ function buildForumTopicCard(topic) {
     lockedTag.appendChild(forumLockIcon());
     lockedTag.appendChild(document.createTextNode(" مغلق"));
     head.appendChild(lockedTag);
+  }
+  // M-07: وسم "قيد الفحص" للمواضيع المحجوزة (تظهر لصاحبها فقط عبر فلتر .or).
+  if (topic.is_hidden) {
+    head.appendChild(forumEl("span", "tag forum-screening-tag", "قيد الفحص"));
   }
   a.appendChild(head);
 
@@ -374,6 +380,14 @@ async function submitForumNewTopic(e) {
   submitBtn.textContent = "جارٍ النشر…";
 
   const authorName = bestDisplayName(currentAuthUser);
+
+  // M-07: فحص آلي قبل الكتابة — الإنفاذ الفعلي (إخفاء المحتوى عند الفشل)
+  // على حدود قاعدة البيانات (M17)؛ صفحة الموضوع تعرض لافتة "قيد الفحص"
+  // لصاحب المحتوى المحجوز من حالة is_hidden (المصدر الموثوق). عند غياب
+  // وحدة m07.js نعتبر الفحص FAILURE (fail-closed — ثابتة A: لا نشر بلا فحص).
+  if (typeof m07ScreenContent === "function") {
+    await m07ScreenContent("forum_topic", null, 1, content, currentAuthUser.id);
+  }
 
   const { data, error } = await supabaseClient
     .from("forum_topics")
@@ -439,7 +453,7 @@ async function loadForumTopicDetail() {
 
   const { data: topic, error } = await supabaseClient
     .from("forum_topics")
-    .select("id, title, content, author_id, author_name, created_at, is_locked, is_hidden, category_id, forum_categories(name, slug)")
+    .select("id, title, content, author_id, author_name, created_at, is_locked, is_hidden, category_id, content_version, forum_categories(name, slug)")
     .eq("id", forumCurrentTopicId)
     .maybeSingle();
 
@@ -535,6 +549,12 @@ function renderForumTopicDetail(topic) {
     box.appendChild(forumEl("div", "state-msg forum-locked-banner", "هذا الموضوع مغلق — لا يمكن إضافة ردود جديدة عليه."));
   }
 
+  // M-07: محتوى قيد الفحص الآلي — يظهر لصاحبه فقط (سياسة القراءة تسمح
+  // للمؤلف برؤية محتواه المخفي) مع تنبيه بأنه سيظهر للآخرين بعد اكتمال الفحص.
+  if (topic.is_hidden && currentAuthUser && topic.author_id === currentAuthUser.id) {
+    box.appendChild(forumEl("div", "state-msg forum-screening-banner", "هذا الموضوع قيد الفحص الآلي وسيظهر للآخرين بعد اكتماله."));
+  }
+
   container.appendChild(box);
 }
 
@@ -568,6 +588,11 @@ function startForumTopicEdit(box, topic) {
       showToast("تأكد من عنوان ومحتوى صالحين");
       return;
     }
+    // M-07: فحص آلي قبل التعديل — الإصدار الجديد يُفحص على حدود DB (M17)
+    // ويُحجز (is_hidden=true) عند الفشل حتى يكتمل الفحص.
+    const m07Screening = (typeof m07ScreenContent === "function")
+      ? await m07ScreenContent("forum_topic", topic.id, (topic.content_version || 1) + 1, newContent, currentAuthUser.id)
+      : { result: "FAILURE", reason: "no_provider_configured" };
     const { error } = await supabaseClient
       .from("forum_topics")
       .update({ title: newTitle, content: newContent })
@@ -577,7 +602,8 @@ function startForumTopicEdit(box, topic) {
       showToast("تعذّر حفظ التعديل");
       return;
     }
-    showToast("تم حفظ التعديل");
+    const m07Message = (typeof m07HandleResult === "function") ? m07HandleResult(m07Screening) : null;
+    showToast(m07Message || "تم حفظ التعديل");
     loadForumTopicDetail();
   });
   actionsEl.prepend(saveBtn);
@@ -606,9 +632,11 @@ async function loadForumReplies(reset) {
 
   const { data, error } = await supabaseClient
     .from("forum_replies")
-    .select("id, content, author_id, author_name, created_at")
+    .select("id, content, author_id, author_name, created_at, is_hidden, content_version")
     .eq("topic_id", forumCurrentTopicId)
-    .eq("is_hidden", false)
+    // M-07: المؤلف يرى ردوده المحجوزة (قيد الفحص الآلي) — بقية الردود
+    // المخفية تبقى غير مرئية للجميع (RLS + هذا الفلتر).
+    .or(`is_hidden.eq.false,author_id.eq.${currentAuthUser ? currentAuthUser.id : "00000000-0000-0000-0000-000000000000"}`)
     .order("created_at", { ascending: true })
     .range(forumRepliesOffset, forumRepliesOffset + FORUM_REPLIES_PAGE_SIZE - 1);
 
@@ -639,6 +667,10 @@ function buildForumReplyCard(reply) {
   const meta = forumEl("div", "forum-topic-card-meta");
   meta.appendChild(forumEl("span", null, reply.author_name));
   meta.appendChild(forumEl("span", null, forumFormatDate(reply.created_at)));
+  // M-07: وسم "قيد الفحص" للردود المحجوزة (تظهر لصاحبها فقط عبر فلتر .or).
+  if (reply.is_hidden) {
+    meta.appendChild(forumEl("span", "tag forum-screening-tag", "قيد الفحص"));
+  }
   box.appendChild(meta);
 
   const contentEl = forumEl("div", "forum-content-text", reply.content);
@@ -696,6 +728,10 @@ function startForumReplyEdit(box, reply) {
       showToast("لا يمكن أن يكون الرد فارغًا");
       return;
     }
+    // M-07: فحص آلي قبل التعديل — الإصدار الجديد يُفحص على حدود DB (M17).
+    const m07Screening = (typeof m07ScreenContent === "function")
+      ? await m07ScreenContent("forum_reply", reply.id, (reply.content_version || 1) + 1, newContent, currentAuthUser.id)
+      : { result: "FAILURE", reason: "no_provider_configured" };
     const { error } = await supabaseClient
       .from("forum_replies")
       .update({ content: newContent })
@@ -705,7 +741,8 @@ function startForumReplyEdit(box, reply) {
       showToast("تعذّر حفظ التعديل");
       return;
     }
-    showToast("تم حفظ التعديل");
+    const m07Message = (typeof m07HandleResult === "function") ? m07HandleResult(m07Screening) : null;
+    showToast(m07Message || "تم حفظ التعديل");
     loadForumReplies(true);
   });
   actionsEl.prepend(saveBtn);
@@ -764,6 +801,12 @@ async function submitForumReply(e) {
   submitBtn.disabled = true;
   submitBtn.textContent = "جارٍ الإرسال…";
 
+  // M-07: فحص آلي قبل الكتابة — على الفشل نُكمل الكتابة (قاعدة البيانات
+  // تُبقي الرد محجوزًا حتى يكتمل الفحص) ونُعلم المستخدم بالرسالة المناسبة.
+  const m07Screening = (typeof m07ScreenContent === "function")
+    ? await m07ScreenContent("forum_reply", null, 1, content, currentAuthUser.id)
+    : { result: "FAILURE", reason: "no_provider_configured" };
+
   const { error } = await supabaseClient.from("forum_replies").insert({
     topic_id: forumCurrentTopicId,
     author_id: currentAuthUser.id,
@@ -781,7 +824,8 @@ async function submitForumReply(e) {
   }
 
   textarea.value = "";
-  showToast("تم إضافة ردك");
+  const m07Message = (typeof m07HandleResult === "function") ? m07HandleResult(m07Screening) : null;
+  showToast(m07Message || "تم إضافة ردك");
   await loadForumReplies(true);
 }
 

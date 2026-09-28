@@ -473,6 +473,16 @@ function wireReportModal() {
     submitBtn.disabled = true;
     submitBtn.textContent = "جارٍ الإرسال…";
 
+    // M-07: فحص آلي قبل إرسال البلاغ — البلاغات لا تُحجب أبدًا؛ عند فشل
+    // الفحص نسجّل حدث الفشل (fn_m07_record_screening_failure) ثم نُكمل
+    // الإرسال عبر submit_public_report (الحدود المحمية — P0-4).
+    const m07Screening = (typeof m07ScreenContent === "function")
+      ? await m07ScreenContent("resource_report", currentReportResourceId, 1, note, (typeof currentAuthUser !== "undefined" && currentAuthUser) ? currentAuthUser.id : null)
+      : { result: "FAILURE", reason: "no_provider_configured" };
+    if (m07Screening.result === "FAILURE" && typeof m07RecordScreeningFailure === "function") {
+      await m07RecordScreeningFailure("resource_report", currentReportResourceId, 1, m07Screening.reason || "no_provider_configured");
+    }
+
     // P0-4: الإدراج المباشر على reports لم يعد متاحًا للعميل (تم حذف
     // سياسة public_insert_reports). كل بلاغ يمر الآن عبر الدالة
     // المحمية submit_public_report(...) التي تفرض حد 5 بلاغات كل

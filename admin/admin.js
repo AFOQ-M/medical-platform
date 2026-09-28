@@ -77,12 +77,26 @@ function hasAnyPerm(entityType) {
   return currentPermissions.some((p) => p.active && p.entity_type === entityType);
 }
 
+// PHASE 1 (M-logActivity): تسجيل موثوق — لا fire-and-forget صامت.
+// الدالة لا ترمي أبدًا: أي فشل (شبكة/RLS/استثناء) يُسجَّل في console.error
+// (مرئي للمطوّر) وتُعيد false، بينما تبقى العملية التجارية ناجحة كما هي.
+// الاستدعاءات كلها await (الكتابة تُنجز قبل رسالة النجاح) دون كسر التدفق.
 async function logActivity(action, targetType, targetId, details) {
-  if (!currentProfile) return;
-  await supabaseClient.from("admin_activity_log").insert({
-    actor_user_id: currentProfile.id,
-    action, target_type: targetType, target_id: targetId || null, details: details || null,
-  });
+  if (!currentProfile) return false;
+  try {
+    const { error } = await supabaseClient.from("admin_activity_log").insert({
+      actor_user_id: currentProfile.id,
+      action, target_type: targetType, target_id: targetId || null, details: details || null,
+    });
+    if (error) {
+      console.error("logActivity: فشل تسجيل النشاط", { action, targetType, targetId, error });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("logActivity: استثناء أثناء تسجيل النشاط", { action, targetType, targetId, error: err });
+    return false;
+  }
 }
 
 // -------------------- المصادقة --------------------
@@ -1174,7 +1188,7 @@ document.getElementById("uni-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("universities").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "university_updated" : "university_created", "university", data?.id, payload.name);
+  await logActivity(id ? "university_updated" : "university_created", "university", data?.id, payload.name);
   resetUniForm();
   showToast(id ? "تم تعديل الجامعة" : "تمت إضافة الجامعة");
   loadUniversities();
@@ -1394,7 +1408,7 @@ document.getElementById("fac-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("faculties").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك أو من عدم تكرار الاسم)"); console.error(error); return; }
-  logActivity(id ? "faculty_updated" : "faculty_created", "faculty", data?.id, payload.name);
+  await logActivity(id ? "faculty_updated" : "faculty_created", "faculty", data?.id, payload.name);
   resetFacForm();
   showToast(id ? "تم تعديل الكلية" : "تمت إضافة الكلية");
   loadFaculties();
@@ -1430,7 +1444,7 @@ document.getElementById("fac-cancel-btn").addEventListener("click", resetFacForm
 async function toggleFacultyActive(facultyId, currentlyActive) {
   const { error } = await supabaseClient.from("faculties").update({ is_active: !currentlyActive }).eq("id", facultyId);
   if (error) { showToast("تعذّر تحديث حالة الكلية"); console.error(error); return; }
-  logActivity(currentlyActive ? "faculty_disabled" : "faculty_enabled", "faculty", facultyId, null);
+  await logActivity(currentlyActive ? "faculty_disabled" : "faculty_enabled", "faculty", facultyId, null);
   showToast(currentlyActive ? "تم تعطيل الكلية" : "تم تفعيل الكلية");
   loadFaculties();
 }
@@ -1626,7 +1640,7 @@ document.getElementById("year-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("years").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "year_updated" : "year_created", "year", data?.id, `سنة ${payload.year_number}`);
+  await logActivity(id ? "year_updated" : "year_created", "year", data?.id, `سنة ${payload.year_number}`);
   resetYearForm();
   showToast(id ? "تم تعديل السنة" : "تمت إضافة السنة");
   loadYears();
@@ -1659,7 +1673,7 @@ document.getElementById("year-cancel-btn").addEventListener("click", resetYearFo
 async function toggleYearActive(yearId, currentlyActive) {
   const { error } = await supabaseClient.from("years").update({ is_active: !currentlyActive }).eq("id", yearId);
   if (error) { showToast("تعذّر تحديث حالة السنة"); console.error(error); return; }
-  logActivity(currentlyActive ? "year_disabled" : "year_enabled", "year", yearId, null);
+  await logActivity(currentlyActive ? "year_disabled" : "year_enabled", "year", yearId, null);
   showToast(currentlyActive ? "تم تعطيل السنة" : "تم تفعيل السنة");
   loadYears();
 }
@@ -1758,7 +1772,7 @@ document.getElementById("subj-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("subjects").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "subject_updated" : "subject_created", "subject", data?.id, payload.name);
+  await logActivity(id ? "subject_updated" : "subject_created", "subject", data?.id, payload.name);
   resetSubjForm();
   showToast(id ? "تم تعديل المادة" : "تمت إضافة المادة");
   loadSubjects();
@@ -1803,7 +1817,7 @@ document.getElementById("subj-cancel-btn").addEventListener("click", resetSubjFo
 async function toggleSubjectActive(subjectId, currentlyActive) {
   const { error } = await supabaseClient.from("subjects").update({ is_active: !currentlyActive }).eq("id", subjectId);
   if (error) { showToast("تعذّر تحديث حالة المادة"); console.error(error); return; }
-  logActivity(currentlyActive ? "subject_disabled" : "subject_enabled", "subject", subjectId, null);
+  await logActivity(currentlyActive ? "subject_disabled" : "subject_enabled", "subject", subjectId, null);
   showToast(currentlyActive ? "تم تعطيل المادة" : "تم تفعيل المادة");
   loadSubjects();
 }
@@ -2045,7 +2059,7 @@ document.getElementById("res-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("resources").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "resource_updated" : "resource_created", "resource", data?.id, payload.title);
+  await logActivity(id ? "resource_updated" : "resource_created", "resource", data?.id, payload.title);
   resetResForm();
    showToast(id ? "تم تعديل المورد" : "تمت إضافة المورد");
   closeAdminDrawer("res-form-drawer");
@@ -2134,8 +2148,8 @@ async function loadReports() {
       .select(`
         id, reason, details, status, created_at,
         topic_id, reply_id,
-        forum_topics(id, title, author_name, is_hidden),
-        forum_replies(id, content, author_name, is_hidden, topic_id)
+        forum_topics(id, title, author_name, author_id, is_hidden),
+        forum_replies(id, content, author_name, author_id, is_hidden, topic_id)
       `)
       .order("created_at", { ascending: false }),
   ]);
@@ -2189,6 +2203,8 @@ async function loadReports() {
         date: r.created_at,
         isTopic,
         target,
+        authorId: target?.author_id || null,
+        authorName: target?.author_name || null,
         isHidden: target?.is_hidden === true,
         canModerate,
       });
@@ -2227,6 +2243,23 @@ async function loadReports() {
     const tdContent = document.createElement("td");
     tdContent.setAttribute("data-label", "المحتوى المُبلَّغ عنه");
     tdContent.textContent = row.content.length > 80 ? row.content.slice(0, 80) + "…" : row.content;
+    // Phase 4 (M16): هوية مؤلف المحتوى المُبلَّغ عنه + زر إدارة المستخدم —
+    // يُبنى عبر DOM/textContent (قيم المستخدم غير موثوقة) ويظهر فقط لمن
+    // يملك قراءة الوساطة (reports/view عالمية — مرآة مسند RLS).
+    if (row.kind === "forum" && row.authorId && canReadModeration()) {
+      const authorLine = document.createElement("div");
+      authorLine.className = "mod-author-line";
+      const authorText = document.createElement("span");
+      authorText.textContent = `بواسطة: ${row.authorName || "مستخدم"}`;
+      authorLine.appendChild(authorText);
+      const modBtn = document.createElement("button");
+      modBtn.type = "button";
+      modBtn.className = "btn btn-sm btn-outline";
+      modBtn.textContent = "إدارة المستخدم";
+      modBtn.addEventListener("click", () => openModerationForUser(row.authorId, row.authorName));
+      authorLine.appendChild(modBtn);
+      tdContent.appendChild(authorLine);
+    }
     tr.appendChild(tdContent);
 
     const tdDetails = document.createElement("td");
@@ -2305,6 +2338,16 @@ async function loadReports() {
 
     tbody.appendChild(tr);
   });
+
+  // Phase 4 (M16): إظهار/إخفاء قسم الوساطة حسب قدرة القراءة الفعلية
+  // (reports/view عالمية — مرآة مسند سياسات RLS).
+  showModerationSection();
+  // M-07: نفس المسند لقسم الفحص الآلي (reports/view للقراءة).
+  showM07Section();
+
+  // M-07: تحميل حالات الفحص والمستلمين — فشل مستقل لا يُسقط القائمة (F-06).
+  loadM07Cases();
+  loadM07Recipients();
 }
 
 // توافق خلفي: بعض الاستدعاءات القديمة (refreshFn في إجراءات المنتدى،
@@ -2314,13 +2357,575 @@ async function loadForumReports() {
   return loadReports();
 }
 
+// ============================================================
+// الوساطة — تحذيرات وحظر المستخدمين (Phase 4 — M16)
+// ============================================================
+// تعتمد كليًا على RLS القائم (reports/view للقراءة، reports/edit
+// للكتابة) — لا نظام صلاحيات ثانٍ، لا RPC جديد، لا كائنات DB جديدة.
+// الحالة النشطة للحظر تُقرأ من fn_user_active_ban (مصدر الحقيقة
+// الوحيد — لا تكرار لحساب الحظر النشط في JS). تصنيف صفوف سجل الحظر
+// للعرض فقط بنفس مسند قاعدة البيانات (revoked_at is null AND
+// starts_at <= now() AND (expires_at is null OR expires_at > now())).
+
+let modCurrentUserId = null;
+
+function canReadModeration() {
+  return !!(currentProfile && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "view")));
+}
+
+function canWriteModeration() {
+  return !!(currentProfile && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "edit")));
+}
+
+function showModerationSection() {
+  const section = document.getElementById("moderation-section");
+  if (!section) return;
+  section.hidden = !canReadModeration();
+}
+
+// ============================================================
+// M-07 — الفحص الآلي للمحتوى (Group B — M17)
+// ============================================================
+// القراءة عبر RLS (reports/view)، والكتابة عبر دوال SECURITY DEFINER
+// (fn_m07_decide_case / fn_m07_add_recipient / fn_m07_remove_recipient /
+// fn_m07_process_backlog) التي تفرض reports/edit و super_admin بنفسها —
+// الواجهة ليست حدًّا أمنيًّا (RLS هو الحاكم الفعلي).
+
+function canReadM07() {
+  return !!(currentProfile && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "view")));
+}
+
+function canWriteM07() {
+  return !!(currentProfile && (currentProfile.role === "super_admin" || hasPerm("reports", null, null, "edit")));
+}
+
+function showM07Section() {
+  const section = document.getElementById("m07-section");
+  if (!section) return;
+  section.hidden = !canReadM07();
+  // F1: معالجة قائمة الانتظار تغيّر is_hidden (نشر محتوى محجوز) — تتطلب
+  // reports/edit (مثل fn_m07_decide_case وحارس M12). الزر لا يُعرض لمن
+  // يملك reports/view فقط (نمط loadM07Cases: أزرار القرار للمشرفين فقط).
+  const backlogBtn = document.getElementById("m07-backlog-btn");
+  if (backlogBtn) backlogBtn.hidden = !canWriteM07();
+}
+
+async function loadM07Cases() {
+  const tbody = document.querySelector("#m07-cases-table tbody");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="5">جارٍ التحميل...</td></tr>`;
+
+  const { data, error } = await supabaseClient
+    .from("m07_moderation_cases")
+    .select("id, surface, content_id, content_version, status, decision, decided_by, decided_at, created_at")
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("loadM07Cases:", error);
+    tbody.innerHTML = `<tr><td colspan="5">تعذّر تحميل حالات الفحص</td></tr>`;
+    return;
+  }
+
+  const rows = data || [];
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5">لا توجد حالات فحص مفتوحة.</td></tr>`;
+    return;
+  }
+
+  // جلب محتوى المواضيع/الردود المرتبطة — استعلامان مستقلان لا يُسقط
+  // أحدهما الآخر (F-06 pattern).
+  const topicIds = rows.filter((r) => r.surface === "forum_topic").map((r) => r.content_id);
+  const replyIds = rows.filter((r) => r.surface === "forum_reply").map((r) => r.content_id);
+  const [topicsRes, repliesRes] = await Promise.allSettled([
+    topicIds.length
+      ? supabaseClient.from("forum_topics").select("id, title, author_name, is_hidden").in("id", topicIds)
+      : Promise.resolve({ data: [], error: null }),
+    replyIds.length
+      ? supabaseClient.from("forum_replies").select("id, content, author_name, is_hidden").in("id", replyIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const topicsById = {};
+  const repliesById = {};
+  if (topicsRes.status === "fulfilled" && !topicsRes.value.error) {
+    (topicsRes.value.data || []).forEach((t) => { topicsById[t.id] = t; });
+  }
+  if (repliesRes.status === "fulfilled" && !repliesRes.value.error) {
+    (repliesRes.value.data || []).forEach((r) => { repliesById[r.id] = r; });
+  }
+
+  const canWrite = canWriteM07();
+  rows.forEach((c) => {
+    const tr = document.createElement("tr");
+    const target = c.surface === "forum_topic" ? topicsById[c.content_id] : repliesById[c.content_id];
+    const content = c.surface === "forum_topic"
+      ? (target ? target.title : "(محتوى محذوف)")
+      : (target ? target.content : "(محتوى محذوف)");
+    const author = target ? target.author_name : "—";
+    const hidden = target ? (target.is_hidden === true ? "محجوز" : "منشور") : "—";
+    const surfaceLabel = c.surface === "forum_topic" ? "موضوع" : "رد";
+    const date = c.created_at ? new Date(c.created_at).toLocaleString("ar-EG") : "—";
+
+    const tdSurface = document.createElement("td");
+    tdSurface.textContent = surfaceLabel;
+    const tdContent = document.createElement("td");
+    tdContent.textContent = content;
+    const tdAuthor = document.createElement("td");
+    tdAuthor.textContent = author;
+    const tdState = document.createElement("td");
+    tdState.textContent = `${hidden} — الإصدار ${c.content_version} — ${date}`;
+    const tdActions = document.createElement("td");
+    if (canWrite) {
+      const keepBtn = document.createElement("button");
+      keepBtn.type = "button";
+      keepBtn.className = "btn btn-primary btn-sm";
+      keepBtn.textContent = "إبقاء منشورًا";
+      keepBtn.addEventListener("click", () => decideM07Case(c.id, "keep"));
+      const hideBtn = document.createElement("button");
+      hideBtn.type = "button";
+      hideBtn.className = "btn btn-danger btn-sm";
+      hideBtn.textContent = "إخفاء";
+      hideBtn.addEventListener("click", () => decideM07Case(c.id, "hide"));
+      tdActions.appendChild(keepBtn);
+      tdActions.appendChild(hideBtn);
+    } else {
+      tdActions.textContent = "—";
+    }
+    tr.appendChild(tdSurface);
+    tr.appendChild(tdContent);
+    tr.appendChild(tdAuthor);
+    tr.appendChild(tdState);
+    tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  });
+}
+
+async function decideM07Case(caseId, decision) {
+  if (!canWriteM07()) { showToast("لا تملك صلاحية تعديل البلاغات"); return; }
+  const { error } = await supabaseClient.rpc("fn_m07_decide_case", {
+    p_case_id: caseId,
+    p_decision: decision,
+  });
+  if (error) {
+    console.error("decideM07Case:", error);
+    showToast("تعذّر تنفيذ القرار، حاول مرة أخرى");
+    return;
+  }
+  showToast(decision === "keep" ? "تم إبقاء المحتوى منشورًا" : "تم إخفاء المحتوى");
+  loadM07Cases();
+}
+
+async function loadM07Recipients() {
+  const list = document.getElementById("m07-recipients-list");
+  if (!list) return;
+  const { data, error } = await supabaseClient
+    .from("m07_moderator_recipients")
+    .select("user_id, created_at")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("loadM07Recipients:", error);
+    list.innerHTML = `<div class="state-msg">تعذّر تحميل المستلمين</div>`;
+    return;
+  }
+  const rows = data || [];
+  if (!rows.length) {
+    list.innerHTML = `<div class="state-msg">لا يوجد مستلمون بعد — أضف مستلمًا ليصله إشعار نتائج الفحص.</div>`;
+    return;
+  }
+  const isSuper = currentProfile?.role === "super_admin";
+  list.innerHTML = "";
+  rows.forEach((r) => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line-strong, #e5e5e5);";
+    const info = document.createElement("code");
+    info.textContent = r.user_id;
+    row.appendChild(info);
+    if (isSuper) {
+      const rmBtn = document.createElement("button");
+      rmBtn.type = "button";
+      rmBtn.className = "btn btn-danger btn-sm";
+      rmBtn.textContent = "إزالة";
+      rmBtn.addEventListener("click", () => removeM07Recipient(r.user_id));
+      row.appendChild(rmBtn);
+    }
+    list.appendChild(row);
+  });
+}
+
+async function addM07Recipient() {
+  if (currentProfile?.role !== "super_admin") { showToast("إدارة المستلمين متاحة للمشرف العام فقط"); return; }
+  const input = document.getElementById("m07-recipient-input");
+  const raw = (input?.value || "").trim();
+  if (!raw) { showToast("أدخل معرّف المستخدم (UUID)"); return; }
+  const { error } = await supabaseClient.rpc("fn_m07_add_recipient", { p_user_id: raw });
+  if (error) {
+    console.error("addM07Recipient:", error);
+    showToast("تعذّر إضافة المستلم — تأكد من صحة المعرّف");
+    return;
+  }
+  if (input) input.value = "";
+  showToast("تمت إضافة المستلم");
+  loadM07Recipients();
+}
+
+async function removeM07Recipient(userId) {
+  if (currentProfile?.role !== "super_admin") { showToast("إدارة المستلمين متاحة للمشرف العام فقط"); return; }
+  const { error } = await supabaseClient.rpc("fn_m07_remove_recipient", { p_user_id: userId });
+  if (error) {
+    console.error("removeM07Recipient:", error);
+    showToast("تعذّر إزالة المستلم");
+    return;
+  }
+  showToast("تمت إزالة المستلم");
+  loadM07Recipients();
+}
+
+async function processM07Backlog() {
+  if (!canWriteM07()) { showToast("لا تملك صلاحية تعديل البلاغات"); return; }
+  const btn = document.getElementById("m07-backlog-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "جارٍ المعالجة..."; }
+  const { data, error } = await supabaseClient.rpc("fn_m07_process_backlog", { p_limit: 50 });
+  if (btn) { btn.disabled = false; btn.textContent = "معالجة قائمة الانتظار"; }
+  if (error) {
+    console.error("processM07Backlog:", error);
+    showToast("تعذّر معالجة قائمة الانتظار");
+    return;
+  }
+  showToast(`تمت معالجة ${data || 0} عنصرًا من قائمة الانتظار`);
+  loadM07Cases();
+}
+
+function openModerationForUser(userId, authorName) {
+  modCurrentUserId = userId;
+  const input = document.getElementById("mod-search-input");
+  if (input) input.value = userId;
+  const section = document.getElementById("moderation-section");
+  if (section) {
+    section.hidden = false;
+    if (typeof section.scrollIntoView === "function") section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  loadModerationForUser(userId, authorName);
+}
+
+async function searchModerationUser() {
+  const input = document.getElementById("mod-search-input");
+  const raw = (input?.value || "").trim();
+  if (!raw) { showToast("أدخل معرّف المستخدم (UUID) للبحث"); return; }
+
+  let userId = raw;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+  if (!isUuid) {
+    // البحث بالبريد: متاح فقط لـ super_admin (RLS profiles = self-or-super)
+    if (currentProfile?.role !== "super_admin") {
+      showToast("البحث بالبريد متاح للمشرف العام فقط — أدخل معرّف المستخدم (UUID)");
+      return;
+    }
+    const { data, error } = await supabaseClient.from("profiles").select("id").eq("email", raw).maybeSingle();
+    if (error || !data) { showToast("لم يُعثر على مستخدم بهذا البريد"); return; }
+    userId = data.id;
+  }
+
+  modCurrentUserId = userId;
+  await loadModerationForUser(userId, null);
+}
+
+async function loadModerationForUser(userId, authorName) {
+  const panel = document.getElementById("mod-user-panel");
+  if (!panel) return;
+  panel.innerHTML = `<div class="state-msg">جارٍ تحميل سجل الوساطة...</div>`;
+
+  // استعلامات مستقلة لا يُسقط أحدها الآخر (F-06 pattern) — فشل أي
+  // استعلام يُسجَّل للمطوِّر فقط ولا يمنع عرض بقية السجل.
+  const [warningsRes, bansRes, activeBanRes, countRes] = await Promise.allSettled([
+    supabaseClient.from("user_warnings").select("id, reason, created_at, issued_by").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabaseClient.from("user_bans").select("id, reason, starts_at, expires_at, revoked_at, revoked_by, revoke_reason, created_at").eq("user_id", userId).order("starts_at", { ascending: false }),
+    supabaseClient.rpc("fn_user_active_ban", { p_user_id: userId }),
+    supabaseClient.rpc("fn_user_warning_count", { p_user_id: userId }),
+  ]);
+
+  const warnings = warningsRes.status === "fulfilled" && !warningsRes.value?.error ? (warningsRes.value.data || []) : [];
+  const bans = bansRes.status === "fulfilled" && !bansRes.value?.error ? (bansRes.value.data || []) : [];
+  const activeBan = activeBanRes.status === "fulfilled" && !activeBanRes.value?.error && activeBanRes.value.data && activeBanRes.value.data.id
+    ? activeBanRes.value.data : null;
+  const warningCount = countRes.status === "fulfilled" && !countRes.value?.error ? countRes.value.data : null;
+
+  if (warningsRes.status === "rejected" || warningsRes.value?.error) {
+    console.error("loadModerationForUser: تعذّر قراءة التحذيرات (يتطلب reports/view)", warningsRes.reason || warningsRes.value?.error);
+  }
+  if (bansRes.status === "rejected" || bansRes.value?.error) {
+    console.error("loadModerationForUser: تعذّر قراءة سجل الحظر (يتطلب reports/view)", bansRes.reason || bansRes.value?.error);
+  }
+
+  renderModerationPanel(panel, { userId, authorName, warnings, bans, activeBan, warningCount });
+}
+
+function banStatus(b) {
+  if (b.revoked_at) return { label: "مُلغى", cls: "revoked" };
+  const now = Date.now();
+  const start = new Date(b.starts_at).getTime();
+  const end = b.expires_at ? new Date(b.expires_at).getTime() : null;
+  if (start > now) return { label: "مجدول", cls: "scheduled" };
+  if (end !== null && end <= now) return { label: "منتهي", cls: "expired" };
+  return { label: b.expires_at ? "نشط — مؤقت" : "نشط — دائم", cls: "active" };
+}
+
+// تصنيف الفلترة: "مجدول" يُجمَّع تحت "نشط" (ليس مُلغى ولا منتهيًا)
+function banStatusClass(b) {
+  const st = banStatus(b);
+  return st.cls === "scheduled" ? "active" : st.cls;
+}
+
+function renderModerationPanel(panel, { userId, authorName, warnings, bans, activeBan, warningCount }) {
+  const canWrite = canWriteModeration();
+
+  const activeStatus = activeBan
+    ? (activeBan.expires_at
+        ? { label: `حظر نشط — مؤقت حتى ${new Date(activeBan.expires_at).toLocaleDateString("ar-EG")}`, cls: "active-temp" }
+        : { label: "حظر نشط — دائم", cls: "active-perm" })
+    : { label: "لا يوجد حظر نشط", cls: "none" };
+
+  const identity = authorName ? `${escHtml(authorName)} — <code>${escHtml(userId)}</code>` : `<code>${escHtml(userId)}</code>`;
+
+  panel.innerHTML = `
+    <div class="mod-user-header">
+      <div class="mod-user-identity"><strong>المستخدم: ${identity}</strong></div>
+      <div class="mod-user-status">
+        <span class="mod-status-badge ${activeStatus.cls}">${activeStatus.label}</span>
+        ${warningCount !== null ? `<span class="mod-warning-count">عدد التحذيرات: ${escHtml(warningCount)}</span>` : ""}
+      </div>
+    </div>
+
+    <div class="mod-actions">
+      ${canWrite ? `
+        <button type="button" class="btn btn-sm btn-primary" id="mod-add-warning-btn">إضافة تحذير</button>
+        <button type="button" class="btn btn-sm btn-danger" id="mod-create-ban-btn">إنشاء حظر</button>
+        ${activeBan ? `<button type="button" class="btn btn-sm btn-outline" id="mod-revoke-ban-btn">إلغاء الحظر</button>` : ""}
+      ` : `<p class="hint" style="color: var(--ink-soft); margin:0;">وضع القراءة فقط — لا تملك صلاحية الكتابة (reports/edit).</p>`}
+    </div>
+
+    <div id="mod-warning-form" class="mod-form" hidden>
+      <label for="mod-warning-reason">سبب التحذير</label>
+      <textarea id="mod-warning-reason" maxlength="500" placeholder="اكتب سبب التحذير (يُحفظ في سجل التحذيرات الثابت)"></textarea>
+      <div class="mod-form-actions">
+        <button type="button" class="btn btn-sm btn-outline" id="mod-warning-cancel">إلغاء</button>
+        <button type="button" class="btn btn-sm btn-primary" id="mod-warning-submit">حفظ التحذير</button>
+      </div>
+    </div>
+
+    <div id="mod-ban-form" class="mod-form" hidden>
+      <label for="mod-ban-reason">سبب الحظر</label>
+      <textarea id="mod-ban-reason" maxlength="500" placeholder="اكتب سبب الحظر"></textarea>
+      <div class="mod-form-row">
+        <div class="mod-form-field">
+          <label for="mod-ban-starts">بداية الحظر</label>
+          <input type="datetime-local" id="mod-ban-starts">
+        </div>
+        <div class="mod-form-field">
+          <label for="mod-ban-type">نوع الحظر</label>
+          <select id="mod-ban-type">
+            <option value="permanent">دائم (بلا انتهاء)</option>
+            <option value="temporary">مؤقت (بموعد انتهاء)</option>
+          </select>
+        </div>
+        <div class="mod-form-field" id="mod-ban-expires-field" hidden>
+          <label for="mod-ban-expires">موعد الانتهاء</label>
+          <input type="datetime-local" id="mod-ban-expires">
+        </div>
+      </div>
+      <div class="mod-form-actions">
+        <button type="button" class="btn btn-sm btn-outline" id="mod-ban-cancel">إلغاء</button>
+        <button type="button" class="btn btn-sm btn-danger" id="mod-ban-submit">تأكيد الحظر</button>
+      </div>
+    </div>
+
+    <h4>سجل التحذيرات</h4>
+    <div class="table-wrap">
+      <table class="admin-table" id="mod-warnings-table">
+        <thead><tr><th>السبب</th><th>التاريخ</th><th>أصدره</th></tr></thead>
+        <tbody id="mod-warnings-tbody"></tbody>
+      </table>
+    </div>
+
+    <h4>سجل الحظر</h4>
+    <div class="search-filters" style="margin-bottom:10px; margin-top:0;">
+      <select id="mod-ban-filter" aria-label="تصفية سجل الحظر">
+        <option value="all">الكل</option>
+        <option value="active">نشط</option>
+        <option value="expired">منتهي</option>
+        <option value="revoked">مُلغى</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="admin-table" id="mod-bans-table">
+        <thead><tr><th>السبب</th><th>البداية</th><th>الانتهاء</th><th>الحالة</th><th>الإلغاء</th></tr></thead>
+        <tbody id="mod-bans-tbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  // ---- سجل التحذيرات (ثابت — بلا أزرار تعديل/حذف: F1) ----
+  const warningsTbody = document.getElementById("mod-warnings-tbody");
+  if (warningsTbody) {
+    if (!warnings.length) {
+      warningsTbody.innerHTML = `<tr><td colspan="3">لا توجد تحذيرات لهذا المستخدم.</td></tr>`;
+    } else {
+      warningsTbody.innerHTML = "";
+      warnings.forEach((w) => {
+        const tr = document.createElement("tr");
+        const tdReason = document.createElement("td");
+        tdReason.textContent = w.reason;
+        const tdDate = document.createElement("td");
+        tdDate.textContent = new Date(w.created_at).toLocaleDateString("ar-EG");
+        const tdIssuer = document.createElement("td");
+        tdIssuer.textContent = w.issued_by;
+        tr.appendChild(tdReason); tr.appendChild(tdDate); tr.appendChild(tdIssuer);
+        warningsTbody.appendChild(tr);
+      });
+    }
+  }
+
+  // ---- سجل الحظر (تصنيف للعرض فقط — نفس مسند قاعدة البيانات) ----
+  const bansTbody = document.getElementById("mod-bans-tbody");
+  const renderBans = (filter) => {
+    if (!bansTbody) return;
+    const filtered = filter === "all" ? bans : bans.filter((b) => banStatusClass(b) === filter);
+    if (!filtered.length) {
+      bansTbody.innerHTML = `<tr><td colspan="5">لا توجد سجلات حظر مطابقة.</td></tr>`;
+      return;
+    }
+    bansTbody.innerHTML = "";
+    filtered.forEach((b) => {
+      const st = banStatus(b);
+      const tr = document.createElement("tr");
+      const tdReason = document.createElement("td");
+      tdReason.textContent = b.reason;
+      const tdStart = document.createElement("td");
+      tdStart.textContent = new Date(b.starts_at).toLocaleDateString("ar-EG");
+      const tdEnd = document.createElement("td");
+      tdEnd.textContent = b.expires_at ? new Date(b.expires_at).toLocaleDateString("ar-EG") : "دائم";
+      const tdStatus = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = `mod-status-badge ${st.cls}`;
+      badge.textContent = st.label;
+      tdStatus.appendChild(badge);
+      const tdRevoke = document.createElement("td");
+      tdRevoke.textContent = b.revoked_at ? `${new Date(b.revoked_at).toLocaleDateString("ar-EG")}${b.revoke_reason ? ` — ${b.revoke_reason}` : ""}` : "—";
+      tr.appendChild(tdReason); tr.appendChild(tdStart); tr.appendChild(tdEnd); tr.appendChild(tdStatus); tr.appendChild(tdRevoke);
+      bansTbody.appendChild(tr);
+    });
+  };
+  renderBans("all");
+
+  // ---- ربط الأحداث ----
+  const warningForm = document.getElementById("mod-warning-form");
+  const banForm = document.getElementById("mod-ban-form");
+  const addWarningBtn = document.getElementById("mod-add-warning-btn");
+  const createBanBtn = document.getElementById("mod-create-ban-btn");
+  const revokeBanBtn = document.getElementById("mod-revoke-ban-btn");
+  const banType = document.getElementById("mod-ban-type");
+  const banExpiresField = document.getElementById("mod-ban-expires-field");
+  const banFilter = document.getElementById("mod-ban-filter");
+
+  if (addWarningBtn) addWarningBtn.addEventListener("click", () => { if (warningForm) warningForm.hidden = !warningForm.hidden; });
+  if (createBanBtn) createBanBtn.addEventListener("click", () => { if (banForm) banForm.hidden = !banForm.hidden; });
+  if (revokeBanBtn && activeBan) {
+    revokeBanBtn.addEventListener("click", () => {
+      showDestructiveConfirm({
+        title: "إلغاء الحظر",
+        message: "سيُلغى الحظر النشط لهذا المستخدم ويُسجَّل في التاريخ. لا يمكن التراجع عن الإلغاء.",
+        confirmLabel: "تأكيد إلغاء الحظر",
+        inputPlaceholder: "سبب الإلغاء (اختياري)",
+        onConfirm: (reason) => revokeModerationBan(activeBan.id, userId, reason),
+      });
+    });
+  }
+  const warningCancel = document.getElementById("mod-warning-cancel");
+  const warningSubmit = document.getElementById("mod-warning-submit");
+  if (warningCancel) warningCancel.addEventListener("click", () => { if (warningForm) warningForm.hidden = true; });
+  if (warningSubmit) warningSubmit.addEventListener("click", () => submitModerationWarning(userId));
+  const banCancel = document.getElementById("mod-ban-cancel");
+  const banSubmit = document.getElementById("mod-ban-submit");
+  if (banCancel) banCancel.addEventListener("click", () => { if (banForm) banForm.hidden = true; });
+  if (banSubmit) banSubmit.addEventListener("click", () => submitModerationBan(userId));
+  if (banType) banType.addEventListener("change", () => { if (banExpiresField) banExpiresField.hidden = banType.value !== "temporary"; });
+  if (banFilter) banFilter.addEventListener("change", () => renderBans(banFilter.value));
+}
+
+async function submitModerationWarning(userId) {
+  const reason = (document.getElementById("mod-warning-reason")?.value || "").trim();
+  if (!reason) { showToast("اكتب سبب التحذير"); return; }
+  if (reason.length > 500) { showToast("السبب طويل جدًا (500 حرف كحد أقصى)"); return; }
+  const { data, error } = await supabaseClient.from("user_warnings").insert({
+    user_id: userId,
+    issued_by: currentProfile.id,
+    reason,
+  }).select("id").single();
+  if (error) { showToast("تعذّر إضافة التحذير (تحقق من صلاحية reports/edit)"); console.error(error); return; }
+  await logActivity("warning_created", "user_warning", data?.id || null, reason);
+  showToast("تم إضافة التحذير");
+  await loadModerationForUser(userId);
+}
+
+async function submitModerationBan(userId) {
+  const reason = (document.getElementById("mod-ban-reason")?.value || "").trim();
+  if (!reason) { showToast("اكتب سبب الحظر"); return; }
+  if (reason.length > 500) { showToast("السبب طويل جدًا (500 حرف كحد أقصى)"); return; }
+  const startsRaw = document.getElementById("mod-ban-starts")?.value || "";
+  const type = document.getElementById("mod-ban-type")?.value || "permanent";
+  const expiresRaw = type === "temporary" ? (document.getElementById("mod-ban-expires")?.value || "") : "";
+  const startsAt = startsRaw ? new Date(startsRaw).toISOString() : new Date().toISOString();
+  let expiresAt = null;
+  if (type === "temporary") {
+    if (!expiresRaw) { showToast("حدد موعد انتهاء الحظر المؤقت"); return; }
+    expiresAt = new Date(expiresRaw).toISOString();
+    if (new Date(expiresAt).getTime() <= new Date(startsAt).getTime()) { showToast("يجب أن يكون الانتهاء بعد البداية"); return; }
+  }
+  const { data, error } = await supabaseClient.from("user_bans").insert({
+    user_id: userId,
+    issued_by: currentProfile.id,
+    reason,
+    starts_at: startsAt,
+    expires_at: expiresAt,
+  }).select("id").single();
+  if (error) { showToast("تعذّر إنشاء الحظر (تحقق من صلاحية reports/edit)"); console.error(error); return; }
+  await logActivity("ban_created", "user_ban", data?.id || null, `${type === "temporary" ? "مؤقت" : "دائم"}: ${reason}`);
+  showToast("تم إنشاء الحظر");
+  await loadModerationForUser(userId);
+}
+
+async function revokeModerationBan(banId, userId, revokeReason) {
+  const reason = (revokeReason || "").trim();
+  if (reason.length > 500) { showToast("سبب الإلغاء طويل جدًا (500 حرف كحد أقصى)"); return; }
+  const { error } = await supabaseClient.from("user_bans").update({
+    revoked_at: new Date().toISOString(),
+    revoked_by: currentProfile.id,
+    revoke_reason: reason || null,
+  }).eq("id", banId);
+  if (error) { showToast("تعذّر إلغاء الحظر (تحقق من صلاحية reports/edit)"); console.error(error); return; }
+  await logActivity("ban_revoked", "user_ban", banId, reason || null);
+  showToast("تم إلغاء الحظر");
+  await loadModerationForUser(userId);
+}
+
+// ربط البحث في قسم الوساطة (يوجد القسم في DOM وقت التحميل — داخل panel-reports)
+document.getElementById("mod-search-btn").addEventListener("click", searchModerationUser);
+
+// M-07: أزرار قسم الفحص الآلي (الاستدعاءات تحمي نفسها بالصلاحيات داخليًا).
+const m07BacklogBtn = document.getElementById("m07-backlog-btn");
+if (m07BacklogBtn) m07BacklogBtn.addEventListener("click", processM07Backlog);
+const m07RecipientAddBtn = document.getElementById("m07-recipient-add-btn");
+if (m07RecipientAddBtn) m07RecipientAddBtn.addEventListener("click", addM07Recipient);
+document.getElementById("mod-search-input").addEventListener("keydown", (e) => {
+  if (e && e.key === "Enter") { e.preventDefault(); searchModerationUser(); }
+});
+
 async function toggleResourceHidden(resourceId, currentlyHidden, refreshFn) {
   const { error } = await supabaseClient
     .from("resources")
     .update({ status: currentlyHidden ? "published" : "hidden" })
     .eq("id", resourceId);
   if (error) { showToast("تعذّر تحديث حالة المورد"); console.error(error); return; }
-  logActivity(currentlyHidden ? "resource_restored" : "resource_hidden", "resource", resourceId, null);
+  await logActivity(currentlyHidden ? "resource_restored" : "resource_hidden", "resource", resourceId, null);
   showToast(currentlyHidden ? "تم إظهار المورد" : "تم إخفاء المورد");
   refreshFn();
   loadResources();
@@ -2330,7 +2935,7 @@ async function toggleForumTargetHidden(targetType, targetId, currentlyHidden, re
   const table = targetType === "topic" ? "forum_topics" : "forum_replies";
   const { error } = await supabaseClient.from(table).update({ is_hidden: !currentlyHidden }).eq("id", targetId);
   if (error) { showToast("تعذّر تحديث حالة المحتوى"); console.error(error); return; }
-  logActivity(currentlyHidden ? "forum_content_restored" : "forum_content_hidden", targetType, targetId, null);
+  await logActivity(currentlyHidden ? "forum_content_restored" : "forum_content_hidden", targetType, targetId, null);
   showToast(currentlyHidden ? "تم إظهار المحتوى" : "تم إخفاء المحتوى");
   refreshFn();
 }
@@ -2341,7 +2946,7 @@ async function updateForumReportStatus(reportId, newStatus, refreshFn) {
     .update({ status: newStatus, reviewed_at: new Date().toISOString(), reviewed_by: currentProfile.id })
     .eq("id", reportId);
   if (error) { showToast("تعذّر تحديث حالة البلاغ"); console.error(error); return; }
-  logActivity("forum_report_" + newStatus, "forum_report", reportId, null);
+  await logActivity("forum_report_" + newStatus, "forum_report", reportId, null);
   showToast(newStatus === "reviewed" ? "تم تحديد البلاغ كمُراجَع" : "تم رفض البلاغ");
   refreshFn();
 }
@@ -2358,7 +2963,7 @@ async function toggleResourceVerified(resourceId, currentlyVerified, refreshFn) 
     .update({ verified: !currentlyVerified })
     .eq("id", resourceId);
   if (error) { showToast("تعذّر تحديث حالة التوثيق"); console.error(error); return; }
-  logActivity(currentlyVerified ? "resource_unverified" : "resource_verified", "resource", resourceId, null);
+  await logActivity(currentlyVerified ? "resource_unverified" : "resource_verified", "resource", resourceId, null);
   showToast(currentlyVerified ? "تم إلغاء توثيق المورد" : "تم توثيق المورد");
   refreshFn();
 }
@@ -2452,7 +3057,7 @@ document.getElementById("course-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("courses").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "course_updated" : "course_created", "course", data?.id, payload.title);
+  await logActivity(id ? "course_updated" : "course_created", "course", data?.id, payload.title);
   resetCourseForm();
   closeAdminDrawer("course-form-drawer");
   showToast(id ? "تم تعديل الدورة" : "تمت إضافة الدورة");
@@ -2594,7 +3199,7 @@ document.getElementById("lesson-form").addEventListener("submit", (e) => {
     : await supabaseClient.from("course_lessons").insert(payload).select().maybeSingle();
 
   if (error) { showToast("خطأ: تعذّر الحفظ (تحقق من صلاحياتك)"); console.error(error); return; }
-  logActivity(id ? "course_lesson_updated" : "course_lesson_created", "course_lesson", data?.id, payload.title);
+  await logActivity(id ? "course_lesson_updated" : "course_lesson_created", "course_lesson", data?.id, payload.title);
   resetLessonForm();
   showToast(id ? "تم تعديل الدرس" : "تمت إضافة الدرس");
   loadCourseLessons(courseId);
@@ -2691,7 +3296,7 @@ function buildUserPermissionCard(profile, userPerms, universities, faculties) {
   roleSelect.addEventListener("change", async () => {
     const { error } = await supabaseClient.from("profiles").update({ role: roleSelect.value }).eq("id", profile.id);
     if (error) { showToast("تعذّر تحديث الدور"); console.error(error); return; }
-    logActivity("role_changed", "profile", profile.id, roleSelect.value);
+    await logActivity("role_changed", "profile", profile.id, roleSelect.value);
     showToast("تم تحديث الدور");
     loadUsersPanel();
   });
@@ -2703,7 +3308,7 @@ function buildUserPermissionCard(profile, userPerms, universities, faculties) {
   toggleBtn.addEventListener("click", async () => {
     const { error } = await supabaseClient.from("profiles").update({ active: !profile.active }).eq("id", profile.id);
     if (error) { showToast("تعذّر تحديث الحالة"); console.error(error); return; }
-    logActivity(profile.active ? "user_disabled" : "user_enabled", "profile", profile.id, null);
+    await logActivity(profile.active ? "user_disabled" : "user_enabled", "profile", profile.id, null);
     showToast(profile.active ? "تم تعطيل الحساب" : "تم تفعيل الحساب");
     loadUsersPanel();
   });
@@ -2888,11 +3493,11 @@ async function togglePermission(userId, scope, entityType, action, existingRow, 
       });
       if (error) { showToast("تعذّر منح الصلاحية"); console.error(error); return; }
     }
-    logActivity("permission_granted", "user_permissions", userId, `${scope.label} / ${ENTITY_LABELS[entityType]} / ${ACTION_LABELS[action]}`);
+    await logActivity("permission_granted", "user_permissions", userId, `${scope.label} / ${ENTITY_LABELS[entityType]} / ${ACTION_LABELS[action]}`);
   } else if (existingRow) {
     const { error } = await supabaseClient.from("user_permissions").delete().eq("id", existingRow.id);
     if (error) { showToast("تعذّر إزالة الصلاحية"); console.error(error); return; }
-    logActivity("permission_revoked", "user_permissions", userId, `${scope.label} / ${ENTITY_LABELS[entityType]} / ${ACTION_LABELS[action]}`);
+    await logActivity("permission_revoked", "user_permissions", userId, `${scope.label} / ${ENTITY_LABELS[entityType]} / ${ACTION_LABELS[action]}`);
   }
   showToast("تم تحديث الصلاحيات");
   // إعادة تحميل صلاحيات المستخدم الحالي إن كان هو نفسه المعدَّل عليه (نادر)
@@ -2926,13 +3531,23 @@ function labeledWrap(label, el) {
 let _destructiveConfirmCallback = null;
 let _destructiveConfirmOpener = null;
 
-function showDestructiveConfirm({ title, message, onConfirm }) {
+function showDestructiveConfirm({ title, message, onConfirm, confirmLabel, inputPlaceholder }) {
   const overlay = _buildDestructiveConfirmOverlay();
 
   const titleEl = document.getElementById("admin-confirm-title");
   if (titleEl) titleEl.textContent = title || "تأكيد";
   const msgEl = document.getElementById("admin-confirm-message");
   if (msgEl) msgEl.textContent = message || "";
+  // Phase 4 (M16): نص زر التأكيد قابل للتخصيص (لا كلمات مضللة — الحظر/
+  // الإلغاء ليسا "حذفًا") + حقل إدخال اختياري (سبب الإلغاء مثلًا).
+  const okBtn = document.getElementById("admin-confirm-ok");
+  if (okBtn) okBtn.textContent = confirmLabel || "تأكيد الحذف";
+  const inputEl = document.getElementById("admin-confirm-input");
+  if (inputEl) {
+    inputEl.value = "";
+    inputEl.hidden = !inputPlaceholder;
+    if (inputPlaceholder) inputEl.placeholder = inputPlaceholder;
+  }
 
   _destructiveConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
   _destructiveConfirmOpener = (typeof document.activeElement === "object" && document.activeElement)
@@ -2967,6 +3582,11 @@ function _buildDestructiveConfirmOverlay() {
 
   const titleEl = _getOrCreate("admin-confirm-title", "H3");
   const msgEl = _getOrCreate("admin-confirm-message", "P");
+  // Phase 4 (M16): حقل إدخال اختياري (سبب الإلغاء مثلًا) — مخفي افتراضيًا
+  const inputEl = _getOrCreate("admin-confirm-input", "INPUT");
+  inputEl.type = "text";
+  inputEl.className = "subject-search-input";
+  inputEl.hidden = true;
   const actions = _getOrCreate("admin-confirm-actions");
   actions.className = "modal-actions";
 
@@ -2988,6 +3608,7 @@ function _buildDestructiveConfirmOverlay() {
     overlay.appendChild(box);
     box.appendChild(titleEl);
     box.appendChild(msgEl);
+    box.appendChild(inputEl);
     box.appendChild(actions);
     actions.appendChild(cancelBtn);
     actions.appendChild(okBtn);
@@ -3017,7 +3638,11 @@ function _confirmDestructive(confirmed) {
     && document.contains(opener)) opener.focus();
 
   if (confirmed && cb) {
-    try { cb(); } catch (err) {
+    // Phase 4 (M16): تمرير قيمة حقل الإدخال الاختياري (إن وُجد) — الاستدعاءات
+    // القديمة بلا معاملات تتجاهله (متوافق رجعيًا).
+    const inputEl = document.getElementById("admin-confirm-input");
+    const inputVal = inputEl ? (inputEl.value || "").trim() : "";
+    try { cb(inputVal); } catch (err) {
       if (typeof console !== "undefined" && console.error) console.error(err);
     }
   }
@@ -3096,7 +3721,7 @@ function deleteRow(table, id, refreshFn) {
 async function performDeleteRow(table, id, refreshFn) {
   const { error } = await supabaseClient.from(table).delete().eq("id", id);
   if (error) { showToast("تعذّر الحذف (تحقق من صلاحياتك، أو أن هناك بيانات تابعة لهذا العنصر)"); console.error(error); return; }
-  logActivity(`${table}_deleted`, table, id, null);
+  await logActivity(`${table}_deleted`, table, id, null);
   showToast("تم الحذف");
   refreshFn();
 }
