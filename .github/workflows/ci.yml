@@ -1,0 +1,28 @@
+name: CI — Unit Regression Suite
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run canonical unit regression suite
+        run: npm test
+
+  # Playwright audits hit a live target and are intentionally excluded
+  # from `npm test` (see scripts/run-tests.js EXCLUDED). They are
+  # opt-in: node test/test-runtime-deferred.js (local server) or
+  # node test/test-full.js (production BASE_URL).

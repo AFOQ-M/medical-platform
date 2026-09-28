@@ -1,4 +1,4 @@
-﻿/**
+/**
  * test-forum.js
  * ------------------------------------------------------------------
  * ط§ط®طھط¨ط§ط±ط§طھ Regression ظ„ظ…ظٹط²ط© "ظ…ظ„طھظ‚ظ‰ ط£ظپظ‚" (Forum MVP â€” Phase 6).
@@ -138,6 +138,7 @@ function makeMockSupabase({ resultsByTable = {}, onInsert = null, onUpdate = nul
     const chain = {
       select(cols) { calls.push({ op: "select", table, cols }); return chain; },
       eq(col, val) { state.filters[col] = val; calls.push({ op: "eq", table, col, val }); return chain; },
+      or(expr) { state.filters.or = expr; calls.push({ op: "or", table, expr }); return chain; },
       order(col, opts) { calls.push({ op: "order", table, col, opts }); return chain; },
       range(from, to) { state.range = [from, to]; calls.push({ op: "range", table, from, to }); return chain; },
       maybeSingle() { chain._single = "maybeSingle"; return chain; },

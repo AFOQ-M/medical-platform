@@ -1,12 +1,20 @@
 -- ============================================================
--- AFOQ — PROPOSED — NOT APPLIED
--- M13 — Forum Report Creation Integrity + Rate Limit (F5)
+-- AFOQ — APPLIED LIVE — M13 — Forum Report Creation Integrity + Rate Limit (F5)
 -- ============================================================
 --
--- **STATUS: PROPOSED — NOT APPLIED.** This file changes production
--- database objects (RLS policy + SECURITY DEFINER function + trigger +
--- new rate-limit table). It must be applied by the CLAUDE DATABASE
--- PHASE and verified there. Big Pickle does NOT apply it.
+-- **STATUS: APPLIED LIVE (2026-09-25, via Supabase MCP/Management API).**
+-- Verified live (2026-09-26, Phase 1 re-check): fn_forum_report_write_guard()
+-- exists with the exact definition below (pg_get_functiondef match), trigger
+-- trg_forum_report_write_guard is ENABLED ('O') on forum_reports, policy
+-- insert_own_forum_reports has the tightened with-check
+-- (status='pending' AND reviewed_by IS NULL AND reviewed_at IS NULL),
+-- forum_report_rate_limits table exists, and submit_public_report has the
+-- published-target guard. This file remains the parity reference for
+-- fresh-DB replay (idempotent). Phase 1 made NO database change for M13
+-- (already applied); the only M13-adjacent live change was the grant
+-- hardening of forum_report_rate_limits (REVOKE ALL — see
+-- p1_final_m10_maintain_revoke.sql / migration
+-- p1_final_m10_live_revoke_maintain_gap_tables).
 --
 -- FINDING: F5 — Report Integrity / Owner-Update / no forum rate limit
 -- Root Cause A (forgery of moderation state):

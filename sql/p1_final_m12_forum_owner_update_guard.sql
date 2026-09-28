@@ -1,12 +1,14 @@
 -- ============================================================
--- AFOQ — PROPOSED — NOT APPLIED
--- M12 — Forum Content/Moderation-Column Integrity (F4)
+-- AFOQ — APPLIED LIVE — M12 — Forum Content/Moderation-Column Integrity (F4)
 -- ============================================================
 --
--- **STATUS: PROPOSED — NOT APPLIED.** This file changes production
--- database objects (RLS-guard triggers). It must be applied by the
--- CLAUDE DATABASE PHASE and verified there. Big Pickle does NOT
--- apply it.
+-- **STATUS: APPLIED LIVE (2026-09-25, via Supabase MCP/Management API).**
+-- Verified live (2026-09-26, Phase 1 re-check): fn_forum_guard_owner_update()
+-- exists with the exact definition below (pg_get_functiondef match), and
+-- triggers trg_forum_guard_owner_update are ENABLED ('O') on both
+-- forum_topics and forum_replies. This file remains the parity reference
+-- for fresh-DB replay (idempotent: CREATE OR REPLACE / DROP IF EXISTS).
+-- Phase 1 made NO database change for M12 (already applied).
 --
 -- FINDING: F4 — Forum Owner Update / Moderation Integrity
 -- Root Cause: the two owner-UPDATE RLS policies

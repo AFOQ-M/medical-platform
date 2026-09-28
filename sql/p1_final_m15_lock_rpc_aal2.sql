@@ -1,9 +1,9 @@
 -- ============================================================
--- AFOQ — PROPOSED — APPLY TO LIVE DB AFTER M11
+-- AFOQ — APPLIED — LIVE DB (M11+)
 -- M15 — Admin Lock RPCs enforce MFA/AAL2 (SQL-006, P1)
 -- ============================================================
 --
--- **STATUS: PROPOSED — NOT YET APPLIED.** This closes the residual gap
+-- **STATUS: APPLIED — LIVE DB.** This closes the residual gap
 -- from the audit finding SQL-006: alpha.finding — the three admin
 -- session-lock RPCs (acquire/refresh/release_admin_session_lock)
 -- previously authorized on role/ACL ONLY, with NO MFA/AAL2 check.

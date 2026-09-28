@@ -6,20 +6,23 @@
 -- account with zero permissions (see P1-FINAL-REPORT.md, M6). No change to
 -- INSERT/UPDATE/DELETE policies or to function permissions. Applied to production.
 
-drop policy auth_read_all_faculties on public.faculties;
-drop policy public_read_active_faculties on public.faculties;
+drop policy if exists auth_read_all_faculties on public.faculties;
+drop policy if exists public_read_active_faculties on public.faculties;
+drop policy if exists read_faculties on public.faculties;
 create policy read_faculties on public.faculties for select using (
   is_active = true or fn_has_permission('academic_structure', university_id, id, 'view')
 );
 
-drop policy auth_read_all_years on public.years;
-drop policy public_read_active_years on public.years;
+drop policy if exists auth_read_all_years on public.years;
+drop policy if exists public_read_active_years on public.years;
+drop policy if exists read_years on public.years;
 create policy read_years on public.years for select using (
   is_active = true or fn_has_permission('academic_structure', university_id, faculty_id, 'view')
 );
 
-drop policy auth_read_all_subjects on public.subjects;
-drop policy public_read_active_subjects on public.subjects;
+drop policy if exists auth_read_all_subjects on public.subjects;
+drop policy if exists public_read_active_subjects on public.subjects;
+drop policy if exists read_subjects on public.subjects;
 create policy read_subjects on public.subjects for select using (
   is_active = true or fn_has_permission(
     'academic_structure',
@@ -29,8 +32,9 @@ create policy read_subjects on public.subjects for select using (
   )
 );
 
-drop policy auth_read_all_resources on public.resources;
-drop policy public_read_published_resources on public.resources;
+drop policy if exists auth_read_all_resources on public.resources;
+drop policy if exists public_read_published_resources on public.resources;
+drop policy if exists read_resources on public.resources;
 create policy read_resources on public.resources for select using (
   status = 'published' or fn_has_permission(
     'resources',

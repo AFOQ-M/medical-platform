@@ -34,7 +34,11 @@ const files = fs.readdirSync(TEST_DIR)
 
 // حارس الحد الأدنى (CI hygiene): إن نقص عدد ملفات الاختبار عن المتوقع
 // (حذف/إعادة تسمية صامتة) نفشل فورًا بدل تمرير مجموعة ناقصة.
-const EXPECTED_TESTS = 21;
+// 21 → 22: PHASE 1 أضاف test-admin-log-activity.js (M-logActivity).
+// 22 → 23: PHASE 3 أضاف test-moderation-foundation.js (M16).
+// 23 → 24: PHASE 4 أضاف test-admin-moderation-ui.js (واجهة الوساطة).
+// 24 → 25: M-07 أضاف test-m07-screening.js (الفحص الآلي — Group B).
+const EXPECTED_TESTS = 25;
 
 const results = [];
 let totalPassed = 0;

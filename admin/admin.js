@@ -110,6 +110,11 @@ async function logActivity(action, targetType, targetId, details) {
 let currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
 let currentAuthEmail = null;
 
+// حارس منع الإرسال المكرر لنموذج الدخول: يمنع وصول استدعاء ثانٍ إلى
+// signInWithPassword بينما محاولة الدخول الأولى ما تزال قيد التنفيذ
+// (كانت النقرات المتتالية تطلق نداءات متزامنة تتنافس على قفل الأدمن).
+let loginInProgress = false;
+
 // -------------------- Single-Admin Session Lock --------------------
 // (سُمّيت "P1-7B" في تعليمات التنفيذ الحالية؛ نفس الاسم مستخدم أعلاه
 // لميزة MFA — راجع ملاحظة التسمية في رأس sql/phase4b_p1_7b_admin_session_lock.sql).
@@ -347,6 +352,12 @@ async function loadCurrentUserAuthorization(authUser) {
 }
 
 function showLogin(errorMsg) {
+  loginInProgress = false;
+  const submitBtn = document.getElementById("login-submit-btn");
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "دخول";
+  }
   document.getElementById("login-box").hidden = false;
   document.getElementById("mfa-verify-box").hidden = true;
   document.getElementById("dashboard").hidden = true;
@@ -427,6 +438,13 @@ function updateMfaEnrollVisibility() {
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (loginInProgress) return;
+  loginInProgress = true;
+  const submitBtn = document.getElementById("login-submit-btn");
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "جارٍ تسجيل الدخول...";
+  }
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
   const errorEl = document.getElementById("login-error");
@@ -435,6 +453,11 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
   if (error) {
+    loginInProgress = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "دخول";
+    }
     errorEl.textContent = "بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور.";
     errorEl.style.display = "block";
     return;

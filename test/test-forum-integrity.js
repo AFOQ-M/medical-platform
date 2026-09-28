@@ -5,12 +5,12 @@
  *              and F5 (forum + resource report integrity).
  *
  * يتحقق من الجانب التطبيقي (Big Pickle scope) دون أي DB mutation:
- *  1) الإصلاحات المقترَحة M12/M13 موجودة وكاملة الدلالة (source
- *     integrity) — هذا النمط هو معيار المستودع لاختبارات SQL حيث لا
- *     يوجد محرك plpgsql/ملف DB داخل المستودع.
+ *  1) إصلاحا M12/M13 مطبَّقان حيًا وملفّاهما موثّقان APPLIED LIVE
+ *     وكاملان الدلالة (source integrity) — هذا النمط هو معيار المستودع
+ *     لاختبارات SQL حيث لا يوجد محرك plpgsql/ملف DB داخل المستودع.
  *  2) العميل لا يرسل أعمدة الوساطة أبدًا (negative checks):
  *     - js/forum.js لا يرسل status/reviewed_by/reviewed_at في insert؛
- *     - js/forum.js لا ينفّذ UPDATE على جداول المنتدى (F4)؛
+ *     - js/forum.js ينفّذ UPDATE على محتواه فقط (title/content) ولا يرسل أعمدة الوساطة (F4)؛
  *     - admin.js يرسل is_hidden فقط ضمن مراجعة الأدمن (فإن كانت
  *       تُرسل أعمدة إضافية فهذا انحراف).
  *  3) المسند الإداري في M12 مطابق لمسند مراجعة phase7
@@ -58,9 +58,9 @@ console.log("AFOQ F4/F5 Forum Integrity — Regression Tests\n");
 // F4 — M12: forum owner-update guard
 // ============================================================
 
-test("F4/M12 — proposed file exists and is additive-only (no DROP table)", () => {
+test("F4/M12 — file exists, marked APPLIED LIVE, and is additive-only (no DROP table)", () => {
   assert.ok(fs.existsSync(M12), "M12 file must exist");
-  assert.ok(/PROPOSED — NOT APPLIED/.test(m12), "M12 must be marked PROPOSED - NOT APPLIED");
+  assert.ok(/APPLIED LIVE/.test(m12), "M12 must be marked APPLIED LIVE (verified live 2026-09-26)");
   assert.ok(!/drop table\s/i.test(m12), "M12 must not drop any table");
 });
 
@@ -96,10 +96,34 @@ test("F4/M12 — admin path returns the row unchanged (moderation survives)", ()
   assert.ok(m12.includes("return new;"), "admin/owner-legitimate update must return new");
 });
 
-test("F4 — the web client issues NO UPDATE on forum tables (owner edit UI absent -> API-only exposure)", () => {
-  assert.ok(!/from\("forum_topics"\)\.update|from\("forum_replies"\)\.update/.test(forumJs),
-    "forum.js must not update forum topics/replies");
-  assert.ok(!/from\("forum_reports"\)\.update/.test(forumJs), "forum.js must not update forum_reports");
+test("F4 — owner edit UI exists; client UPDATEs touch content fields only; DB guard is the authorization boundary", () => {
+  // Owner edit UI exists (the old test wrongly assumed it was absent).
+  assert.ok(forumJs.includes("startForumTopicEdit"), "owner topic edit UI must exist (startForumTopicEdit)");
+  assert.ok(forumJs.includes("startForumReplyEdit"), "owner reply edit UI must exist (startForumReplyEdit)");
+
+  // Multiline-safe detection of the actual UPDATE chains: the old single-line
+  // regex missed these because .from(...) and .update(...) span separate lines.
+  const topicUpdate = forumJs.match(/from\("forum_topics"\)\s*\.update\(\{([^}]*)\}\)/);
+  const replyUpdate = forumJs.match(/from\("forum_replies"\)\s*\.update\(\{([^}]*)\}\)/);
+  assert.ok(topicUpdate, "forum.js must contain the topic UPDATE chain (multiline-safe)");
+  assert.ok(replyUpdate, "forum.js must contain the reply UPDATE chain (multiline-safe)");
+
+  // Client payloads must NOT attempt to modify moderation-only fields.
+  const moderationFields = ["is_hidden", "is_locked", "author_name", "category_id", "topic_id", "status", "reviewed_by", "reviewed_at"];
+  for (const field of moderationFields) {
+    assert.ok(!topicUpdate[1].includes(field), `topic UPDATE payload must not contain ${field}`);
+    assert.ok(!replyUpdate[1].includes(field), `reply UPDATE payload must not contain ${field}`);
+  }
+
+  // forum_reports is never updated by the client (report review is admin-only).
+  assert.ok(!/from\("forum_reports"\)\s*\.update/.test(forumJs), "forum.js must not update forum_reports");
+
+  // Server-side DB guard is the authorization boundary (source/evidence level).
+  assert.ok(m12.includes("fn_forum_guard_owner_update()"), "M12 guard must be the DB authorization boundary");
+  assert.ok(m12.includes("trg_forum_guard_owner_update") && m12.includes("before update on public.forum_topics")
+    && m12.includes("before update on public.forum_replies"), "M12 guard trigger must cover both forum tables");
+  assert.ok(m12.includes("raise exception 'not_authorized'") && m12.includes("42501"),
+    "M12 guard must raise not_authorized (42501) for non-admin column tampering");
 });
 
 test("F4 — admin.js moderation sends ONLY is_hidden on forum content (no column creep)", () => {
@@ -125,9 +149,9 @@ test("F4 — admin.js moderation is gated by fn_has_permission/reports semantics
 // F5 — M13: report integrity
 // ============================================================
 
-test("F5/M13 — proposed file exists and is marked PROPOSED — NOT APPLIED", () => {
+test("F5/M13 — file exists and is marked APPLIED LIVE", () => {
   assert.ok(fs.existsSync(M13), "M13 file must exist");
-  assert.ok(/PROPOSED — NOT APPLIED/.test(m13), "M13 must be marked PROPOSED - NOT APPLIED");
+  assert.ok(/APPLIED LIVE/.test(m13), "M13 must be marked APPLIED LIVE (verified live 2026-09-26)");
 });
 
 test("F5/M13 — forum insert policy forces pending + null review columns (no forged moderation state)", () => {
