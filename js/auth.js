@@ -760,7 +760,17 @@ function closeAccountSidebar() {
  * لحالة الضيف فور نجاح signOut().
  */
 async function handleAccountSignOut() {
-  const { error } = await supabaseClient.auth.signOut();
+  // P-B: scope:"local" يمنع إبطال refresh tokens على الخادم، فلا يُخرج
+  // المستخدم من أجهزته الأخرى — ومنها تبويب لوحة التحكم المفتوح لو أُغلقت
+  // هذه النافذة. signOut بلا scope كان إبطالًا شاملًا يخرج المستخدم من كل
+  // جهاز لمجرد أنه أغلق تبويبًا.
+  //
+  // ما لا يفعله scope:"local": supabase-js يخزّن الجلسة في localStorage
+  // المُشارَك بين تبويبات نفس الأصل في نفس المتصفح، فإزالة المفتاح تصيب
+  // كل التبويبات هناك (وهذا مقصود: المستخدم طلب خروج فليخرج من هذا
+  // المتصفح). ولا يحلّ scope مشكلة تبويب لحساب مختلف في نفس المتصفح —
+  // تلك لا تُحلّ بتغيير scope إطلاقًا.
+  const { error } = await supabaseClient.auth.signOut({ scope: "local" });
   if (error) {
     // رسالة عامة فقط للمستخدم؛ لا نطبع كائن الخطأ/الجلسة كاملاً في
     // console (قد يحتوي تفاصيل حساسة) — فقط نص الرسالة إن وُجد.

@@ -147,13 +147,35 @@ function staffRow(id = "u-staff", role = "staff", active = true, email = "staff@
         profiles: { data: [staff], error: null },
         user_permissions: { data: [{ id: 1, user_id: "u-staff", entity_type: "reports", action: "view", scope_type: "global", scope_id: null, scope_faculty_id: null, active: true }], error: null },
       },
-      rpcResults: { acquire_admin_session_lock: { data: { acquired: false, session_token: null }, error: { message: "lock held by another admin" } } },
+      rpcResults: { acquire_admin_session_lock: { data: { acquired: false, reason: "locked" }, error: null } },
     });
     await sandbox.loadCurrentUserAuthorization({ id: "u-staff", email: "staff@afoq.test" });
     assert.strictEqual(sandbox.hasPerm("reports", null, null, "view"), false, "عند فشل القفل يجب ألا تُمنح أي صلاحية");
     assert.strictEqual(sandbox.hasAnyPerm("reports"), false);
-    assert.ok(sandbox.document.getElementById("login-error").textContent.includes("يوجد مسؤول آخر"), "عند فشل القفل يجب عرض رسالة 'يوجد مسؤول آخر' في شاشة الدخول");
+    // M21 (P-A): بعد عزل القفل بالحساب، لم يعد هناك «مسؤول آخر» — الحجب
+    // يعني أن الحساب نفسه مفتوح في مكان آخر. النصّ محدث عمدًا مع M21.
+    // P-B: سبب الرفض يأتي الآن من reason الذي يُرجعه الـRPC صراحةً.
+    assert.ok(sandbox.document.getElementById("login-error").textContent.includes("هذا الحساب مفتوح"), "عند فشل القفل يجب عرض رسالة 'هذا الحساب مفتوح' في شاشة الدخول");
     assert.strictEqual(sandbox.document.getElementById("dashboard").hidden, true, "الداشبورد يجب ألا يظهر عند فشل القفل");
+  });
+
+  await testAsync("lock RPC error without a reason shows the unverified message, never 'open elsewhere'", async () => {
+    // P-B: خطأ RPC (شبكة/انقطاع) لا يثبت شيئًا عن القفل، فادّعاء أن الحساب
+    // مفتوح في مكان آخر سيكون كذبًا. الفرق عن الاختبار أعلاه هو الفرق بين
+    // سببٍ مُعدَّد وغياب السبب.
+    const staff = staffRow();
+    const { sandbox } = loadAdminJsSandbox({
+      resultsByTable: {
+        profiles: { data: [staff], error: null },
+        user_permissions: { data: [], error: null },
+      },
+      rpcResults: { acquire_admin_session_lock: { data: null, error: { message: "network" } } },
+    });
+    await sandbox.loadCurrentUserAuthorization({ id: "u-staff", email: "staff@afoq.test" });
+    const msg = sandbox.document.getElementById("login-error").textContent;
+    assert.ok(msg.includes("تعذّر التحقق"), "فشل RPC يجب أن يُعرض كنصّ «تعذّر التحقق…»");
+    assert.ok(!msg.includes("مفتوح حاليًا"), "لا يجوز نسب سبب غير مُثبت إلى أن الحساب مفتوح في مكان آخر");
+    assert.strictEqual(sandbox.document.getElementById("dashboard").hidden, true, "الداشبورد يجب ألا يظهر");
   });
 
   await testAsync("inactive profile → log in refused and all permissions denied", async () => {
