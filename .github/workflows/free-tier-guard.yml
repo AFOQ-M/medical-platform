@@ -1,0 +1,112 @@
+name: free-tier-guard
+
+# Why this exists
+# ---------------
+# Supabase pauses FREE projects after 1 week of inactivity, and the Free plan
+# ships NO automatic backups (Pro gets 7 days). Those two cliffs are the only
+# mechanisms that can actually stop this project - capacity is not: the
+# database is 14 MB of a 500 MB budget and egress is a few KB per page view.
+#
+# This workflow therefore does two things:
+#   1. keepalive  - one real query a day, so the project is never considered idle
+#   2. backup     - a logical pg_dump, uploaded as an artifact (skipped, not
+#                   failed, when the DATABASE_URL secret has not been set yet)
+#
+# Nothing here contains a credential: the URL and anon key are read out of the
+# already-public js/supabase-client.js at run time.
+
+on:
+  schedule:
+    # Daily, 06:17 UTC. Well inside the 1-week inactivity window.
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-tier-guard
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    name: Keep the free project awake
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read Supabase coordinates from the public client
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+          url=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' js/supabase-client.js | head -n1)
+          key=$(grep -oE 'eyJ[A-Za-z0-9._-]+'     js/supabase-client.js | head -n1)
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::error::could not parse js/supabase-client.js"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "resolved project: $url"
+
+      - name: Query the database (prevents the 1-week inactivity pause)
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ steps.cfg.outputs.url }}
+          SUPABASE_KEY: ${{ steps.cfg.outputs.key }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/ping.out -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/universities?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          echo "GET /rest/v1/universities -> HTTP $code"
+          head -c 200 /tmp/ping.out; echo
+          case "$code" in
+            2*|4*) echo "database reachable - project stays awake" ;;
+            *)     echo "::error::keepalive ping failed with HTTP $code"; exit 1 ;;
+          esac
+
+  backup:
+    name: Logical backup (needs DATABASE_URL secret)
+    needs: keepalive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect backup credentials
+        id: creds
+        shell: bash
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "$DB_URL" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DATABASE_URL secret is not configured - backup skipped."
+            echo "::notice::Supabase Free has NO automatic backups. Add the secret to get daily dumps:"
+            echo "::notice::  gh secret set DATABASE_URL --repo AFOQ-M/medical-platform"
+          fi
+
+      - name: pg_dump
+        if: steps.creds.outputs.available == 'true'
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p dump
+          out="dump/afoq-$(date -u +%Y%m%dT%H%M%SZ).dump"
+          pg_dump --format=custom --no-owner --no-privileges --file "$out" "$DATABASE_URL"
+          ls -lh dump/
+
+      - name: Upload dump as a workflow artifact
+        if: steps.creds.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: afoq-db-dump
+          path: dump/*.dump
+          retention-days: 30
+          if-no-files-found: error
