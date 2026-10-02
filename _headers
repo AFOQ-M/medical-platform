@@ -35,3 +35,29 @@
 
 /llms.txt
   Content-Type: text/plain; charset=utf-8
+
+# ------------------------------------------------------------------
+# التخزين المؤقت للأصول الستاتيك (2026-10-02)
+# قبل هذه القواعد كانت كل ملفات CSS/JS/الصور تُقدَّم بـ
+#   Cache-Control: public, max-age=0, must-revalidate
+# أي أن كل زيارة تفرض إعادة تحقق على كل أصل. هذه القواعد تلغي ذلك.
+#
+# ملاحظة مقصودة: لا نستخدم immutable على الكود لأن أسماء الملفات غير
+# مُجزَّأة (غير hashed)، فـ immutable كان سيُثبّت المستخدمين على نسخة
+# قديمة من JS لمدة سنة بعد أي نشر. لذلك: ساعة + stale-while-revalidate
+# للكود، وأسبوع للصور. الحد الأقصى للتقادم مقيَّد عمدًا.
+#
+# هذا لا يرفع سقف الخطة المجانية (Cloudflare Pages بلا حد نطاق)، لكنه
+# يزيل إعادة التحقق من كل زيارة ويحسّن زمن التحميل بشكل ملموس.
+# ------------------------------------------------------------------
+/css/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/js/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/images/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
