@@ -138,8 +138,188 @@ let loginInProgress = false;
 // يبقى بالكامل من جهة القاعدة عبر refresh_admin_session_lock().
 let currentLockToken = null;
 let lockHeartbeatTimer = null;
+let lockRetryInFlight = false;
 const LOCK_HEARTBEAT_MS = 25000; // TTL في القاعدة = 90 ثانية؛ ~3 محاولات heartbeat قبل الانتهاء
 const LOCK_TOKEN_STORAGE_KEY = "p17b_admin_session_lock_token"; // sessionStorage فقط — راجع الشرح أعلاه
+
+// نصوص رفض القفل. المفتاح هو القيمة التي يُرجعها
+// acquire_admin_session_lock() حرفيًا في حقل reason، منقولة كما هي من
+// sql/p1_final_m21_admin_session_lock.sql. لا معنى خارج هذه القائمة.
+const LOCK_REFUSAL_MESSAGES = Object.freeze({
+  locked: "هذا الحساب مفتوح حاليًا في تبويب أو جهاز آخر.",
+  not_authorized: "هذا الحساب لا يملك صلاحية دخول لوحة التحكم.",
+  mfa_aal2_required: "يلزم إتمام التحقق بخطوتين للمتابعة.",
+  unauthenticated: "انتهت جلستك، سجّل الدخول من جديد.",
+});
+
+// سبب غير معروف، أو فشل شبكة/RPC بحيث لا نعرف شيئًا. حينها لا يجوز أن
+// ندّعي أن الحساب مفتوح في مكان آخر: «تعذّر التحقق» هو القول الصحيح.
+const LOCK_UNVERIFIED_MESSAGE = "تعذّر التحقق من قفل الجلسة. حاول مجددًا.";
+
+// سبب يُعيده refresh_admin_session_lock() عند الإبطال. خارج قائمة الرفض
+// لأن معناه مختلف: هذا التبويب كان يملك القفل ثم فقده.
+const LOCK_LOST_MESSAGE =
+  "تم إنهاء جلستك الحالية (هذا الحساب مفتوح في تبويب أو جهاز آخر، أو انتهت صلاحية جلستك). سجّل الدخول مجددًا.";
+
+function lockRefusalMessage(reason) {
+  return LOCK_REFUSAL_MESSAGES[reason] || LOCK_UNVERIFIED_MESSAGE;
+}
+
+// أسباب إبطال قفل يملكه هذا التبويب فعلًا (refresh_admin_session_lock).
+// منفصلة عن قائمة الرفض لأن السؤال مختلف: لم نُرفض، بل كان لنا وفقدناه.
+// القيم منقولة كما هي من sql/p1_final_m21_admin_user_session_lock.sql:
+// not_owner_or_expired / mfa_aal2_required / unauthenticated.
+const LOCK_LOST_REASONS = Object.freeze({
+  not_owner_or_expired: LOCK_LOST_MESSAGE,
+});
+
+// تُرجع الرسالة الصريحة أو null. null = لا دليل مُعدَّد على فقدان القفل.
+function lockLostMessage(reason) {
+  return LOCK_REFUSAL_MESSAGES[reason] || LOCK_LOST_REASONS[reason] || null;
+}
+
+// ---------------------------------------------------------------------------
+// P-B — تنسيق تبويبات الأدمن لنفس الحساب
+// ---------------------------------------------------------------------------
+// ليس ضابطًا أمنيًا إطلاقًا: الضامن هو القفل في القاعدة (acquire يرفض
+// بثبات). هذا طبقة راحة فقط — إظهار فوري بدل انتظار نبضة الـ25 ثانية،
+// وإعادة محاولة واحدة عند تحرّر القفل.
+//
+// كل رسالة تُفلتر بـ user_id قبل أي أثر: تبويب لحساب آخر لا يتأثر، ولا
+// نلمس js/supabase-client.js ولا نغيّر التخزين (يبقى localStorage كما هو).
+const ADMIN_TAB_CHANNEL = "p17b_admin_tabs";
+
+function newAdminTabId() {
+  const c = globalThis.crypto;
+  const uid = c && typeof c.randomUUID === "function" ? c.randomUUID() : null;
+  return "tab-" + (uid || (Math.random().toString(36).slice(2) + Date.now().toString(36)));
+}
+const ADMIN_TAB_ID = newAdminTabId();
+
+let adminTabChannel = null;
+let adminSessionUserId = null; // user_id الذي يصدّق عليه هذا التبويب الآن
+
+function isSameUser(userId) {
+  return Boolean(userId) && Boolean(adminSessionUserId) && userId === adminSessionUserId;
+}
+
+// اسم مفتاح جلسة supabase في localStorage: sb-<project-ref>-auth-token.
+// نشتقّه من عنوان العميل نفسه بدل تثبيته نصًّا. إن فشل الاشتقاق نُرجع
+// null ونتخطّى مستمع storage — لا نخترع مفتاحًا ولا نُسقط المسار كله.
+function deriveAuthStorageKey() {
+  try {
+    const url = new URL(supabaseClient.supabaseUrl);
+    const ref = url.hostname.split(".")[0];
+    return ref ? "sb-" + ref + "-auth-token" : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// يُبثّ فقط؛ الاستقبال كله في onmessage داخل initAdminTabCoordination.
+// الفشل الوحيد المقبول هنا: Structured Clone أو قناة مغلقة — ولا يمنع
+// القفل نفسه من العمل، فهو في القاعدة أصلًا.
+function broadcastToAdminTabs(type) {
+  if (!adminTabChannel) return;
+  try {
+    adminTabChannel.postMessage({
+      type: type,
+      tab_id: ADMIN_TAB_ID,
+      user_id: adminSessionUserId,
+    });
+  } catch (e) {
+    console.error("تعذّر إشعار تبويبات الأدمن:", e);
+  }
+}
+
+// انتهاء الجلسة في هذا التبويب: إمّا حذفها تبويب آخر من localStorage
+// (storage/onAuthStateChange) أو أبلغنا عن ذلك زميل عبر البث.
+// signOut ليس مطلوبًا هنا ولا صالحًا: الجلسة اختفت أصلًا، ولا يُشترط أن
+// يكون هذا التبويب مالكًا للقفل.
+function onSessionLostLocally() {
+  stopLockHeartbeat();
+  currentLockToken = null;
+  currentProfile = null;
+  currentPermissions = [];
+  currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
+  currentAuthEmail = null;
+  showLoginWithRetry(LOCK_REFUSAL_MESSAGES.unauthenticated);
+}
+
+// نُفقد user_idknown قبل أي بث حتى لا تُكرَّر الرسالة في نبضة معيّنة.
+function dropSession(reason) {
+  const had = Boolean(adminSessionUserId);
+  adminSessionUserId = null;
+  if (had) broadcastToAdminTabs(reason);
+  onSessionLostLocally();
+}
+
+// كل قناة معزولة عن أختها: غياب أي واحدة (متصفح قديم، بيئة اختبار، أو
+// سياق يمنع التخزين) يجب ألا يمنع الإقلاع ولا يُسقط القنوات الأخريات.
+// كل هذا تحسين تجربة فقط — لا يجوز أن يوقف الصفحة.
+function initAdminTabCoordination() {
+  try { initBroadcastChannelCoordination(); } catch (e) { console.error("تعذّر تجهيز BroadcastChannel:", e); }
+  try { initStorageCoordination(); } catch (e) { console.error("تعذّر تجهيز مستمع storage:", e); }
+  try { initAuthStateCoordination(); } catch (e) { console.error("تعذّر تجهيز مستمع حالة المصادقة:", e); }
+}
+
+function initBroadcastChannelCoordination() {
+  // BroadcastChannel — متاح في كل المتصفحات الحديثة.
+  if (typeof BroadcastChannel !== "function") return;
+  try {
+    adminTabChannel = new BroadcastChannel(ADMIN_TAB_CHANNEL);
+    adminTabChannel.onmessage = function (event) {
+      const m = (event && event.data) || {};
+      if (m.tab_id === ADMIN_TAB_ID) return; // صدى إرسالنا نحن
+      if (!isSameUser(m.user_id)) return; // حساب آخر: لا علاقة له
+      if (m.type === "lock-released") {
+        // زميل حرّر القفل: محاولة واحدة فقط، والحارس يمنع التراكم.
+        retryOnce();
+      }
+      // "lock-acquired" لا يستدعي شيئًا: نحن خارج الداشبورد أصلًا إن كنّا
+      // مرفوضين، ولا نملك القفل إن كنّا داخلها. البث للتشخيص فقط.
+    };
+  } catch (e) {
+    adminTabChannel = null; // نكمل بدونه؛ الاستجابة ستصبح عند النبضة التالية
+  }
+}
+
+function initStorageCoordination() {
+  if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+  // شبكة أمان على حذف مفتاح الجلسة من localStorage بواسطة تبويب آخر.
+  // supabase-js يستمع لـ storage داخليًا ويشغّل onAuthStateChange، فهذه
+  // شبكة ثانية لا المصدر الأساسي.
+  const authKey = deriveAuthStorageKey();
+  if (!authKey) return; // اشتقاق فاشل: تُتخطّى القناة، ولا يُخترع مفتاح
+  window.addEventListener("storage", function (event) {
+    if (event.key !== authKey) return;
+    if (event.newValue !== null) return; // لم تُحذف الجلسة
+    if (!adminSessionUserId) return; // لا جلسة معروفة أصلًا: لا أثر
+    dropSession("session-ended");
+  });
+}
+
+function initAuthStateCoordination() {
+  const auth = supabaseClient && supabaseClient.auth;
+  if (!auth || typeof auth.onAuthStateChange !== "function") return;
+  // المصدر الأساسي لانتهاء الجلسة في تبويب آخر، والمصدر الوحيد الذي
+  // يكشف تبدّل user_id (تسجيل خروج ثم دخول حساب آخر في نفس المتصفح).
+  // تحذير supabase-js: لا نداء supabase داخل المُعالِج لأنه قد يجمّد —
+  // المعالج هنا قراءة الحالة و DOM فقط.
+  auth.onAuthStateChange(function (_event, session) {
+    if (!session) {
+      if (adminSessionUserId) dropSession("session-ended");
+      return;
+    }
+    const nextUserId = session.user && session.user.id;
+    if (adminSessionUserId && nextUserId !== adminSessionUserId) {
+      // تبدّل الحساب = فقدان جلسة كاملة: نظّف كل حالة هذا التبويب قبل
+      // أن نعتمد المعرّف الجديد.
+      onSessionLostLocally();
+    }
+    adminSessionUserId = nextUserId || null;
+  });
+}
 
 function stopLockHeartbeat() {
   if (lockHeartbeatTimer) {
@@ -156,9 +336,21 @@ function startLockHeartbeat() {
       const { data, error } = await supabaseClient.rpc("refresh_admin_session_lock", {
         p_session_token: currentLockToken,
       });
-      if (error || !data || data.ok !== true) {
-        await forceLockLogout("تم إنهاء جلستك الحالية (جلسة أدمن أخرى بدأت، أو انتهت صلاحية جلستك). سجّل الدخول مجددًا.");
+      // خطأ شبكة أو data فارغة = لا دليل على شيء. لا نُنهي الجلسة ولا
+      // ندّعي أن الحساب مفتوح في مكان آخر، وننتظر النبضة التالية.
+      if (error || !data || data.ok === true) return;
+
+      // سبب صريح مُعدَّد = إبطال مؤكد: هذا التبويب كان يملك القفل وفقده،
+      // فنُنهي جلسته محليًا ونعرض رسالة هذا السبب بعينه.
+      const reason = data.reason;
+      const message = lockLostMessage(reason);
+      if (message) {
+        await forceLockLogout(message);
+        return;
       }
+      // سبب مجهول: لا نُنهي الجلسة ولا ندّعي شيئًا، وننبقي القفل كما هو.
+      // TTL في القاعدة هو الضامن النهائي، فمحاولة النبضة التالية تفصل.
+      console.warn("سبب غير معروف من refresh_admin_session_lock:", reason);
     } catch (e) {
       // فشل شبكة عابر لا يُنهي الجلسة فورًا من طرف الواجهة — الـ TTL في
       // القاعدة هو الضامن النهائي؛ محاولة heartbeat التالية قد تنجح.
@@ -169,10 +361,22 @@ function startLockHeartbeat() {
 
 // محاولة الحصول على قفل الأدمن الوحيد. لا تُعرض الداشبورد أبدًا قبل
 // نجاح هذه الدالة — الفرض فعلي من القاعدة، وليس مجرد ستارة واجهة.
+//
+// تُرجع كائنًا لا قيمة منطقية: استدعاؤها الوحيد (enterDashboardWithLock)
+// يحتاج reason لعرض الرسالة الصحيحة، والسبب كان يُهدر تمامًا لأن كل
+// حالات الفشل كانت تتقلّص إلى false.
 async function acquireAdminLock() {
   const { data, error } = await supabaseClient.rpc("acquire_admin_session_lock");
-  if (error || !data || data.acquired !== true) {
-    return false;
+  if (error || !data) {
+    // لا نعرف شيئًا: RPC فشل أو الشبكة انقطعت. لا يدّعي أحد أنه قفل.
+    return { acquired: false, reason: null, message: LOCK_UNVERIFIED_MESSAGE };
+  }
+  if (data.acquired !== true) {
+    return {
+      acquired: false,
+      reason: data.reason || null,
+      message: lockRefusalMessage(data.reason),
+    };
   }
   currentLockToken = data.session_token;
   try { sessionStorage.setItem(LOCK_TOKEN_STORAGE_KEY, currentLockToken); } catch (e) {
@@ -180,7 +384,8 @@ async function acquireAdminLock() {
     // من العمل، فقط يعني أن استعادته بعد F5 لن تكون ممكنة لهذا التبويب.
   }
   startLockHeartbeat();
-  return true;
+  broadcastToAdminTabs("lock-acquired");
+  return { acquired: true, reason: null, message: null };
 }
 
 // محاولة استعادة قفل يملكه هذا التبويب بالفعل، بعد إعادة تحميل الصفحة
@@ -223,10 +428,13 @@ async function restoreAdminLock() {
   return true;
 }
 
-// إنهاء قسري للجلسة (heartbeat فشل أو القفل لم يعد ملكنا). لا نحاول
-// release هنا (غالبًا لم نعد نملك القفل أصلاً)، فقط تنظيف + signOut.
+// إنهاء قسري للجلسة (القلب أعاد سبب إبطال صريحًا: كان هذا التبويب يملك
+// القفل وفقده). لا نحاول release هنا (غالبًا لم نعد نملك القفل أصلاً)،
+// فقط تنظيف + signOut محلي: هذا هو المسار الوحيد الباقي الذي يستدعي
+// signOut بعد استحواذ فعلي على القفل.
 async function forceLockLogout(message) {
   stopLockHeartbeat();
+  broadcastToAdminTabs("session-ended");
   currentLockToken = null;
   try { sessionStorage.removeItem(LOCK_TOKEN_STORAGE_KEY); } catch (e) {
     // تجاهل — لا تأثير عملي إن فشل هذا فقط
@@ -236,7 +444,7 @@ async function forceLockLogout(message) {
   currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
   currentAuthEmail = null;
   try {
-    await supabaseClient.auth.signOut();
+    await supabaseClient.auth.signOut({ scope: "local" });
   } catch (e) {
     // نظّف واجهة تسجيل الدخول حتى لو فشل signOut نفسه (مثلاً لا اتصال)
   }
@@ -256,6 +464,7 @@ async function releaseAdminLock() {
   }
   try {
     await supabaseClient.rpc("release_admin_session_lock", { p_session_token: token });
+    broadcastToAdminTabs("lock-released");
   } catch (e) {
     console.error("تعذّر تحرير قفل الأدمن (سيُحرَّر تلقائيًا خلال 90 ثانية عبر TTL):", e);
   }
@@ -267,21 +476,69 @@ async function enterDashboardWithLock(email) {
   // أولًا: هل هذا التبويب يملك قفلًا بالفعل من قبل إعادة التحميل؟ إن
   // نجحت الاستعادة، لا حاجة لأي acquire جديد — نفس القفل/التوكن يستمر.
   const restored = await restoreAdminLock();
-  const acquired = restored || (await acquireAdminLock());
-  if (!acquired) {
+  const result = restored
+    ? { acquired: true, reason: null, message: null }
+    : await acquireAdminLock();
+  if (!result.acquired) {
+    // هذا التبويب لم يكن صاحب قفل: لا الآن ولا في أي محاولة سابقة، فـ
+    // currentLockToken كان null ولن يدخل acquire أصلًا غير مملوك. لا يجوز
+    // أن ينهي جلسة قد تكون حيّة في تبويب آخر لنفس الحساب أو على جهاز آخر
+    // — فالمشكلة أن signOut هنا كان يخلع الجلسة من تحت أقدام نظير حيّ.
+    // ما نفعله: نُخفي الداشبورد ونُبقي الجلسة كما هي، مع رسالة السبب.
     currentProfile = null;
     currentPermissions = [];
     currentMfaState = { hasVerifiedFactor: false, currentLevel: "aal1", factorId: null };
     currentAuthEmail = null;
-    try {
-      await supabaseClient.auth.signOut();
-    } catch (e) {
-      // نظّف واجهة تسجيل الدخول حتى لو فشل signOut نفسه
-    }
-    showLogin("يوجد مسؤول آخر يستخدم لوحة التحكم حاليًا. حاول لاحقًا.");
+    showLoginWithRetry(result.message);
     return;
   }
   showDashboard(email);
+}
+
+// شاشة رفض/خطأ: نفس showLogin() مع زر إعادة محاولة صريح، لأن السبب قد
+// يكون نافذة أخرى أُغلقت. الزر محاولة واحدة لكل ضغطة — لا حلقة ولا مؤقت.
+function showLoginWithRetry(message) {
+  showLogin(message);
+  const box = document.getElementById("login-box");
+  const btn = ensureRetryButton();
+  if (box && btn) {
+    box.appendChild(btn);
+    btn.hidden = false;
+  }
+}
+
+// الزر يُنشأ من هنا لا من index.html: ملف HTML خارج نطاق P-B.
+function ensureRetryButton() {
+  let btn = document.getElementById("login-retry-btn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "login-retry-btn";
+    btn.type = "button";
+    btn.className = "btn btn-primary";
+    btn.style.width = "100%";
+    btn.style.marginTop = "10px";
+    btn.textContent = "إعادة المحاولة";
+    btn.hidden = true;
+    btn.addEventListener("click", function () { retryOnce(); });
+  }
+  return btn;
+}
+
+// نقطة إعادة المحاولة الوحيدة: تُعيد قراءة الجلسة من المصدر ثم تسلك
+// المسار الطبيعي (checkAuthAndInit) فتغطي رفض القفل وفشل تحميل الملف
+// على السواء. حارس in-flight يمنع تداخل نبضة مع ضغطة، ويسمح بمسار واحد
+// فقط لكل حدث.
+async function retryOnce() {
+  if (lockRetryInFlight) return;
+  lockRetryInFlight = true;
+  const btn = document.getElementById("login-retry-btn");
+  if (btn) btn.disabled = true;
+  try {
+    await checkAuthAndInit();
+  } finally {
+    lockRetryInFlight = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function refreshMfaState() {
@@ -303,6 +560,9 @@ async function refreshMfaState() {
 async function checkAuthAndInit() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
+    // مزامنة مبكرة لـ user_id حتى لا تُفلت أول رسالة تبويب قبل وصول
+    // onAuthStateChange. عند تبديل الحساب يتكفّل onAuthStateChange بالتنظيف.
+    if (!adminSessionUserId) adminSessionUserId = session.user.id;
     await loadCurrentUserAuthorization(session.user);
   } else {
     showLogin();
@@ -314,12 +574,16 @@ async function loadCurrentUserAuthorization(authUser) {
     .from("profiles").select("*").eq("id", authUser.id).maybeSingle();
 
   if (profileError || !profile) {
-    showLogin("تعذّر تحميل صلاحيات الحساب. حاول تسجيل الدخول مجددًا.");
-    await supabaseClient.auth.signOut();
+    // لا signOut هنا: هذا التبويب لم يستحوذ على قفل بعد — الاستدعاء يسبق
+    // enterDashboardWithLock — فالجلسة قد تكون حيّة في تبويب آخر لنفس
+    // الحساب. نكتفي برسالة خطأ مع زر إعادة محاولة.
+    showLoginWithRetry("تعذّر تحميل صلاحيات الحساب. حاول مجددًا.");
     return;
   }
 
   if (!profile.active) {
+    // إبطال عام مقصود: تعطيل الحساب يجب أن يخرجه من كل الأجهزة، لا من
+    // هذا التبويب فقط.
     showLogin("هذا الحساب معطَّل حاليًا. تواصل مع المسؤول.");
     await supabaseClient.auth.signOut();
     return;
@@ -364,6 +628,10 @@ function showLogin(errorMsg) {
   document.getElementById("admin-user-info").textContent = "";
   const errorEl = document.getElementById("login-error");
   if (errorMsg) { errorEl.textContent = errorMsg; errorEl.style.display = "block"; }
+  // شاشة دخول عادية لا تعرض زر إعادة المحاولة: يظل محفوظًا في DOM
+  // (حتى لا نفقد المستمع) لكن مخفيًا.
+  const retryBtn = document.getElementById("login-retry-btn");
+  if (retryBtn) { retryBtn.hidden = true; retryBtn.disabled = false; }
 }
 
 function showMfaVerify() {
@@ -512,6 +780,8 @@ document.getElementById("mfa-verify-form").addEventListener("submit", async (e) 
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await releaseAdminLock();
+  // signOut عام هنا مقصود وليس استثناءً على قاعدة P-B: المستخدم هو من
+  // طلب الخروج، وقد كان هذا التبويب مالكًا للقفل (حُرّر في السطر أعلاه).
   await supabaseClient.auth.signOut();
   currentProfile = null;
   currentPermissions = [];
@@ -3781,4 +4051,5 @@ function escHtml(value) {
   });
 }
 
+initAdminTabCoordination();
 checkAuthAndInit();

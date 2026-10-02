@@ -22,6 +22,21 @@ const assert = require("assert");
 const ROOT = path.join(__dirname, "..");
 const FIRST_SESSION_WINS = path.join(ROOT, "sql", "phase4c_p1_7b_first_session_wins.sql");
 const M11 = path.join(ROOT, "sql", "p1_final_m11_admin_session_lock_acl.sql");
+const M21 = path.join(ROOT, "sql", "p1_final_m21_admin_user_session_lock.sql");
+
+/*
+ * M21 (P-A, Per-Account Lock) — تعديل مقصود لهذا الملف، والسبب مكتوب:
+ *
+ * كان effectiveAcquireBody() يختار M11 كـ«التعريف الفعّال» لثلاث
+ * دوال القفل. بعد M21 أصبح هناك تعريف أحدث (admin_user_session_lock
+ * بمفتاح user_id) يسبق M11 في الترتيب اليدوي، فالفحص صار يقرأ نصًا
+ * قديماً لا يُنفَّذ على قاعدة حيّة.
+ *
+ * الحل: اختيار أحدث تعريف موجود حسب أولوية M21 ← M11 ← phase4c.
+ * لا يُحذف أي فحص قائم، ولا يُخفَّف أي شرط: M15 كان يضيف بوابة AAL2
+ * ولم يكن هذا الملف يفحصها، والبند الجديد (عزل القفل بالحساب) أُضيف
+ * كفحوص مستقلة في test-admin-per-account-lock.js.
+ */
 
 let failures = 0;
 let passed = 0;
@@ -39,10 +54,12 @@ function test(name, fn) {
 }
 
 function effectiveAcquireBody() {
-  // M11 هو CREAT OR REPLACE الأحدث للدالة ضمن sql/ — نصه هو التعريف
-  // الفعّال من حيث ترتيب التطبيق اليدوي. نفحص ملف M11 أولًا وبحضوره
-  // يُعتبر التعريف الفعّال؛ غيابه (تراجع/إعادة) يُفحص ملف phase4c.
-  return fs.readFileSync(fs.existsSync(M11) ? M11 : FIRST_SESSION_WINS, "utf-8");
+  // M21 (P-A) هو الأحدث تعريفًا لـ acquire من بين الملفات الموجودة، ثم
+  // M11، ثم phase4c. نقرأ أول ملف موجود حسب هذا الترتيب لأنه يمثّل
+  // التعريف الذي سيُطبَّق فعليًا على القاعدة بحسب ترتيب التطبيق اليدوي.
+  // (قبل M21 كان الاختيار M11 ← phase4c فقط.)
+  const candidate = [M21, M11, FIRST_SESSION_WINS].find((p) => fs.existsSync(p));
+  return fs.readFileSync(candidate, "utf-8");
 }
 
 const acquire = effectiveAcquireBody();
